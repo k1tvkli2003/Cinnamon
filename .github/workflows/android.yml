@@ -74,7 +74,8 @@ jobs:
           fi
 
       - name: Precompile Lint Code Check
-        run: ./gradlew lint --continue || echo "Warning: Lint warnings found. Continuing build..."
+        run: |
+          ./gradlew lint --continue || echo "Warning: Lint warnings found. Continuing build..."
 
       - name: Build Arm & Generic APKs (Release & Debug)
         env:
