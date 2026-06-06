@@ -1,0 +1,6 @@
+{
+  "name": "MedLex",
+  "description": "Advanced Dual-Core English Learning app for Medical Students.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
