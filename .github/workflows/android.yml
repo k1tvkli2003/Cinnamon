@@ -62,15 +62,7 @@ jobs:
             echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
           else
             echo "No custom release keystore provided. Generating a fallback self-signed keystore for compilations..."
-            keytool -genkeypair -v \
-              -keystore my-upload-key.jks \
-              -alias upload \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass "android" \
-              -keypass "android" \
-              -dname "CN=Android,OU=Android,O=Android,L=Android,S=Android,C=US"
+            keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass "android" -keypass "android" -dname "CN=Android,OU=Android,O=Android,L=Android,S=Android,C=US"
           fi
 
       - name: Precompile Lint Code Check
@@ -81,7 +73,7 @@ jobs:
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || 'android' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'android' }}
-          KEYSTORE_PATH: "my-upload-key.jks"
+          KEYSTORE_PATH: "${{ github.workspace }}/my-upload-key.jks"
         run: ./gradlew assembleDebug assembleRelease --stacktrace
 
       - name: Package & Version Artifacts
