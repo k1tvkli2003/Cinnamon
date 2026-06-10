@@ -1,21 +1,30 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Cinnamon 🤎
 
-# Run and deploy your AI Studio app
+**Cinnamon** is a personal English-perfection companion built for one demanding reader: an advanced (above-B2) medical student who already knows the medicine and now wants the *language* — pronunciation, natural usage, collocations, register, and the difference between "concerning for" and "consistent with."
 
-This contains everything you need to run your app locally.
+It is not a beginner app. Nothing in it is basic.
 
-View your app in AI Studio: https://ai.studio/apps/717bb77f-b7b3-43f8-8330-116aafb707be
+## What's inside
 
-## Run Locally
+- **A dictionary-grade lexicon** — 240+ headwords across clinical English (cardiology, pulmonology, nephrology, neurology, pathophysiology, and more) and high-level general English (precision verbs, nuanced adjectives, academic register, idiom). Every entry carries IPA, a precise definition, a plain-language gloss, etymology, morpheme breakdown, synonyms/antonyms, real collocations, a ward example, an everyday example, and a usage note on the traps.
+- **Word building** — ~160 medical prefixes, roots, and suffixes with meanings and worked examples.
+- **Ward abbreviations** — ~95 abbreviations an extern must *read and say* correctly, each with how it's actually pronounced and used on rounds.
+- **Communication phrases** — presenting on rounds, breaking bad news, colleague handovers, academic writing, and natural conversation.
+- **Mix-ups** — the confusable pairs that change a chart note (palpation vs palpitation, ileum vs ilium, dysphagia vs dysphasia…).
+- **Spaced repetition** — every word is an SM-2 flashcard; the app schedules reviews so vocabulary actually sticks.
+- **Word games** — Cloze Clinic (fill the blank in real sentences), Word Match, and Sentence Unscramble, all drawing from the same lexicon.
+- **AI practice** — standardized-patient roleplay, clinical sim labs (SBAR, SPIKES, morning report), and a "Make It Native" rewriter, powered by an OpenAI-compatible endpoint.
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+## Design
 
+Cinnamon wears a warm spice palette — toasted dark by default, with a warm-cream light mode and a true-black AMOLED mode. Soft corners, springy motion, a serif for headwords, and full edge-to-edge layout.
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+## Build & run
+
+**Prerequisites:** [Android Studio](https://developer.android.com/studio)
+
+1. Open the project in Android Studio and let it sync.
+2. (Optional, for AI features) create a `.env` file in the project root and set `AVALAI_API_KEY` to an OpenAI-compatible key (see `.env.example`). Without a key, the AI screens run in a built-in demo mode.
+3. Run on an emulator or device. The full lexicon seeds into a local Room database on first launch.
+
+The dictionary data lives as plain JSON under `app/src/main/assets/lexicon/` and is easy to extend.

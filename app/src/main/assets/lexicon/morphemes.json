@@ -1,0 +1,1124 @@
+{
+  "morphemes": [
+    {
+      "form": "a-",
+      "kind": "prefix",
+      "meaning": "without, absence of",
+      "origin": "Greek a- (not)",
+      "examples": ["apnea", "asystole", "atrophy"]
+    },
+    {
+      "form": "an-",
+      "kind": "prefix",
+      "meaning": "without, not",
+      "origin": "Greek an- (not)",
+      "examples": ["anemia", "anuria", "anesthesia"]
+    },
+    {
+      "form": "ab-",
+      "kind": "prefix",
+      "meaning": "away from",
+      "origin": "Latin ab (from)",
+      "examples": ["abduction", "aberrant", "abnormal"]
+    },
+    {
+      "form": "ad-",
+      "kind": "prefix",
+      "meaning": "toward, near",
+      "origin": "Latin ad (to)",
+      "examples": ["adduction", "adhesion", "adrenal"]
+    },
+    {
+      "form": "ante-",
+      "kind": "prefix",
+      "meaning": "before, in front of",
+      "origin": "Latin ante (before)",
+      "examples": ["antepartum", "antenatal", "anteflexion"]
+    },
+    {
+      "form": "anti-",
+      "kind": "prefix",
+      "meaning": "against, opposing",
+      "origin": "Greek anti (against)",
+      "examples": ["antibiotic", "anticoagulant", "antiemetic"]
+    },
+    {
+      "form": "auto-",
+      "kind": "prefix",
+      "meaning": "self",
+      "origin": "Greek autos (self)",
+      "examples": ["autoimmune", "autograft", "autolysis"]
+    },
+    {
+      "form": "bi-",
+      "kind": "prefix",
+      "meaning": "two, twice",
+      "origin": "Latin bi (two)",
+      "examples": ["bilateral", "bifurcation", "bicuspid"]
+    },
+    {
+      "form": "brady-",
+      "kind": "prefix",
+      "meaning": "slow",
+      "origin": "Greek bradys (slow)",
+      "examples": ["bradycardia", "bradypnea", "bradykinesia"]
+    },
+    {
+      "form": "circum-",
+      "kind": "prefix",
+      "meaning": "around",
+      "origin": "Latin circum (around)",
+      "examples": ["circumcision", "circumference", "circumduction"]
+    },
+    {
+      "form": "contra-",
+      "kind": "prefix",
+      "meaning": "against, opposite",
+      "origin": "Latin contra (against)",
+      "examples": ["contraindication", "contralateral", "contraception"]
+    },
+    {
+      "form": "dia-",
+      "kind": "prefix",
+      "meaning": "through, complete",
+      "origin": "Greek dia (through)",
+      "examples": ["diarrhea", "diagnosis", "dialysis"]
+    },
+    {
+      "form": "dys-",
+      "kind": "prefix",
+      "meaning": "bad, difficult, painful",
+      "origin": "Greek dys (bad)",
+      "examples": ["dyspnea", "dysphagia", "dysuria"]
+    },
+    {
+      "form": "ecto-",
+      "kind": "prefix",
+      "meaning": "outside, outer",
+      "origin": "Greek ektos (outside)",
+      "examples": ["ectopic", "ectoderm", "ectopia"]
+    },
+    {
+      "form": "endo-",
+      "kind": "prefix",
+      "meaning": "within, inner",
+      "origin": "Greek endon (within)",
+      "examples": ["endoscopy", "endocarditis", "endotracheal"]
+    },
+    {
+      "form": "epi-",
+      "kind": "prefix",
+      "meaning": "upon, above, over",
+      "origin": "Greek epi (upon)",
+      "examples": ["epidermis", "epigastric", "epidural"]
+    },
+    {
+      "form": "eu-",
+      "kind": "prefix",
+      "meaning": "good, normal, true",
+      "origin": "Greek eu (good)",
+      "examples": ["euthyroid", "euglycemia", "eupnea"]
+    },
+    {
+      "form": "exo-",
+      "kind": "prefix",
+      "meaning": "outside, outward",
+      "origin": "Greek exo (outside)",
+      "examples": ["exocrine", "exogenous", "exophthalmos"]
+    },
+    {
+      "form": "extra-",
+      "kind": "prefix",
+      "meaning": "outside of, beyond",
+      "origin": "Latin extra (outside)",
+      "examples": ["extracellular", "extravasation", "extrahepatic"]
+    },
+    {
+      "form": "hemi-",
+      "kind": "prefix",
+      "meaning": "half",
+      "origin": "Greek hemi (half)",
+      "examples": ["hemiplegia", "hemiparesis", "hemicolectomy"]
+    },
+    {
+      "form": "hyper-",
+      "kind": "prefix",
+      "meaning": "excessive, above normal",
+      "origin": "Greek hyper (over)",
+      "examples": ["hypertension", "hyperglycemia", "hyperkalemia"]
+    },
+    {
+      "form": "hypo-",
+      "kind": "prefix",
+      "meaning": "deficient, below normal",
+      "origin": "Greek hypo (under)",
+      "examples": ["hypotension", "hypoglycemia", "hypokalemia"]
+    },
+    {
+      "form": "infra-",
+      "kind": "prefix",
+      "meaning": "below, beneath",
+      "origin": "Latin infra (below)",
+      "examples": ["infraorbital", "infraclavicular", "inframammary"]
+    },
+    {
+      "form": "inter-",
+      "kind": "prefix",
+      "meaning": "between",
+      "origin": "Latin inter (between)",
+      "examples": ["intercostal", "intervertebral", "interstitial"]
+    },
+    {
+      "form": "intra-",
+      "kind": "prefix",
+      "meaning": "within",
+      "origin": "Latin intra (within)",
+      "examples": ["intravenous", "intramuscular", "intracranial"]
+    },
+    {
+      "form": "iso-",
+      "kind": "prefix",
+      "meaning": "equal, same",
+      "origin": "Greek isos (equal)",
+      "examples": ["isotonic", "isometric", "isograft"]
+    },
+    {
+      "form": "macro-",
+      "kind": "prefix",
+      "meaning": "large, long",
+      "origin": "Greek makros (large)",
+      "examples": ["macrophage", "macrocytic", "macroscopic"]
+    },
+    {
+      "form": "mal-",
+      "kind": "prefix",
+      "meaning": "bad, poor",
+      "origin": "Latin malus (bad)",
+      "examples": ["malabsorption", "malformation", "malunion"]
+    },
+    {
+      "form": "meso-",
+      "kind": "prefix",
+      "meaning": "middle",
+      "origin": "Greek mesos (middle)",
+      "examples": ["mesoderm", "mesentery", "mesothelioma"]
+    },
+    {
+      "form": "meta-",
+      "kind": "prefix",
+      "meaning": "change, beyond, after",
+      "origin": "Greek meta (after)",
+      "examples": ["metastasis", "metabolism", "metaplasia"]
+    },
+    {
+      "form": "micro-",
+      "kind": "prefix",
+      "meaning": "small",
+      "origin": "Greek mikros (small)",
+      "examples": ["microcytic", "microscope", "microcephaly"]
+    },
+    {
+      "form": "mono-",
+      "kind": "prefix",
+      "meaning": "one, single",
+      "origin": "Greek monos (single)",
+      "examples": ["mononucleosis", "monocyte", "monoplegia"]
+    },
+    {
+      "form": "multi-",
+      "kind": "prefix",
+      "meaning": "many",
+      "origin": "Latin multus (many)",
+      "examples": ["multiparous", "multifocal", "multinodular"]
+    },
+    {
+      "form": "neo-",
+      "kind": "prefix",
+      "meaning": "new",
+      "origin": "Greek neos (new)",
+      "examples": ["neoplasm", "neonatal", "neovascularization"]
+    },
+    {
+      "form": "oligo-",
+      "kind": "prefix",
+      "meaning": "few, scanty",
+      "origin": "Greek oligos (few)",
+      "examples": ["oliguria", "oligomenorrhea", "oligospermia"]
+    },
+    {
+      "form": "pan-",
+      "kind": "prefix",
+      "meaning": "all, entire",
+      "origin": "Greek pan (all)",
+      "examples": ["pancytopenia", "pandemic", "panhypopituitarism"]
+    },
+    {
+      "form": "para-",
+      "kind": "prefix",
+      "meaning": "beside, near, abnormal",
+      "origin": "Greek para (beside)",
+      "examples": ["paralysis", "paraplegia", "parathyroid"]
+    },
+    {
+      "form": "peri-",
+      "kind": "prefix",
+      "meaning": "around, surrounding",
+      "origin": "Greek peri (around)",
+      "examples": ["pericarditis", "peritoneum", "perianal"]
+    },
+    {
+      "form": "poly-",
+      "kind": "prefix",
+      "meaning": "many, much",
+      "origin": "Greek polys (many)",
+      "examples": ["polyuria", "polydipsia", "polycythemia"]
+    },
+    {
+      "form": "post-",
+      "kind": "prefix",
+      "meaning": "after, behind",
+      "origin": "Latin post (after)",
+      "examples": ["postpartum", "postoperative", "postprandial"]
+    },
+    {
+      "form": "pre-",
+      "kind": "prefix",
+      "meaning": "before, in front of",
+      "origin": "Latin prae (before)",
+      "examples": ["preoperative", "prenatal", "premature"]
+    },
+    {
+      "form": "pro-",
+      "kind": "prefix",
+      "meaning": "before, on behalf of",
+      "origin": "Greek and Latin pro (before)",
+      "examples": ["prognosis", "prophylaxis", "prodrome"]
+    },
+    {
+      "form": "pseudo-",
+      "kind": "prefix",
+      "meaning": "false",
+      "origin": "Greek pseudes (false)",
+      "examples": ["pseudoaneurysm", "pseudocyst", "pseudohyponatremia"]
+    },
+    {
+      "form": "retro-",
+      "kind": "prefix",
+      "meaning": "behind, backward",
+      "origin": "Latin retro (backward)",
+      "examples": ["retroperitoneal", "retrosternal", "retrograde"]
+    },
+    {
+      "form": "semi-",
+      "kind": "prefix",
+      "meaning": "half, partial",
+      "origin": "Latin semi (half)",
+      "examples": ["semilunar", "semipermeable", "semicomatose"]
+    },
+    {
+      "form": "sub-",
+      "kind": "prefix",
+      "meaning": "under, below",
+      "origin": "Latin sub (under)",
+      "examples": ["subcutaneous", "sublingual", "subdural"]
+    },
+    {
+      "form": "supra-",
+      "kind": "prefix",
+      "meaning": "above, upper",
+      "origin": "Latin supra (above)",
+      "examples": ["supraclavicular", "suprapubic", "supraventricular"]
+    },
+    {
+      "form": "syn-",
+      "kind": "prefix",
+      "meaning": "together, with (sym- before b, m, p)",
+      "origin": "Greek syn (with)",
+      "examples": ["syndrome", "synapse", "syndactyly"]
+    },
+    {
+      "form": "tachy-",
+      "kind": "prefix",
+      "meaning": "fast, rapid",
+      "origin": "Greek tachys (swift)",
+      "examples": ["tachycardia", "tachypnea", "tachyarrhythmia"]
+    },
+    {
+      "form": "trans-",
+      "kind": "prefix",
+      "meaning": "across, through",
+      "origin": "Latin trans (across)",
+      "examples": ["transfusion", "transplant", "transurethral"]
+    },
+    {
+      "form": "leuk/o",
+      "kind": "root",
+      "meaning": "white",
+      "origin": "Greek leukos (white)",
+      "examples": ["leukocyte", "leukemia", "leukocytosis"]
+    },
+    {
+      "form": "erythr/o",
+      "kind": "root",
+      "meaning": "red",
+      "origin": "Greek erythros (red)",
+      "examples": ["erythrocyte", "erythropoietin", "erythema"]
+    },
+    {
+      "form": "cyan/o",
+      "kind": "root",
+      "meaning": "blue",
+      "origin": "Greek kyanos (dark blue)",
+      "examples": ["cyanosis", "cyanotic", "acrocyanosis"]
+    },
+    {
+      "form": "melan/o",
+      "kind": "root",
+      "meaning": "black, dark",
+      "origin": "Greek melas (black)",
+      "examples": ["melanoma", "melanocyte", "melanin"]
+    },
+    {
+      "form": "xanth/o",
+      "kind": "root",
+      "meaning": "yellow",
+      "origin": "Greek xanthos (yellow)",
+      "examples": ["xanthoma", "xanthelasma", "xanthochromia"]
+    },
+    {
+      "form": "cardi/o",
+      "kind": "root",
+      "meaning": "heart",
+      "origin": "Greek kardia (heart)",
+      "examples": ["cardiomyopathy", "cardiomegaly", "pericarditis"]
+    },
+    {
+      "form": "angi/o",
+      "kind": "root",
+      "meaning": "vessel",
+      "origin": "Greek angeion (vessel)",
+      "examples": ["angiography", "angioplasty", "angioedema"]
+    },
+    {
+      "form": "arteri/o",
+      "kind": "root",
+      "meaning": "artery",
+      "origin": "Greek arteria (artery)",
+      "examples": ["arteriosclerosis", "arteriography", "arteriole"]
+    },
+    {
+      "form": "phleb/o",
+      "kind": "root",
+      "meaning": "vein",
+      "origin": "Greek phleps (vein)",
+      "examples": ["phlebitis", "phlebotomy", "thrombophlebitis"]
+    },
+    {
+      "form": "hem/o",
+      "kind": "root",
+      "meaning": "blood",
+      "origin": "Greek haima (blood)",
+      "examples": ["hemorrhage", "hemolysis", "hemostasis"]
+    },
+    {
+      "form": "hemat/o",
+      "kind": "root",
+      "meaning": "blood",
+      "origin": "Greek haima (blood)",
+      "examples": ["hematoma", "hematuria", "hematemesis"]
+    },
+    {
+      "form": "thromb/o",
+      "kind": "root",
+      "meaning": "clot",
+      "origin": "Greek thrombos (clot)",
+      "examples": ["thrombosis", "thrombocytopenia", "thrombolysis"]
+    },
+    {
+      "form": "splen/o",
+      "kind": "root",
+      "meaning": "spleen",
+      "origin": "Greek splen (spleen)",
+      "examples": ["splenomegaly", "splenectomy", "hypersplenism"]
+    },
+    {
+      "form": "pneum/o",
+      "kind": "root",
+      "meaning": "lung, air",
+      "origin": "Greek pneumon (lung)",
+      "examples": ["pneumonia", "pneumothorax", "pneumonectomy"]
+    },
+    {
+      "form": "pulmon/o",
+      "kind": "root",
+      "meaning": "lung",
+      "origin": "Latin pulmo (lung)",
+      "examples": ["pulmonary", "pulmonologist", "cardiopulmonary"]
+    },
+    {
+      "form": "bronch/o",
+      "kind": "root",
+      "meaning": "bronchus, airway",
+      "origin": "Greek bronchos (windpipe)",
+      "examples": ["bronchitis", "bronchoscopy", "bronchodilator"]
+    },
+    {
+      "form": "laryng/o",
+      "kind": "root",
+      "meaning": "larynx, voice box",
+      "origin": "Greek larynx (throat)",
+      "examples": ["laryngitis", "laryngoscopy", "laryngospasm"]
+    },
+    {
+      "form": "trache/o",
+      "kind": "root",
+      "meaning": "trachea, windpipe",
+      "origin": "Greek tracheia (rough artery)",
+      "examples": ["tracheostomy", "tracheitis", "endotracheal"]
+    },
+    {
+      "form": "rhin/o",
+      "kind": "root",
+      "meaning": "nose",
+      "origin": "Greek rhis (nose)",
+      "examples": ["rhinitis", "rhinorrhea", "rhinoplasty"]
+    },
+    {
+      "form": "thorac/o",
+      "kind": "root",
+      "meaning": "chest",
+      "origin": "Greek thorax (chest)",
+      "examples": ["thoracotomy", "thoracentesis", "thoracoscopy"]
+    },
+    {
+      "form": "nephr/o",
+      "kind": "root",
+      "meaning": "kidney",
+      "origin": "Greek nephros (kidney)",
+      "examples": ["nephritis", "nephropathy", "nephrectomy"]
+    },
+    {
+      "form": "ren/o",
+      "kind": "root",
+      "meaning": "kidney",
+      "origin": "Latin ren (kidney)",
+      "examples": ["renal", "renovascular", "renogram"]
+    },
+    {
+      "form": "pyel/o",
+      "kind": "root",
+      "meaning": "renal pelvis",
+      "origin": "Greek pyelos (basin)",
+      "examples": ["pyelonephritis", "pyelogram", "pyeloplasty"]
+    },
+    {
+      "form": "cyst/o",
+      "kind": "root",
+      "meaning": "bladder, sac",
+      "origin": "Greek kystis (bladder)",
+      "examples": ["cystitis", "cystoscopy", "cystectomy"]
+    },
+    {
+      "form": "ur/o",
+      "kind": "root",
+      "meaning": "urine, urinary tract",
+      "origin": "Greek ouron (urine)",
+      "examples": ["urology", "urosepsis", "urinalysis"]
+    },
+    {
+      "form": "ureter/o",
+      "kind": "root",
+      "meaning": "ureter",
+      "origin": "Greek oureter (ureter)",
+      "examples": ["ureteritis", "ureteroscopy", "ureterostomy"]
+    },
+    {
+      "form": "urethr/o",
+      "kind": "root",
+      "meaning": "urethra",
+      "origin": "Greek ourethra (urethra)",
+      "examples": ["urethritis", "urethral", "urethroplasty"]
+    },
+    {
+      "form": "gastr/o",
+      "kind": "root",
+      "meaning": "stomach",
+      "origin": "Greek gaster (stomach)",
+      "examples": ["gastritis", "gastrectomy", "gastroenteritis"]
+    },
+    {
+      "form": "enter/o",
+      "kind": "root",
+      "meaning": "intestine, small bowel",
+      "origin": "Greek enteron (intestine)",
+      "examples": ["enteritis", "enteral", "dysentery"]
+    },
+    {
+      "form": "col/o",
+      "kind": "root",
+      "meaning": "colon, large intestine",
+      "origin": "Greek kolon (colon)",
+      "examples": ["colitis", "colonoscopy", "colectomy"]
+    },
+    {
+      "form": "proct/o",
+      "kind": "root",
+      "meaning": "rectum, anus",
+      "origin": "Greek proktos (anus)",
+      "examples": ["proctitis", "proctoscopy", "proctology"]
+    },
+    {
+      "form": "esophag/o",
+      "kind": "root",
+      "meaning": "esophagus",
+      "origin": "Greek oisophagos (gullet)",
+      "examples": ["esophagitis", "esophageal", "esophagoscopy"]
+    },
+    {
+      "form": "hepat/o",
+      "kind": "root",
+      "meaning": "liver",
+      "origin": "Greek hepar (liver)",
+      "examples": ["hepatitis", "hepatomegaly", "hepatotoxic"]
+    },
+    {
+      "form": "pancreat/o",
+      "kind": "root",
+      "meaning": "pancreas",
+      "origin": "Greek pankreas (sweetbread)",
+      "examples": ["pancreatitis", "pancreatectomy", "pancreatic"]
+    },
+    {
+      "form": "chol/e",
+      "kind": "root",
+      "meaning": "bile, gall",
+      "origin": "Greek chole (bile)",
+      "examples": ["cholelithiasis", "cholestasis", "cholangitis"]
+    },
+    {
+      "form": "cholecyst/o",
+      "kind": "root",
+      "meaning": "gallbladder",
+      "origin": "Greek chole (bile) plus kystis (bladder)",
+      "examples": ["cholecystitis", "cholecystectomy", "cholecystogram"]
+    },
+    {
+      "form": "encephal/o",
+      "kind": "root",
+      "meaning": "brain",
+      "origin": "Greek enkephalos (brain)",
+      "examples": ["encephalitis", "encephalopathy", "encephalocele"]
+    },
+    {
+      "form": "myel/o",
+      "kind": "root",
+      "meaning": "spinal cord; bone marrow",
+      "origin": "Greek myelos (marrow)",
+      "examples": ["myelopathy", "osteomyelitis", "myelogram"]
+    },
+    {
+      "form": "neur/o",
+      "kind": "root",
+      "meaning": "nerve",
+      "origin": "Greek neuron (nerve)",
+      "examples": ["neuropathy", "neuralgia", "neurology"]
+    },
+    {
+      "form": "cerebr/o",
+      "kind": "root",
+      "meaning": "cerebrum, brain",
+      "origin": "Latin cerebrum (brain)",
+      "examples": ["cerebral", "cerebrovascular", "intracerebral"]
+    },
+    {
+      "form": "oste/o",
+      "kind": "root",
+      "meaning": "bone",
+      "origin": "Greek osteon (bone)",
+      "examples": ["osteoporosis", "osteomyelitis", "osteoarthritis"]
+    },
+    {
+      "form": "arthr/o",
+      "kind": "root",
+      "meaning": "joint",
+      "origin": "Greek arthron (joint)",
+      "examples": ["arthritis", "arthroscopy", "arthralgia"]
+    },
+    {
+      "form": "chondr/o",
+      "kind": "root",
+      "meaning": "cartilage",
+      "origin": "Greek chondros (cartilage)",
+      "examples": ["chondromalacia", "costochondritis", "achondroplasia"]
+    },
+    {
+      "form": "my/o",
+      "kind": "root",
+      "meaning": "muscle",
+      "origin": "Greek mys (muscle)",
+      "examples": ["myalgia", "myopathy", "myocardium"]
+    },
+    {
+      "form": "derm/o",
+      "kind": "root",
+      "meaning": "skin",
+      "origin": "Greek derma (skin)",
+      "examples": ["epidermis", "intradermal", "hypodermic"]
+    },
+    {
+      "form": "aden/o",
+      "kind": "root",
+      "meaning": "gland",
+      "origin": "Greek aden (gland)",
+      "examples": ["adenoma", "adenopathy", "adenocarcinoma"]
+    },
+    {
+      "form": "thyroid/o",
+      "kind": "root",
+      "meaning": "thyroid gland",
+      "origin": "Greek thyreos (shield)",
+      "examples": ["thyroiditis", "thyroidectomy", "hypothyroidism"]
+    },
+    {
+      "form": "lymph/o",
+      "kind": "root",
+      "meaning": "lymph, lymphatic tissue",
+      "origin": "Latin lympha (clear water)",
+      "examples": ["lymphoma", "lymphadenopathy", "lymphedema"]
+    },
+    {
+      "form": "oophor/o",
+      "kind": "root",
+      "meaning": "ovary",
+      "origin": "Greek oophoron (egg-bearing)",
+      "examples": ["oophorectomy", "oophoritis", "salpingo-oophorectomy"]
+    },
+    {
+      "form": "hyster/o",
+      "kind": "root",
+      "meaning": "uterus, womb",
+      "origin": "Greek hystera (womb)",
+      "examples": ["hysterectomy", "hysteroscopy", "hysteropexy"]
+    },
+    {
+      "form": "orchi/o",
+      "kind": "root",
+      "meaning": "testis",
+      "origin": "Greek orchis (testicle)",
+      "examples": ["orchitis", "orchiectomy", "orchiopexy"]
+    },
+    {
+      "form": "ophthalm/o",
+      "kind": "root",
+      "meaning": "eye",
+      "origin": "Greek ophthalmos (eye)",
+      "examples": ["ophthalmology", "ophthalmoscope", "ophthalmoplegia"]
+    },
+    {
+      "form": "ot/o",
+      "kind": "root",
+      "meaning": "ear",
+      "origin": "Greek ous (ear)",
+      "examples": ["otitis", "otoscope", "otalgia"]
+    },
+    {
+      "form": "glyc/o",
+      "kind": "root",
+      "meaning": "sugar, glucose",
+      "origin": "Greek glykys (sweet)",
+      "examples": ["glycolysis", "glycogen", "glycosuria"]
+    },
+    {
+      "form": "lip/o",
+      "kind": "root",
+      "meaning": "fat, lipid",
+      "origin": "Greek lipos (fat)",
+      "examples": ["lipoma", "lipolysis", "lipid"]
+    },
+    {
+      "form": "path/o",
+      "kind": "root",
+      "meaning": "disease, suffering",
+      "origin": "Greek pathos (suffering)",
+      "examples": ["pathology", "pathogen", "pathophysiology"]
+    },
+    {
+      "form": "onc/o",
+      "kind": "root",
+      "meaning": "tumor, mass",
+      "origin": "Greek onkos (mass)",
+      "examples": ["oncology", "oncogene", "oncolytic"]
+    },
+    {
+      "form": "carcin/o",
+      "kind": "root",
+      "meaning": "cancer, cancerous",
+      "origin": "Greek karkinos (crab, cancer)",
+      "examples": ["carcinoma", "carcinogen", "carcinogenesis"]
+    },
+    {
+      "form": "scler/o",
+      "kind": "root",
+      "meaning": "hardening; sclera",
+      "origin": "Greek skleros (hard)",
+      "examples": ["arteriosclerosis", "scleroderma", "atherosclerosis"]
+    },
+    {
+      "form": "sten/o",
+      "kind": "root",
+      "meaning": "narrowing, constriction",
+      "origin": "Greek stenos (narrow)",
+      "examples": ["stenosis", "restenosis", "stenotic"]
+    },
+    {
+      "form": "lith/o",
+      "kind": "root",
+      "meaning": "stone, calculus",
+      "origin": "Greek lithos (stone)",
+      "examples": ["cholelithiasis", "nephrolithiasis", "lithotripsy"]
+    },
+    {
+      "form": "py/o",
+      "kind": "root",
+      "meaning": "pus",
+      "origin": "Greek pyon (pus)",
+      "examples": ["pyuria", "pyogenic", "empyema"]
+    },
+    {
+      "form": "pyr/o",
+      "kind": "root",
+      "meaning": "fever, fire, heat",
+      "origin": "Greek pyr (fire)",
+      "examples": ["pyrexia", "antipyretic", "pyrogenic"]
+    },
+    {
+      "form": "sept/o",
+      "kind": "root",
+      "meaning": "infection, putrefaction; partition",
+      "origin": "Greek sepsis (putrefaction); Latin septum (partition)",
+      "examples": ["sepsis", "septicemia", "septic"]
+    },
+    {
+      "form": "tox/o",
+      "kind": "root",
+      "meaning": "poison, toxin",
+      "origin": "Greek toxikon (arrow poison)",
+      "examples": ["toxicology", "cytotoxic", "hepatotoxic"]
+    },
+    {
+      "form": "necr/o",
+      "kind": "root",
+      "meaning": "death of tissue",
+      "origin": "Greek nekros (dead)",
+      "examples": ["necrosis", "necrotic", "necrotizing"]
+    },
+    {
+      "form": "isch/o",
+      "kind": "root",
+      "meaning": "to hold back, restrict (of blood flow)",
+      "origin": "Greek ischein (to keep back)",
+      "examples": ["ischemia", "ischemic", "ischuria"]
+    },
+    {
+      "form": "cyt/o",
+      "kind": "root",
+      "meaning": "cell",
+      "origin": "Greek kytos (hollow vessel)",
+      "examples": ["cytology", "cytoplasm", "cytotoxic"]
+    },
+    {
+      "form": "phag/o",
+      "kind": "root",
+      "meaning": "eat, swallow, engulf",
+      "origin": "Greek phagein (to eat)",
+      "examples": ["phagocyte", "phagocytosis", "macrophage"]
+    },
+    {
+      "form": "fibr/o",
+      "kind": "root",
+      "meaning": "fiber, fibrous tissue",
+      "origin": "Latin fibra (fiber)",
+      "examples": ["fibrosis", "fibroma", "fibromyalgia"]
+    },
+    {
+      "form": "-algia",
+      "kind": "suffix",
+      "meaning": "pain",
+      "origin": "Greek algos (pain)",
+      "examples": ["neuralgia", "myalgia", "arthralgia"]
+    },
+    {
+      "form": "-centesis",
+      "kind": "suffix",
+      "meaning": "surgical puncture to remove fluid",
+      "origin": "Greek kentesis (puncture)",
+      "examples": ["thoracentesis", "paracentesis", "amniocentesis"]
+    },
+    {
+      "form": "-dynia",
+      "kind": "suffix",
+      "meaning": "pain",
+      "origin": "Greek odyne (pain)",
+      "examples": ["mastodynia", "coccydynia", "pleurodynia"]
+    },
+    {
+      "form": "-ectomy",
+      "kind": "suffix",
+      "meaning": "surgical removal, excision",
+      "origin": "Greek ektome (a cutting out)",
+      "examples": ["appendectomy", "cholecystectomy", "splenectomy"]
+    },
+    {
+      "form": "-emesis",
+      "kind": "suffix",
+      "meaning": "vomiting",
+      "origin": "Greek emesis (vomiting)",
+      "examples": ["hematemesis", "hyperemesis", "emesis"]
+    },
+    {
+      "form": "-emia",
+      "kind": "suffix",
+      "meaning": "condition of the blood",
+      "origin": "Greek haima (blood)",
+      "examples": ["hyperkalemia", "anemia", "leukemia"]
+    },
+    {
+      "form": "-genic",
+      "kind": "suffix",
+      "meaning": "producing, originating from",
+      "origin": "Greek gennan (to produce)",
+      "examples": ["pathogenic", "iatrogenic", "cardiogenic"]
+    },
+    {
+      "form": "-gram",
+      "kind": "suffix",
+      "meaning": "record, image produced",
+      "origin": "Greek gramma (something written)",
+      "examples": ["electrocardiogram", "mammogram", "angiogram"]
+    },
+    {
+      "form": "-graphy",
+      "kind": "suffix",
+      "meaning": "process of recording",
+      "origin": "Greek graphein (to write)",
+      "examples": ["angiography", "mammography", "echocardiography"]
+    },
+    {
+      "form": "-itis",
+      "kind": "suffix",
+      "meaning": "inflammation",
+      "origin": "Greek -itis (inflammation)",
+      "examples": ["appendicitis", "arthritis", "hepatitis"]
+    },
+    {
+      "form": "-lysis",
+      "kind": "suffix",
+      "meaning": "breakdown, destruction, separation",
+      "origin": "Greek lysis (a loosening)",
+      "examples": ["hemolysis", "dialysis", "thrombolysis"]
+    },
+    {
+      "form": "-lytic",
+      "kind": "suffix",
+      "meaning": "pertaining to breakdown or destruction",
+      "origin": "Greek lytikos (able to loosen)",
+      "examples": ["thrombolytic", "hemolytic", "anxiolytic"]
+    },
+    {
+      "form": "-malacia",
+      "kind": "suffix",
+      "meaning": "softening",
+      "origin": "Greek malakia (softness)",
+      "examples": ["osteomalacia", "chondromalacia", "encephalomalacia"]
+    },
+    {
+      "form": "-megaly",
+      "kind": "suffix",
+      "meaning": "enlargement",
+      "origin": "Greek megas (large)",
+      "examples": ["hepatomegaly", "splenomegaly", "cardiomegaly"]
+    },
+    {
+      "form": "-oma",
+      "kind": "suffix",
+      "meaning": "tumor, mass, swelling",
+      "origin": "Greek -oma (tumor)",
+      "examples": ["carcinoma", "lipoma", "melanoma"]
+    },
+    {
+      "form": "-oscopy",
+      "kind": "suffix",
+      "meaning": "visual examination with a scope",
+      "origin": "Greek skopein (to view)",
+      "examples": ["colonoscopy", "bronchoscopy", "endoscopy"]
+    },
+    {
+      "form": "-osis",
+      "kind": "suffix",
+      "meaning": "abnormal condition, state",
+      "origin": "Greek -osis (condition)",
+      "examples": ["cyanosis", "stenosis", "thrombosis"]
+    },
+    {
+      "form": "-ostomy",
+      "kind": "suffix",
+      "meaning": "surgical creation of an opening",
+      "origin": "Greek stoma (mouth, opening)",
+      "examples": ["colostomy", "tracheostomy", "ileostomy"]
+    },
+    {
+      "form": "-otomy",
+      "kind": "suffix",
+      "meaning": "incision, cutting into",
+      "origin": "Greek tome (a cutting)",
+      "examples": ["tracheotomy", "laparotomy", "craniotomy"]
+    },
+    {
+      "form": "-paresis",
+      "kind": "suffix",
+      "meaning": "partial paralysis, weakness",
+      "origin": "Greek paresis (a letting go)",
+      "examples": ["hemiparesis", "paraparesis", "monoparesis"]
+    },
+    {
+      "form": "-pathy",
+      "kind": "suffix",
+      "meaning": "disease, disorder",
+      "origin": "Greek pathos (suffering)",
+      "examples": ["neuropathy", "cardiomyopathy", "retinopathy"]
+    },
+    {
+      "form": "-penia",
+      "kind": "suffix",
+      "meaning": "deficiency, abnormal reduction",
+      "origin": "Greek penia (poverty)",
+      "examples": ["thrombocytopenia", "leukopenia", "neutropenia"]
+    },
+    {
+      "form": "-pexy",
+      "kind": "suffix",
+      "meaning": "surgical fixation",
+      "origin": "Greek pexis (a fixing)",
+      "examples": ["orchiopexy", "nephropexy", "hysteropexy"]
+    },
+    {
+      "form": "-phagia",
+      "kind": "suffix",
+      "meaning": "eating, swallowing",
+      "origin": "Greek phagein (to eat)",
+      "examples": ["dysphagia", "polyphagia", "aerophagia"]
+    },
+    {
+      "form": "-phasia",
+      "kind": "suffix",
+      "meaning": "speech",
+      "origin": "Greek phasis (speech)",
+      "examples": ["aphasia", "dysphasia", "paraphasia"]
+    },
+    {
+      "form": "-plasia",
+      "kind": "suffix",
+      "meaning": "formation, development, growth",
+      "origin": "Greek plasis (a molding)",
+      "examples": ["hyperplasia", "dysplasia", "hypoplasia"]
+    },
+    {
+      "form": "-plasty",
+      "kind": "suffix",
+      "meaning": "surgical repair or reconstruction",
+      "origin": "Greek plassein (to form)",
+      "examples": ["angioplasty", "rhinoplasty", "arthroplasty"]
+    },
+    {
+      "form": "-plegia",
+      "kind": "suffix",
+      "meaning": "paralysis",
+      "origin": "Greek plege (a blow, stroke)",
+      "examples": ["paraplegia", "quadriplegia", "hemiplegia"]
+    },
+    {
+      "form": "-pnea",
+      "kind": "suffix",
+      "meaning": "breathing",
+      "origin": "Greek pnoia (breath)",
+      "examples": ["dyspnea", "apnea", "tachypnea"]
+    },
+    {
+      "form": "-poiesis",
+      "kind": "suffix",
+      "meaning": "formation, production",
+      "origin": "Greek poiesis (a making)",
+      "examples": ["hematopoiesis", "erythropoiesis", "leukopoiesis"]
+    },
+    {
+      "form": "-ptosis",
+      "kind": "suffix",
+      "meaning": "drooping, downward displacement, prolapse",
+      "origin": "Greek ptosis (a falling)",
+      "examples": ["blepharoptosis", "nephroptosis", "gastroptosis"]
+    },
+    {
+      "form": "-rrhagia",
+      "kind": "suffix",
+      "meaning": "rapid or excessive flow, bursting forth of blood",
+      "origin": "Greek rhegnynai (to burst forth)",
+      "examples": ["menorrhagia", "metrorrhagia", "gastrorrhagia"]
+    },
+    {
+      "form": "-rrhaphy",
+      "kind": "suffix",
+      "meaning": "surgical suturing",
+      "origin": "Greek rhaphe (a seam)",
+      "examples": ["herniorrhaphy", "colporrhaphy", "tenorrhaphy"]
+    },
+    {
+      "form": "-rrhea",
+      "kind": "suffix",
+      "meaning": "flow, discharge",
+      "origin": "Greek rhoia (a flow)",
+      "examples": ["diarrhea", "rhinorrhea", "otorrhea"]
+    },
+    {
+      "form": "-rrhexis",
+      "kind": "suffix",
+      "meaning": "rupture",
+      "origin": "Greek rhexis (a rupture)",
+      "examples": ["karyorrhexis", "hysterorrhexis", "cardiorrhexis"]
+    },
+    {
+      "form": "-sclerosis",
+      "kind": "suffix",
+      "meaning": "abnormal hardening",
+      "origin": "Greek skleros (hard)",
+      "examples": ["atherosclerosis", "arteriosclerosis", "nephrosclerosis"]
+    },
+    {
+      "form": "-scope",
+      "kind": "suffix",
+      "meaning": "instrument for viewing or examining",
+      "origin": "Greek skopein (to view)",
+      "examples": ["stethoscope", "otoscope", "laryngoscope"]
+    },
+    {
+      "form": "-stenosis",
+      "kind": "suffix",
+      "meaning": "narrowing, stricture",
+      "origin": "Greek stenos (narrow)",
+      "examples": ["aortic stenosis", "restenosis", "tracheostenosis"]
+    },
+    {
+      "form": "-trophy",
+      "kind": "suffix",
+      "meaning": "development, nourishment",
+      "origin": "Greek trophe (nourishment)",
+      "examples": ["hypertrophy", "atrophy", "dystrophy"]
+    },
+    {
+      "form": "-uria",
+      "kind": "suffix",
+      "meaning": "condition of the urine",
+      "origin": "Greek ouron (urine)",
+      "examples": ["hematuria", "proteinuria", "dysuria"]
+    }
+  ]
+}

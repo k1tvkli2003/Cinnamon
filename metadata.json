@@ -1,6 +1,6 @@
 {
-  "name": "MedSpeak AI",
-  "description": "Advanced Dual-Core English Learning app for Medical Students.",
+  "name": "Cinnamon",
+  "description": "Cinnamon — a personal English-perfection companion for an advanced medical student. A dictionary-grade lexicon of clinical and high-level general English, spaced-repetition review, word games, and AI conversation practice.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

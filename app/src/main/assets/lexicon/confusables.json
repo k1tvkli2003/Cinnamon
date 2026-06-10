@@ -1,0 +1,319 @@
+{
+  "confusables": [
+    {
+      "a": "palpation",
+      "b": "palpitation",
+      "howToTell": "Palpation is what your hands do during the exam; palpitations are what the patient's heart does. One extra syllable, a completely different chart note.",
+      "exampleA": "On palpation, the liver edge was two centimeters below the costal margin.",
+      "exampleB": "She reports palpitations whenever she climbs the dormitory stairs."
+    },
+    {
+      "a": "ileum",
+      "b": "ilium",
+      "howToTell": "The ilEum is the last part of the small intestine (E for Eat); the ilIum is the flaring hip bone (I for hIp). Same sound, opposite ends of the body.",
+      "exampleA": "The terminal ileum is the classic site for Crohn's disease.",
+      "exampleB": "The needle for the marrow biopsy went into the iliac crest of the ilium."
+    },
+    {
+      "a": "mucus",
+      "b": "mucous",
+      "howToTell": "Mucus (noun) is the slippery stuff; mucous (adjective) describes the membrane that makes it. The noun has the 'us' you can blow into a tissue.",
+      "exampleA": "Thick green mucus was pouring from the sinuses.",
+      "exampleB": "The mucous membranes were dry, suggesting she was dehydrated."
+    },
+    {
+      "a": "perfusion",
+      "b": "profusion",
+      "howToTell": "Perfusion is blood flow through a tissue; profusion is a great abundance of something. A profusion of bleeding is very bad for perfusion.",
+      "exampleA": "Cold, mottled feet warned us that distal perfusion was failing.",
+      "exampleB": "He apologized with such profusion that it became awkward."
+    },
+    {
+      "a": "dysphagia",
+      "b": "dysphasia",
+      "howToTell": "DysphaGia is trouble swallowing (G as in Gulp/Gut); dysphaSia is trouble with speech/language (S as in Speech). One letter sends the workup to a different specialty.",
+      "exampleA": "Progressive dysphagia for solids prompted an urgent endoscopy.",
+      "exampleB": "After the stroke he had an expressive dysphasia and struggled to find words."
+    },
+    {
+      "a": "aural",
+      "b": "oral",
+      "howToTell": "Aural relates to the ear (think 'audio'); oral relates to the mouth. An aural exam looks in the ear, an oral exam looks in the mouth.",
+      "exampleA": "Aural discharge and pain pointed to an ear infection.",
+      "exampleB": "The medication is taken by the oral route, twice a day."
+    },
+    {
+      "a": "vesical",
+      "b": "vesicle",
+      "howToTell": "Vesical (adjective) relates to the bladder; a vesicle (noun) is a small fluid-filled skin blister. The bladder one ends in '-al' like an adjective should.",
+      "exampleA": "Vesical tenesmus is a painful, persistent urge to empty the bladder.",
+      "exampleB": "Clustered vesicles in a dermatomal band suggested shingles."
+    },
+    {
+      "a": "peroneal",
+      "b": "perineal",
+      "howToTell": "Peroneal refers to the outer lower leg and its nerve; perineal refers to the region between the genitals and anus. (The unrelated 'peritoneal' is the abdominal lining — a third trap entirely.)",
+      "exampleA": "A peroneal nerve palsy gave him a classic foot drop.",
+      "exampleB": "Perineal soreness after delivery is common and usually settles quickly."
+    },
+    {
+      "a": "enervate",
+      "b": "innervate",
+      "howToTell": "To enervate is to drain of energy and weaken; to innervate is to supply a part with nerves. They're near-opposites despite looking like twins.",
+      "exampleA": "The relentless heat enervated the whole team by midafternoon.",
+      "exampleB": "The median nerve innervates most of the muscles of the thenar eminence."
+    },
+    {
+      "a": "prostate",
+      "b": "prostrate",
+      "howToTell": "The prostate is the gland (no second R); to be prostrate is to lie face-down or be overcome (with the extra R, as in 'sprawled'). Examiners love this one.",
+      "exampleA": "A digital rectal exam assessed the size of the prostate.",
+      "exampleB": "He was found prostrate on the bathroom floor after the collapse."
+    },
+    {
+      "a": "callus",
+      "b": "callous",
+      "howToTell": "A callus (noun) is hardened skin or healing bone; callous (adjective) means emotionally hardened and unfeeling. The skin one is the noun.",
+      "exampleA": "A thick callus had built up over the old fracture site.",
+      "exampleB": "His callous remark about the diagnosis upset the whole family."
+    },
+    {
+      "a": "discreet",
+      "b": "discrete",
+      "howToTell": "Discreet (double-e in the middle) means tactful and private; discrete means separate and distinct. The two e's of 'discreet' hide together, keeping a secret.",
+      "exampleA": "Please be discreet about the diagnosis until she's ready to tell people.",
+      "exampleB": "The rash consisted of discrete lesions that didn't merge together."
+    },
+    {
+      "a": "principal",
+      "b": "principle",
+      "howToTell": "Principal (with -pal) means main, or the head person — your 'pal' the boss; principle (with -ple) is a rule or belief. The main diagnosis is the principal one.",
+      "exampleA": "The principal concern is the bleeding, not the mildly abnormal sodium.",
+      "exampleB": "Respect for patient autonomy is a core ethical principle."
+    },
+    {
+      "a": "affect",
+      "b": "effect",
+      "howToTell": "Usually affect is the verb (to influence) and effect is the noun (the result). In psychiatry, 'affect' is also a noun meaning observed emotional expression.",
+      "exampleA": "The new dose didn't noticeably affect her blood pressure.",
+      "exampleB": "We're still waiting to see the full effect of the antibiotics."
+    },
+    {
+      "a": "elicit",
+      "b": "illicit",
+      "howToTell": "To elicit (verb) is to draw out a response or sign; illicit (adjective) means illegal. You elicit a reflex; you ask tactfully about illicit drug use.",
+      "exampleA": "I couldn't elicit any tenderness even on deep palpation.",
+      "exampleB": "The history screens for both prescribed and illicit substances."
+    },
+    {
+      "a": "adverse",
+      "b": "averse",
+      "howToTell": "Adverse means harmful or unfavorable (an adverse reaction); averse means having a strong dislike (averse to risk). A drug has adverse effects; a person is averse to taking it.",
+      "exampleA": "We documented the adverse reaction to penicillin in her allergy list.",
+      "exampleB": "He's deeply averse to needles, so we used the cream first."
+    },
+    {
+      "a": "eminent",
+      "b": "imminent",
+      "howToTell": "Eminent means distinguished and respected; imminent means about to happen at any moment. The eminent professor warned that collapse was imminent.",
+      "exampleA": "The lecture was given by an eminent professor of immunology.",
+      "exampleB": "Falling oxygen levels signaled that respiratory failure was imminent."
+    },
+    {
+      "a": "complement",
+      "b": "compliment",
+      "howToTell": "Complement (with an E) completes or pairs with something; a compliment (with an I) is praise. The wine complements the meal; the chef appreciates a compliment.",
+      "exampleA": "Imaging complements the blood tests rather than replacing them.",
+      "exampleB": "She paid the junior doctor a genuine compliment on the round."
+    },
+    {
+      "a": "ensure",
+      "b": "insure",
+      "howToTell": "Ensure means to make certain; insure means to arrange financial cover against loss. (The third sibling, assure, means to reassure a person.)",
+      "exampleA": "Double-check the dose to ensure it's safe before you sign.",
+      "exampleB": "The clinic had to insure its expensive new scanner against damage."
+    },
+    {
+      "a": "flaunt",
+      "b": "flout",
+      "howToTell": "To flaunt is to show off; to flout is to openly disregard a rule. People flaunt their wealth and flout the law — never the other way around.",
+      "exampleA": "He flaunted his exam results to anyone who'd listen.",
+      "exampleB": "Repeatedly flouting the hand-hygiene policy put patients at risk."
+    },
+    {
+      "a": "infer",
+      "b": "imply",
+      "howToTell": "The speaker implies (hints); the listener infers (deduces). If I imply something, you infer it. They travel in opposite directions.",
+      "exampleA": "From her guarded answers I inferred that something was wrong at home.",
+      "exampleB": "I didn't say it was your fault — I didn't even imply it."
+    },
+    {
+      "a": "continual",
+      "b": "continuous",
+      "howToTell": "Continual means repeated with breaks (continual interruptions); continuous means unbroken (a continuous infusion). One stutters, the other never stops.",
+      "exampleA": "Continual interruptions made the ward round take twice as long.",
+      "exampleB": "She was on a continuous insulin infusion overnight."
+    },
+    {
+      "a": "historic",
+      "b": "historical",
+      "howToTell": "Historic means famous or important in history; historical simply means relating to the past. A historic decision changed medicine; a historical detail is just old.",
+      "exampleA": "The first transplant was a historic moment for the field.",
+      "exampleB": "Her historical notes from a decade ago held the missing clue."
+    },
+    {
+      "a": "fortuitous",
+      "b": "fortunate",
+      "howToTell": "Fortuitous strictly means happening by chance; fortunate means lucky. A chance event can be fortuitous without being fortunate — though the two often overlap.",
+      "exampleA": "It was entirely fortuitous that the cardiologist happened to be passing.",
+      "exampleB": "We were fortunate that the bleeding stopped on its own."
+    },
+    {
+      "a": "disinterested",
+      "b": "uninterested",
+      "howToTell": "Disinterested means impartial, with no stake in the outcome; uninterested means bored, not caring. You want a disinterested judge, not an uninterested one.",
+      "exampleA": "An ethics committee should give disinterested, unbiased advice.",
+      "exampleB": "He seemed completely uninterested in the lecture and kept checking his phone."
+    },
+    {
+      "a": "regimen",
+      "b": "regiment",
+      "howToTell": "A regimen is a planned course of treatment or routine; a regiment is a military unit. Patients follow a drug regimen, not a drug regiment.",
+      "exampleA": "The new chemotherapy regimen is given over three-week cycles.",
+      "exampleB": "His grandfather served in an infantry regiment during the war."
+    },
+    {
+      "a": "dose",
+      "b": "dosage",
+      "howToTell": "A dose is a single specified amount; dosage is the regulated pattern of doses over time. You give one dose; you adjust the overall dosage.",
+      "exampleA": "Give a single 500-milligram dose now.",
+      "exampleB": "We reviewed the dosage — frequency and duration — at the follow-up."
+    },
+    {
+      "a": "aseptic",
+      "b": "antiseptic",
+      "howToTell": "Aseptic means free from contamination (an aseptic technique keeps germs out); an antiseptic is a substance that kills germs on living tissue. (The related 'septic' means infected.)",
+      "exampleA": "The line was placed under strict aseptic technique.",
+      "exampleB": "She cleaned the wound with an antiseptic solution before dressing it."
+    },
+    {
+      "a": "perspective",
+      "b": "prospective",
+      "howToTell": "A perspective is a point of view; prospective means relating to the future or expected. A prospective study looks forward; a fresh perspective looks differently.",
+      "exampleA": "The patient's perspective on quality of life shaped the whole plan.",
+      "exampleB": "A prospective trial will follow new patients forward in time."
+    },
+    {
+      "a": "than",
+      "b": "then",
+      "howToTell": "Than makes comparisons (bigger than); then marks time or sequence (and then). If you're comparing, it's the one with an 'a'.",
+      "exampleA": "The second dose was better tolerated than the first.",
+      "exampleB": "Examine the patient first, then write the note."
+    },
+    {
+      "a": "comprise",
+      "b": "compose",
+      "howToTell": "The whole comprises the parts (no 'of'); the parts compose the whole. 'Is comprised of' is technically frowned upon — use 'comprises' or 'is composed of'.",
+      "exampleA": "The nephron comprises the glomerulus and the tubule.",
+      "exampleB": "Several distinct cell types compose the alveolar wall."
+    },
+    {
+      "a": "viscous",
+      "b": "viscera",
+      "howToTell": "Viscous (adjective) means thick and sticky, like syrup; viscera (noun) are the internal organs. Bile is viscous; the liver is one of the viscera.",
+      "exampleA": "The aspirated fluid was thick and viscous.",
+      "exampleB": "Blunt trauma can injure the abdominal viscera without breaking the skin."
+    },
+    {
+      "a": "apophysis",
+      "b": "epiphysis",
+      "howToTell": "An apophysis is a bony outgrowth where a tendon attaches; an epiphysis is the end of a long bone that ossifies separately. Both are growth zones, but only the epiphysis forms a joint surface.",
+      "exampleA": "The tibial apophysis is the sore bump in Osgood-Schlatter disease.",
+      "exampleB": "A fracture through the epiphysis can disturb future bone growth."
+    },
+    {
+      "a": "hyper-",
+      "b": "hypo-",
+      "howToTell": "Hyper- means too much or above; hypo- means too little or below. Hyperkalemia is high potassium, hypokalemia is low — and mixing them up can be fatal.",
+      "exampleA": "Hyperkalemia can stop the heart and shows peaked T waves on the ECG.",
+      "exampleB": "Hypokalemia from vomiting left her weak and crampy."
+    },
+    {
+      "a": "tortuous",
+      "b": "torturous",
+      "howToTell": "Tortuous means full of twists and bends; torturous means causing torture or agony. A tortuous artery winds; a torturous night drags painfully on.",
+      "exampleA": "The angiogram showed a tortuous, corkscrew coronary artery.",
+      "exampleB": "The wait for the biopsy result felt absolutely torturous."
+    },
+    {
+      "a": "perineum",
+      "b": "peritoneum",
+      "howToTell": "The perineum is the external area between the genitals and anus; the peritoneum is the membrane lining the abdominal cavity. Two extra letters move you deep inside the belly.",
+      "exampleA": "The perineum was examined after a prolonged delivery.",
+      "exampleB": "Free air under the diaphragm meant the peritoneum had been breached."
+    },
+    {
+      "a": "metaphysis",
+      "b": "metastasis",
+      "howToTell": "The metaphysis is the growing region of a long bone near the ends; a metastasis is a cancer deposit that has spread. Similar opening, wildly different meaning.",
+      "exampleA": "Osteomyelitis in children often starts in the metaphysis.",
+      "exampleB": "A solitary lung metastasis was found on the staging scan."
+    },
+    {
+      "a": "lightening",
+      "b": "lightning",
+      "howToTell": "Lightening means becoming lighter (and in obstetrics, the baby dropping into the pelvis); lightning is the electrical flash. The obstetric one keeps the middle 'e'.",
+      "exampleA": "Lightening in late pregnancy is the sensation of the baby settling lower.",
+      "exampleB": "The power went out when lightning struck near the hospital."
+    },
+    {
+      "a": "anuresis",
+      "b": "enuresis",
+      "howToTell": "Anuresis (like anuria) is failure to produce or pass urine; enuresis is involuntary urination, classically bedwetting. One is too little urine, the other is poor control.",
+      "exampleA": "Post-operative anuresis prompted an urgent bladder scan.",
+      "exampleB": "Nocturnal enuresis in children usually resolves with time."
+    },
+    {
+      "a": "perfuse",
+      "b": "profuse",
+      "howToTell": "To perfuse (verb) is to push fluid through a tissue; profuse (adjective) means abundant or copious. Profuse sweating is a symptom; perfusing an organ keeps it alive.",
+      "exampleA": "The surgeons perfused the donor kidney before transplanting it.",
+      "exampleB": "He arrived with profuse sweating and a racing pulse."
+    },
+    {
+      "a": "abduction",
+      "b": "adduction",
+      "howToTell": "Abduction moves a limb away from the midline (think 'abduct' = take away); adduction brings it back toward the midline (think 'add' to the body). One letter flips the direction.",
+      "exampleA": "Shoulder abduction was limited to ninety degrees by the pain.",
+      "exampleB": "Weak hip adduction made it hard for her to keep her knees together."
+    },
+    {
+      "a": "afferent",
+      "b": "efferent",
+      "howToTell": "Afferent fibers arrive at a center (A for Arrive/toward); efferent fibers exit toward the periphery (E for Exit). Sensory nerves are afferent, motor nerves efferent.",
+      "exampleA": "Afferent signals from the skin travel toward the spinal cord.",
+      "exampleB": "Efferent motor fibers carry the command out to the muscle."
+    },
+    {
+      "a": "psychosis",
+      "b": "sycosis",
+      "howToTell": "Psychosis is a severe mental state with loss of contact with reality; sycosis is a chronic inflammation of hair follicles. Identical sound, but only one is a dermatology diagnosis.",
+      "exampleA": "Acute psychosis with paranoid delusions prompted urgent assessment.",
+      "exampleB": "Sycosis barbae is a stubborn folliculitis of the beard area."
+    },
+    {
+      "a": "mucous",
+      "b": "mucosa",
+      "howToTell": "Mucous is the adjective (mucous membrane); the mucosa is the noun for that lining itself. You examine the mucosa, which is the mucous membrane.",
+      "exampleA": "The buccal mucous membrane looked dry and cracked.",
+      "exampleB": "Endoscopy showed an inflamed, friable gastric mucosa."
+    },
+    {
+      "a": "humerus",
+      "b": "humorous",
+      "howToTell": "The humerus is the upper arm bone; humorous means funny. The bone has the 'e'; the joke has the 'o'. The 'funny bone' pun is the eternal trap.",
+      "exampleA": "He fractured the surgical neck of the humerus in the fall.",
+      "exampleB": "Her humorous bedside manner put nervous patients at ease."
+    }
+  ]
+}

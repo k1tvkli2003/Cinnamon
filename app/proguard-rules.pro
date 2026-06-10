@@ -39,12 +39,12 @@
 # Moshi JSON reflection parsing (Crucial for live AI Chat replies)
 -dontwarn com.squareup.moshi.**
 -keep class com.squareup.moshi.** { *; }
--keep class com.example.data.ai.** { *; }
+-keep class com.cinnamon.app.data.ai.** { *; }
 
 # Room Database & Entities
 -dontwarn androidx.room.**
 -keep class androidx.room.** { *; }
 -keep class * extends androidx.room.RoomDatabase { *; }
 -keep class * extends androidx.room.RoomDatabase_Impl { *; }
--keep class com.example.data.local.** { *; }
+-keep class com.cinnamon.app.data.local.** { *; }
 

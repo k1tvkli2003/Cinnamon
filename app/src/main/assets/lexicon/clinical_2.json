@@ -1,0 +1,1628 @@
+{
+  "entries": [
+    {
+      "term": "obtunded",
+      "ipa": "/əbˈtʌndɪd/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "C2",
+      "definition": "Having a reduced level of alertness and a blunted response to stimulation, between drowsy and stuporous.",
+      "plain": "Dulled and hard to rouse, but not fully unconscious.",
+      "etymology": "Latin obtundere 'to beat against, blunt', from ob- (against) + tundere (to beat).",
+      "morphemes": [
+        "ob- (against)",
+        "tund (to beat)",
+        "-ed (state)"
+      ],
+      "synonyms": [
+        "blunted",
+        "dulled"
+      ],
+      "antonyms": [
+        "alert"
+      ],
+      "collocations": [
+        "increasingly obtunded",
+        "obtunded but rousable",
+        "an obtunded patient"
+      ],
+      "exampleClinical": "By the second hour he'd gone from drowsy to frankly obtunded, and we stopped waiting on the scan to protect the airway.",
+      "exampleCasual": "After a double night shift I'm not tired, I'm obtunded — rousable to loud coffee only.",
+      "usageNote": "Part of the consciousness ladder: alert → lethargic → obtunded → stuporous → comatose. Precise words beat the vague 'altered'.",
+      "abbreviation": ""
+    },
+    {
+      "term": "stuporous",
+      "ipa": "/ˈstjuːpərəs/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "C2",
+      "definition": "Responsive only to vigorous or repeated, often painful, stimulation; one step short of coma.",
+      "plain": "Almost unrousable — only hard stimulation gets a response.",
+      "etymology": "Latin stupor 'numbness, dullness', from stupere (to be stunned).",
+      "morphemes": [
+        "stupor (numbness)",
+        "-ous (full of)"
+      ],
+      "synonyms": [],
+      "antonyms": [
+        "alert"
+      ],
+      "collocations": [
+        "stuporous and unresponsive",
+        "a stuporous state"
+      ],
+      "exampleClinical": "She was stuporous to sternal rub only, which bought the neurology registrar out of bed in record time.",
+      "exampleCasual": "Stupor is also the everyday word for a daze — 'a drunken stupor' predates the wards by centuries.",
+      "usageNote": "Noun: stupor. Document what stimulus you used and what response you got — 'localizes to pain' beats 'stuporous' for handoff.",
+      "abbreviation": ""
+    },
+    {
+      "term": "lethargic",
+      "ipa": "/ləˈθɑːrdʒɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "B2+",
+      "definition": "Drowsy and sluggish, with reduced alertness but still rousable to near-normal interaction.",
+      "plain": "Sleepy and slow, but you can wake them up.",
+      "etymology": "Greek lethargos 'forgetful, drowsy', from lethe (forgetfulness) + argos (idle).",
+      "morphemes": [
+        "leth (forgetfulness)",
+        "arg (idle)",
+        "-ic (pertaining to)"
+      ],
+      "synonyms": [
+        "somnolent",
+        "drowsy"
+      ],
+      "antonyms": [
+        "alert"
+      ],
+      "collocations": [
+        "lethargic but rousable",
+        "increasingly lethargic",
+        "lethargy"
+      ],
+      "exampleClinical": "The baby was feeding poorly and lethargic — in a neonate those two words together earn a full septic workup.",
+      "exampleCasual": "Post-lunch lectures induce a lethargy that no amount of caffeine fully reverses.",
+      "usageNote": "'Somnolent' is its close twin (leaning toward sleepiness). Noun: lethargy. Milder than 'obtunded'.",
+      "abbreviation": ""
+    },
+    {
+      "term": "nuchal rigidity",
+      "ipa": "/ˈnjuːkəl rɪˈdʒɪdɪti/",
+      "pos": "phrase",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "C1",
+      "definition": "Stiffness and resistance of the neck to passive flexion, a sign of meningeal irritation.",
+      "plain": "A stiff neck that resists being bent forward — a meningitis warning sign.",
+      "etymology": "Latin nucha 'nape of the neck' (via Arabic nukha); rigidus 'stiff'.",
+      "morphemes": [
+        "nucha (nape)",
+        "-al (adjective)"
+      ],
+      "synonyms": [
+        "neck stiffness",
+        "meningism"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "nuchal rigidity on flexion",
+        "fever, headache, and nuchal rigidity"
+      ],
+      "exampleClinical": "Fever, photophobia, and nuchal rigidity — start the antibiotics before the LP, not after.",
+      "exampleCasual": "'Nuchal' is a quietly useful adjective; the nuchal translucency scan in pregnancy borrows the same neck.",
+      "usageNote": "Sits with Kernig's and Brudzinski's signs in the meningism cluster. 'Nuchal' (nape of neck) is worth knowing on its own.",
+      "abbreviation": ""
+    },
+    {
+      "term": "postictal",
+      "ipa": "/poʊstˈɪktəl/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "C1",
+      "definition": "Relating to the altered, recovering state that follows a seizure.",
+      "plain": "The groggy recovery period right after a seizure.",
+      "etymology": "Latin post- (after) + ictus (a blow, stroke).",
+      "morphemes": [
+        "post- (after)",
+        "ict (a blow, seizure)",
+        "-al (adjective)"
+      ],
+      "synonyms": [],
+      "antonyms": [
+        "interictal"
+      ],
+      "collocations": [
+        "postictal confusion",
+        "a postictal state",
+        "postictal drowsiness"
+      ],
+      "exampleClinical": "He was deeply postictal in the ambulance — confused and combative — which is reassuringly typical, not a second emergency.",
+      "exampleCasual": "The root 'ictus' also gives us 'ictal' (during) and 'interictal' (between) — a tidy little family.",
+      "usageNote": "A postictal phase favors true seizure over syncope (which recovers fast). Tongue-biting and incontinence point the same way.",
+      "abbreviation": ""
+    },
+    {
+      "term": "paresthesia",
+      "ipa": "/ˌpærɪsˈθiːʒə/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "C1",
+      "definition": "An abnormal skin sensation such as tingling, prickling, or 'pins and needles', without an external cause.",
+      "plain": "Tingling or pins-and-needles with no obvious trigger.",
+      "etymology": "Greek para- (abnormal) + aisthesis (sensation).",
+      "morphemes": [
+        "para- (abnormal)",
+        "esthes (sensation)",
+        "-ia (condition)"
+      ],
+      "synonyms": [
+        "pins and needles",
+        "tingling"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "distal paresthesias",
+        "a glove-and-stocking paresthesia",
+        "perioral paresthesia"
+      ],
+      "exampleClinical": "The glove-and-stocking paresthesias map a length-dependent neuropathy more clearly than any sentence could.",
+      "exampleCasual": "When your foot 'falls asleep', that's paresthesia — your nervous system filing a brief, confused complaint.",
+      "usageNote": "British spelling 'paraesthesia'. Distinguish from 'dysesthesia' (an unpleasant or painful distortion) and 'anesthesia' (absence).",
+      "abbreviation": ""
+    },
+    {
+      "term": "elicit",
+      "ipa": "/ɪˈlɪsɪt/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Physical Examination",
+      "level": "C1",
+      "definition": "To draw out or bring forth a sign, reflex, or piece of history through examination or questioning.",
+      "plain": "To bring out a sign or fact deliberately.",
+      "etymology": "Latin elicere 'to draw out', from e- (out) + lacere (to entice).",
+      "morphemes": [
+        "e- (out)",
+        "licit (to entice)"
+      ],
+      "synonyms": [
+        "draw out",
+        "provoke"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "elicit a reflex",
+        "elicit tenderness",
+        "unable to elicit",
+        "elicit a history"
+      ],
+      "exampleClinical": "I couldn't elicit an ankle reflex even with reinforcement, which fit the rest of the neuropathy story.",
+      "exampleCasual": "Don't confuse it with 'illicit' (illegal) — eliciting a reflex is very much above board.",
+      "usageNote": "High-frequency exam verb. The sound-alike 'illicit' is an adjective; see the Mix-ups tab for the trap.",
+      "abbreviation": ""
+    },
+    {
+      "term": "labile",
+      "ipa": "/ˈleɪbaɪl/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Endocrinology",
+      "level": "C1",
+      "definition": "Liable to change rapidly and unpredictably; unstable.",
+      "plain": "Swinging up and down unpredictably.",
+      "etymology": "Latin labilis 'apt to slip', from labi (to slide, fall).",
+      "morphemes": [
+        "lab (to slide)",
+        "-ile (capable of)"
+      ],
+      "synonyms": [
+        "unstable",
+        "fluctuating"
+      ],
+      "antonyms": [
+        "stable"
+      ],
+      "collocations": [
+        "labile blood pressure",
+        "labile glycemic control",
+        "emotionally labile"
+      ],
+      "exampleClinical": "Her sugars are labile on the current regimen — sixteen one hour, four the next — so we're switching strategy entirely.",
+      "exampleCasual": "After the news the whole ward team was emotionally labile; even the consultant's voice wobbled.",
+      "usageNote": "Most US clinicians say LAY-bile. Spans endocrine (sugars, BP), psychiatry (mood), and chemistry (a labile compound).",
+      "abbreviation": ""
+    },
+    {
+      "term": "refractory",
+      "ipa": "/rɪˈfræktəri/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Clinical Course",
+      "level": "C1",
+      "definition": "Not responding to standard treatment; resistant to attempts at management.",
+      "plain": "Not budging despite the usual treatment.",
+      "etymology": "Latin refractarius 'stubborn', from refringere (to break up).",
+      "morphemes": [
+        "re- (back)",
+        "fract (to break)",
+        "-ory (relating to)"
+      ],
+      "synonyms": [
+        "resistant",
+        "recalcitrant"
+      ],
+      "antonyms": [
+        "responsive"
+      ],
+      "collocations": [
+        "refractory to treatment",
+        "refractory hypotension",
+        "refractory epilepsy"
+      ],
+      "exampleClinical": "The seizures were refractory to two agents at full dose, so the conversation turned to the ICU and an infusion.",
+      "exampleCasual": "My houseplant is refractory to every watering schedule known to science.",
+      "usageNote": "Takes 'to': refractory to therapy. Escalation ladder of stubbornness: resistant → refractory → recalcitrant.",
+      "abbreviation": ""
+    },
+    {
+      "term": "friable",
+      "ipa": "/ˈfraɪəbəl/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Hematology & Oncology",
+      "level": "C2",
+      "definition": "Easily crumbled or torn, and prone to bleed on minimal contact.",
+      "plain": "So fragile it crumbles or bleeds at the lightest touch.",
+      "etymology": "Latin friabilis 'easily crumbled', from friare (to rub away).",
+      "morphemes": [
+        "fri (to crumble)",
+        "-able (capable of)"
+      ],
+      "synonyms": [
+        "crumbly",
+        "fragile"
+      ],
+      "antonyms": [
+        "firm"
+      ],
+      "collocations": [
+        "friable mucosa",
+        "a friable mass",
+        "bled when friable tissue was touched"
+      ],
+      "exampleClinical": "The tumor was so friable that it bled at the lightest brush of the scope — biopsy was almost an afterthought.",
+      "exampleCasual": "Friable is the perfect word for an over-baked cookie, though pathologists rarely use it that way.",
+      "usageNote": "Pronounced FRY-able. Endoscopy and surgery reports lean on it heavily; it implies 'bleeds easily' as much as 'crumbly'.",
+      "abbreviation": ""
+    },
+    {
+      "term": "indurated",
+      "ipa": "/ˈɪndjʊreɪtɪd/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Musculoskeletal & Derm",
+      "level": "C2",
+      "definition": "Abnormally hardened, especially of skin or soft tissue.",
+      "plain": "Hardened and firm to the touch.",
+      "etymology": "Latin indurare 'to harden', from in- (intensive) + durus (hard).",
+      "morphemes": [
+        "in- (intensive)",
+        "dur (hard)",
+        "-ate (verb/result)"
+      ],
+      "synonyms": [
+        "hardened",
+        "firm"
+      ],
+      "antonyms": [
+        "soft",
+        "boggy"
+      ],
+      "collocations": [
+        "an indurated plaque",
+        "erythematous and indurated",
+        "area of induration"
+      ],
+      "exampleClinical": "We read the TB test by the induration, not the redness — a finger over the forearm tells you more than the eye.",
+      "exampleCasual": "Induration is what you feel; erythema is what you see — a useful split when describing any angry patch of skin.",
+      "usageNote": "Noun: induration. The Mantoux/TST is measured by induration diameter in millimeters, never by redness.",
+      "abbreviation": "TST"
+    },
+    {
+      "term": "metastasize",
+      "ipa": "/məˈtæstəsaɪz/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Hematology & Oncology",
+      "level": "B2+",
+      "definition": "Of a malignant tumor, to spread from its primary site to distant parts of the body.",
+      "plain": "To spread to other parts of the body.",
+      "etymology": "Greek metastasis 'a removal, change', from meta- (change) + histanai (to place).",
+      "morphemes": [
+        "meta- (change, beyond)",
+        "stas (standing)",
+        "-ize (verb)"
+      ],
+      "synonyms": [
+        "spread",
+        "disseminate"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "metastasize to the liver",
+        "metastatic disease",
+        "metastatic burden",
+        "widely metastatic"
+      ],
+      "exampleClinical": "Staging showed it had already metastasized to bone, which redrew the whole plan around comfort and control.",
+      "exampleCasual": "People borrow it figuratively — 'the argument metastasized into a family feud' — and it always sounds ominous.",
+      "usageNote": "Noun: metastasis (plural metastases /-siːz/); spoken shorthand 'mets'. Adjective: metastatic. 'Metastatic burden' = how much tumor is out there.",
+      "abbreviation": ""
+    },
+    {
+      "term": "petechiae",
+      "ipa": "/pɪˈtiːkiˌiː/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Hematology & Oncology",
+      "level": "C1",
+      "definition": "Pinpoint, non-blanching red or purple spots caused by tiny capillary hemorrhages into the skin.",
+      "plain": "Tiny pinpoint spots of bleeding under the skin.",
+      "etymology": "Italian petecchia 'a small spot'.",
+      "morphemes": [],
+      "synonyms": [],
+      "antonyms": [],
+      "collocations": [
+        "non-blanching petechiae",
+        "petechiae and purpura",
+        "a petechial rash"
+      ],
+      "exampleClinical": "Non-blanching petechiae over the shins in a feverish child — press a glass to them and don't relax if they stay.",
+      "exampleCasual": "The bleeding-into-skin ladder by size: petechiae (pinpoint), purpura (patches), ecchymoses (bruises).",
+      "usageNote": "Plural; singular 'petechia'. Adjective: petechial. The defining test is non-blanching — they don't fade under pressure.",
+      "abbreviation": ""
+    },
+    {
+      "term": "ecchymosis",
+      "ipa": "/ˌɛkɪˈmoʊsɪs/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Hematology & Oncology",
+      "level": "C2",
+      "definition": "A larger area of bleeding under the skin — a bruise — from rupture of subcutaneous vessels.",
+      "plain": "A bruise; a flat patch of bleeding under the skin.",
+      "etymology": "Greek ekchymosis, from ek- (out) + chymos (juice).",
+      "morphemes": [
+        "ec- (out)",
+        "chym (juice)",
+        "-osis (condition)"
+      ],
+      "synonyms": [
+        "bruise",
+        "contusion"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "extensive ecchymoses",
+        "periorbital ecchymosis",
+        "ecchymosis and petechiae"
+      ],
+      "exampleClinical": "Spontaneous ecchymoses in unusual places sent us straight to a coagulation screen.",
+      "exampleCasual": "When you want to make a simple bruise sound serious in a presentation, reach for 'ecchymosis'.",
+      "usageNote": "Plural ecchymoses /-siːz/. The three-rung ladder petechiae < purpura < ecchymoses is worth memorizing by size.",
+      "abbreviation": ""
+    },
+    {
+      "term": "transfuse",
+      "ipa": "/trænsˈfjuːz/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Hematology & Oncology",
+      "level": "B2+",
+      "definition": "To transfer blood or a blood product into a patient's circulation.",
+      "plain": "To give a patient blood through a drip.",
+      "etymology": "Latin transfundere 'to pour across', from trans- (across) + fundere (to pour).",
+      "morphemes": [
+        "trans- (across)",
+        "fus (pour)",
+        "-e (verb)"
+      ],
+      "synonyms": [],
+      "antonyms": [],
+      "collocations": [
+        "transfuse two units",
+        "crossmatch and transfuse",
+        "transfusion threshold"
+      ],
+      "exampleClinical": "His hemoglobin hit sixty-five with ongoing bleeding, so we crossmatched and transfused two units without much debate.",
+      "exampleCasual": "On call you'll say 'let's transfuse him' more times than you'll say your own name.",
+      "usageNote": "Noun: transfusion. Said in 'units'. 'Crossmatch' (verify compatibility) is the verb that should precede it whenever time allows.",
+      "abbreviation": ""
+    },
+    {
+      "term": "virulent",
+      "ipa": "/ˈvɪrjʊlənt/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Infectious Disease",
+      "level": "C1",
+      "definition": "Of a pathogen, highly capable of causing severe disease; extremely harmful in its effects.",
+      "plain": "A germ that's especially good at making you very sick.",
+      "etymology": "Latin virulentus 'full of poison', from virus (poison).",
+      "morphemes": [
+        "virus (poison)",
+        "-lent (full of)"
+      ],
+      "synonyms": [
+        "aggressive",
+        "pathogenic"
+      ],
+      "antonyms": [
+        "avirulent",
+        "attenuated"
+      ],
+      "collocations": [
+        "a virulent strain",
+        "highly virulent",
+        "virulence factors"
+      ],
+      "exampleClinical": "This was a particularly virulent strain — healthy adults were in the ICU within a day of their first symptom.",
+      "exampleCasual": "It crosses over nicely: 'virulent criticism' is the verbal version of a nasty pathogen.",
+      "usageNote": "Noun: virulence. 'Virulence factors' are the molecular tools that make a microbe dangerous; the vaccine word 'attenuated' is its opposite.",
+      "abbreviation": ""
+    },
+    {
+      "term": "fastidious",
+      "ipa": "/fæsˈtɪdiəs/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Infectious Disease",
+      "level": "C2",
+      "definition": "Of a microorganism, having complex nutritional requirements that make it difficult to culture.",
+      "plain": "A germ that's fussy and hard to grow in the lab.",
+      "etymology": "Latin fastidiosus 'disdainful, particular', from fastidium (loathing).",
+      "morphemes": [
+        "fastid (disdain)",
+        "-ious (full of)"
+      ],
+      "synonyms": [
+        "demanding"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "a fastidious organism",
+        "fastidious gram-negative bacteria",
+        "difficult to culture"
+      ],
+      "exampleClinical": "HACEK organisms are fastidious, so warn the lab to hold the cultures longer or you'll chase a false negative.",
+      "exampleCasual": "Same word, human version: a fastidious eater sends back the soup three times. The microbes are no less particular.",
+      "usageNote": "In micro, a near-technical sense ('hard to grow'); in general English it means meticulously fussy. The lab meaning surprises learners.",
+      "abbreviation": ""
+    },
+    {
+      "term": "nosocomial",
+      "ipa": "/ˌnɒsəˈkoʊmiəl/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Infectious Disease",
+      "level": "C2",
+      "definition": "Originating in or acquired within a hospital; of an infection, hospital-acquired.",
+      "plain": "Picked up in the hospital itself.",
+      "etymology": "Greek nosokomeion 'hospital', from nosos (disease) + komein (to care for).",
+      "morphemes": [
+        "nos/o (disease)",
+        "com (care)",
+        "-ial (relating to)"
+      ],
+      "synonyms": [
+        "hospital-acquired"
+      ],
+      "antonyms": [
+        "community-acquired"
+      ],
+      "collocations": [
+        "nosocomial pneumonia",
+        "nosocomial infection",
+        "nosocomial transmission"
+      ],
+      "exampleClinical": "Pneumonia appearing on day five points to a nosocomial organism, so the empiric cover broadens accordingly.",
+      "exampleCasual": "The plainer 'hospital-acquired' is winning the usage war, but 'nosocomial' still earns its place in exams.",
+      "usageNote": "The community-acquired vs nosocomial split drives empiric antibiotic choice. 'Iatrogenic' (caused by treatment) is a related but distinct idea.",
+      "abbreviation": ""
+    },
+    {
+      "term": "iatrogenic",
+      "ipa": "/aɪˌætrəˈdʒɛnɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Infectious Disease",
+      "level": "C1",
+      "definition": "Caused inadvertently by medical examination, treatment, or advice.",
+      "plain": "A problem the medical care itself caused.",
+      "etymology": "Greek iatros (physician) + -genic (producing).",
+      "morphemes": [
+        "iatr/o (physician)",
+        "-genic (producing)"
+      ],
+      "synonyms": [
+        "treatment-induced"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "iatrogenic pneumothorax",
+        "iatrogenic harm",
+        "an iatrogenic complication"
+      ],
+      "exampleClinical": "The pneumothorax was iatrogenic — a known risk of the central line, disclosed and now being managed.",
+      "exampleCasual": "It's the honest word for 'we caused this', which is exactly why it matters that the word exists.",
+      "usageNote": "From iatros, physician (also in 'psychiatry', 'pediatric'). Naming iatrogenic harm plainly is part of good clinical culture.",
+      "abbreviation": ""
+    },
+    {
+      "term": "empiric",
+      "ipa": "/ɛmˈpɪrɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Pharmacology",
+      "level": "C1",
+      "definition": "Of treatment, started on the basis of clinical judgement and probability before definitive test results are available.",
+      "plain": "Treating on best-guess grounds before the tests confirm it.",
+      "etymology": "Greek empeirikos 'experienced', from en- (in) + peira (trial).",
+      "morphemes": [
+        "em- (in)",
+        "peir (trial)",
+        "-ic (pertaining to)"
+      ],
+      "synonyms": [
+        "presumptive"
+      ],
+      "antonyms": [
+        "targeted",
+        "definitive"
+      ],
+      "collocations": [
+        "empiric antibiotics",
+        "empiric therapy",
+        "start empirically"
+      ],
+      "exampleClinical": "We started empiric broad-spectrum cover at the door and narrowed it once the cultures spoke two days later.",
+      "exampleCasual": "Adverb 'empirically' has a second life in research, meaning 'shown by actual data' rather than theory.",
+      "usageNote": "The arc is empiric → de-escalate → targeted. 'Empirical' (data-driven) is the same word wearing its scientific hat.",
+      "abbreviation": ""
+    },
+    {
+      "term": "prophylactic",
+      "ipa": "/ˌproʊfɪˈlæktɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Pharmacology",
+      "level": "C1",
+      "definition": "Intended to prevent disease rather than treat it once present.",
+      "plain": "Given to prevent a problem before it starts.",
+      "etymology": "Greek prophylaktikos 'guarding against', from pro- (before) + phylassein (to guard).",
+      "morphemes": [
+        "pro- (before)",
+        "phylact (guard)",
+        "-ic (pertaining to)"
+      ],
+      "synonyms": [
+        "preventive"
+      ],
+      "antonyms": [
+        "therapeutic"
+      ],
+      "collocations": [
+        "prophylactic antibiotics",
+        "DVT prophylaxis",
+        "prophylactic dose"
+      ],
+      "exampleClinical": "Everyone immobile on this ward gets prophylactic anticoagulation unless there's a bleeding reason not to.",
+      "exampleCasual": "Noun: prophylaxis. 'DVT prophylaxis' is muttered on every ward round like a small daily prayer.",
+      "usageNote": "Prophylactic dose (preventive) is usually lower than treatment dose — a distinction with real consequences for anticoagulants.",
+      "abbreviation": ""
+    },
+    {
+      "term": "titrate",
+      "ipa": "/ˈtaɪtreɪt/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Pharmacology",
+      "level": "C1",
+      "definition": "To adjust the dose of a drug incrementally against a measured response or target.",
+      "plain": "To fine-tune a drug dose up or down until it hits the target.",
+      "etymology": "French titre 'proportion, standard', from medieval Latin titulus.",
+      "morphemes": [
+        "titr (proportion)",
+        "-ate (verb)"
+      ],
+      "synonyms": [
+        "adjust"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "titrate to effect",
+        "titrate up the dose",
+        "titrate the infusion against blood pressure"
+      ],
+      "exampleClinical": "Titrate the noradrenaline to a MAP of sixty-five and let the number, not the habit, set the rate.",
+      "exampleCasual": "I titrate my caffeine to lecture difficulty — a slow morning infusion, a bolus before statistics.",
+      "usageNote": "The signature phrase is 'titrate to effect'. Borrowed from chemistry's titration; the medical sense is now everywhere in the ICU.",
+      "abbreviation": ""
+    },
+    {
+      "term": "taper",
+      "ipa": "/ˈteɪpər/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Pharmacology",
+      "level": "C1",
+      "definition": "To reduce a drug dose gradually in steps, usually to avoid withdrawal or rebound.",
+      "plain": "To step a medication down slowly rather than stopping suddenly.",
+      "etymology": "From 'taper', a thin candle that narrows to a point.",
+      "morphemes": [],
+      "synonyms": [
+        "wean off",
+        "step down"
+      ],
+      "antonyms": [
+        "load"
+      ],
+      "collocations": [
+        "a steroid taper",
+        "taper off slowly",
+        "taper the dose over two weeks"
+      ],
+      "exampleClinical": "After three weeks of prednisone you can't just stop — write a taper, or the adrenal axis will protest.",
+      "exampleCasual": "I'm on a slow taper off late-night studying; the withdrawal symptoms are surprisingly real.",
+      "usageNote": "Noun and verb both used: 'a steroid taper', 'taper the dose'. Overlaps with 'wean'; 'taper' is the drug-specific choice.",
+      "abbreviation": ""
+    },
+    {
+      "term": "contraindicated",
+      "ipa": "/ˌkɒntrəˈɪndɪkeɪtɪd/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Pharmacology",
+      "level": "C1",
+      "definition": "Inadvisable or unsafe to use in a particular situation because of the harm it could cause.",
+      "plain": "A treatment you must not use here because it would do harm.",
+      "etymology": "Latin contra- (against) + indicare (to point out).",
+      "morphemes": [
+        "contra- (against)",
+        "indic (point out)",
+        "-ate (result)"
+      ],
+      "synonyms": [],
+      "antonyms": [
+        "indicated"
+      ],
+      "collocations": [
+        "absolutely contraindicated",
+        "relatively contraindicated",
+        "contraindicated in pregnancy"
+      ],
+      "exampleClinical": "Beta-blockers are contraindicated in his cocaine-driven chest pain — the textbook trap, set and waiting.",
+      "exampleCasual": "Noun: contraindication. The mirror word 'indicated' (this is the right thing to use) completes the pair.",
+      "usageNote": "Absolute (never) vs relative (weigh the risk) contraindication is a distinction examiners adore. Opposite: 'indicated'.",
+      "abbreviation": ""
+    },
+    {
+      "term": "potentiate",
+      "ipa": "/pəˈtɛnʃieɪt/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Pharmacology",
+      "level": "C2",
+      "definition": "To increase the effect or potency of another agent, often more than additively.",
+      "plain": "To make another drug's effect stronger.",
+      "etymology": "Latin potentia 'power', from posse (to be able).",
+      "morphemes": [
+        "potent (powerful)",
+        "-iate (to make)"
+      ],
+      "synonyms": [
+        "augment",
+        "enhance"
+      ],
+      "antonyms": [
+        "antagonize"
+      ],
+      "collocations": [
+        "potentiate the effect of",
+        "alcohol potentiates sedation",
+        "mutually potentiating"
+      ],
+      "exampleClinical": "Warn him that alcohol potentiates the sedative — the combination does more than the sum of the labels.",
+      "exampleCasual": "Good sleep potentiates everything else you do; it's the quiet co-factor of a productive week.",
+      "usageNote": "Close to 'synergistic' (two agents together exceed the sum). 'Potentiate' usually means one agent boosting another.",
+      "abbreviation": ""
+    },
+    {
+      "term": "waxing and waning",
+      "ipa": "/ˈwæksɪŋ ænd ˈweɪnɪŋ/",
+      "pos": "phrase",
+      "domain": "clinical",
+      "topic": "Clinical Course",
+      "level": "C1",
+      "definition": "Fluctuating in intensity, with periods of worsening and improvement over time.",
+      "plain": "Coming and going in waves — better, then worse, then better.",
+      "etymology": "From the phases of the moon: waxing (growing) and waning (shrinking).",
+      "morphemes": [],
+      "synonyms": [
+        "fluctuating",
+        "relapsing-remitting"
+      ],
+      "antonyms": [
+        "steady",
+        "progressive"
+      ],
+      "collocations": [
+        "a waxing and waning course",
+        "waxing and waning consciousness",
+        "symptoms wax and wane"
+      ],
+      "exampleClinical": "His confusion waxes and wanes through the day, which is delirium's signature far more than dementia's.",
+      "exampleCasual": "My motivation for the thesis waxes and wanes with roughly lunar regularity.",
+      "usageNote": "A lovely lunar metaphor that survives in clinical English. The fluctuating-attention sense is near-diagnostic for delirium.",
+      "abbreviation": ""
+    },
+    {
+      "term": "self-limited",
+      "ipa": "/sɛlf ˈlɪmɪtɪd/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Clinical Course",
+      "level": "C1",
+      "definition": "Of an illness, resolving on its own within a predictable time without specific treatment.",
+      "plain": "Gets better by itself without treatment.",
+      "etymology": "From 'self' + Latin limes (boundary, limit).",
+      "morphemes": [],
+      "synonyms": [
+        "self-resolving"
+      ],
+      "antonyms": [
+        "progressive",
+        "chronic"
+      ],
+      "collocations": [
+        "a self-limited illness",
+        "usually self-limited",
+        "self-limited course"
+      ],
+      "exampleClinical": "Reassure them it's a self-limited viral illness, give the safety-net advice, and resist the urge to prescribe.",
+      "exampleCasual": "Most of my Sunday existential crises are self-limited — gone by Monday's first coffee.",
+      "usageNote": "Also written 'self-limiting'. The cornerstone phrase for explaining why a virus needs patience, not antibiotics.",
+      "abbreviation": ""
+    },
+    {
+      "term": "intractable",
+      "ipa": "/ɪnˈtræktəbəl/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Clinical Course",
+      "level": "C2",
+      "definition": "Difficult to manage, alleviate, or cure despite vigorous effort.",
+      "plain": "Stubbornly resistant to any attempt to control it.",
+      "etymology": "Latin intractabilis 'unmanageable', from in- (not) + tractare (to handle).",
+      "morphemes": [
+        "in- (not)",
+        "tract (to handle)",
+        "-able (capable of)"
+      ],
+      "synonyms": [
+        "refractory",
+        "recalcitrant"
+      ],
+      "antonyms": [
+        "manageable"
+      ],
+      "collocations": [
+        "intractable pain",
+        "intractable nausea",
+        "intractable seizures"
+      ],
+      "exampleClinical": "Her intractable nausea defeated three antiemetics, so palliative care joined to think laterally.",
+      "exampleCasual": "Outside medicine: an intractable problem, an intractable bureaucracy — the flavor of immovable difficulty carries over.",
+      "usageNote": "Overlaps with 'refractory' but feels more emphatic and is used freely outside medicine too.",
+      "abbreviation": ""
+    },
+    {
+      "term": "guarded",
+      "ipa": "/ˈɡɑːrdɪd/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Clinical Course",
+      "level": "C1",
+      "definition": "Of a prognosis, uncertain with a real risk of poor outcome; cautiously pessimistic.",
+      "plain": "An uncertain outlook that could still go badly.",
+      "etymology": "From 'guard' — a guarded statement holds something back.",
+      "morphemes": [],
+      "synonyms": [
+        "cautious",
+        "uncertain"
+      ],
+      "antonyms": [
+        "favorable"
+      ],
+      "collocations": [
+        "a guarded prognosis",
+        "the prognosis remains guarded",
+        "guardedly optimistic"
+      ],
+      "exampleClinical": "We told the family the prognosis was guarded — honest about the uncertainty without slamming the door on hope.",
+      "exampleCasual": "Don't confuse it with 'grave', which is far darker; guarded leaves the window open a crack.",
+      "usageNote": "Prognosis register, mildest to darkest: favorable → guarded → poor → grave → dismal. Pick the rung deliberately.",
+      "abbreviation": ""
+    },
+    {
+      "term": "succumb",
+      "ipa": "/səˈkʌm/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Clinical Course",
+      "level": "C2",
+      "definition": "To die from the effects of a disease or injury; to finally yield to an overpowering force.",
+      "plain": "To die from an illness, in gentler words.",
+      "etymology": "Latin succumbere 'to lie down under', from sub- (under) + cumbere (to lie).",
+      "morphemes": [
+        "suc- (under)",
+        "cumb (to lie)"
+      ],
+      "synonyms": [
+        "die",
+        "pass away"
+      ],
+      "antonyms": [
+        "survive",
+        "recover"
+      ],
+      "collocations": [
+        "succumbed to the illness",
+        "succumb to complications",
+        "ultimately succumbed"
+      ],
+      "exampleClinical": "Despite everything the team threw at it, he succumbed to the sepsis on the fourth night.",
+      "exampleCasual": "Lighter uses survive too: 'I finally succumbed to the dessert menu' — yielding, not dying.",
+      "usageNote": "A softened, dignified way to write of death in case summaries. Takes 'to': succumb to the disease.",
+      "abbreviation": ""
+    },
+    {
+      "term": "unremarkable",
+      "ipa": "/ˌʌnrɪˈmɑːrkəbəl/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Physical Examination",
+      "level": "B2+",
+      "definition": "Showing no abnormal or noteworthy findings; normal.",
+      "plain": "Nothing abnormal worth noting.",
+      "etymology": "From 'remarkable' (worth remarking on) + negating 'un-'.",
+      "morphemes": [
+        "un- (not)",
+        "remark (note)",
+        "-able (worthy of)"
+      ],
+      "synonyms": [
+        "normal",
+        "benign"
+      ],
+      "antonyms": [
+        "remarkable",
+        "significant"
+      ],
+      "collocations": [
+        "an unremarkable exam",
+        "otherwise unremarkable",
+        "an unremarkable CT"
+      ],
+      "exampleClinical": "Abdomen soft, chest clear, neuro intact — the exam was reassuringly unremarkable.",
+      "exampleCasual": "It's the highest praise a radiologist offers: an unremarkable scan is a small celebration.",
+      "usageNote": "The standard charting word for 'normal, and I did look'. 'Otherwise unremarkable' tidily closes a section after one finding.",
+      "abbreviation": ""
+    },
+    {
+      "term": "grossly",
+      "ipa": "/ˈɡroʊsli/",
+      "pos": "adverb",
+      "domain": "clinical",
+      "topic": "Physical Examination",
+      "level": "C1",
+      "definition": "On overall or naked-eye assessment, without fine or detailed testing.",
+      "plain": "On the rough, big-picture look — no fine testing done.",
+      "etymology": "Latin grossus 'thick, coarse'.",
+      "morphemes": [
+        "gross (whole, coarse)",
+        "-ly (adverb)"
+      ],
+      "synonyms": [
+        "broadly",
+        "overall"
+      ],
+      "antonyms": [
+        "finely"
+      ],
+      "collocations": [
+        "grossly intact",
+        "grossly normal",
+        "grossly abnormal"
+      ],
+      "exampleClinical": "Cranial nerves grossly intact — meaning a screening look, not the slow forty-step exam, was reassuring.",
+      "exampleCasual": "Don't read 'grossly' as 'disgustingly'; here it just means 'on the whole'.",
+      "usageNote": "'Grossly intact' flags a screening-level exam and quietly hedges that subtle deficits weren't formally excluded. Also: gross anatomy, gross specimen.",
+      "abbreviation": ""
+    },
+    {
+      "term": "cachectic",
+      "ipa": "/kəˈkɛktɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Physical Examination",
+      "level": "C2",
+      "definition": "Showing cachexia — profound wasting of muscle and fat from chronic illness.",
+      "plain": "Severely wasted and thin from long illness.",
+      "etymology": "Greek kakos (bad) + hexis (condition).",
+      "morphemes": [
+        "cac (bad)",
+        "hex (condition)",
+        "-tic (pertaining to)"
+      ],
+      "synonyms": [
+        "wasted",
+        "emaciated"
+      ],
+      "antonyms": [
+        "well-nourished"
+      ],
+      "collocations": [
+        "cachectic and frail",
+        "a cachectic appearance",
+        "tumor cachexia"
+      ],
+      "exampleClinical": "He looked cachectic from the doorway — the kind of wasting that tells half the story before the notes do.",
+      "exampleCasual": "The opening line of a case often hinges on appearance: well-nourished, cachectic, or toxic-appearing.",
+      "usageNote": "Noun: cachexia /kəˈkɛksiə/. A weighty word — reserve it for genuine wasting, not ordinary thinness.",
+      "abbreviation": ""
+    },
+    {
+      "term": "toxic-appearing",
+      "ipa": "/ˈtɒksɪk əˈpɪərɪŋ/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Physical Examination",
+      "level": "C1",
+      "definition": "Looking acutely and severely unwell — flushed, listless, and obviously sick at first glance.",
+      "plain": "Looking really, obviously sick the moment you see them.",
+      "etymology": "Greek toxikon 'poison for arrows' + 'appearing'.",
+      "morphemes": [
+        "tox (poison)",
+        "-ic (pertaining to)"
+      ],
+      "synonyms": [
+        "ill-appearing"
+      ],
+      "antonyms": [
+        "well-appearing"
+      ],
+      "collocations": [
+        "toxic-appearing on arrival",
+        "non-toxic-appearing",
+        "well- versus ill-appearing"
+      ],
+      "exampleClinical": "The vitals were borderline, but she was toxic-appearing — and the gestalt outranked the numbers that night.",
+      "exampleCasual": "Pediatricians live by the well-appearing versus toxic-appearing split; it triages before a single test returns.",
+      "usageNote": "Encodes clinical gestalt in one hyphenated word. 'Well-appearing' is the reassuring opposite that reviewers look for.",
+      "abbreviation": ""
+    },
+    {
+      "term": "trend",
+      "ipa": "/trɛnd/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Investigations & Labs",
+      "level": "C1",
+      "definition": "To follow a measured value over time by repeating the test to see its direction.",
+      "plain": "To repeat a test over time and watch which way it's heading.",
+      "etymology": "Old English trendan 'to roll, turn'.",
+      "morphemes": [],
+      "synonyms": [
+        "serial monitoring"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "trend the troponins",
+        "trend down",
+        "trending in the right direction"
+      ],
+      "exampleClinical": "One lactate means little — trend it, and the slope tells you whether the resuscitation is working.",
+      "exampleCasual": "The whole ward speaks in slopes: 'his creatinine is trending down' is genuine good news.",
+      "usageNote": "A clinical verb built from a noun. 'Serial' is its adjective cousin: serial troponins, serial abdominal exams.",
+      "abbreviation": ""
+    },
+    {
+      "term": "spurious",
+      "ipa": "/ˈspjʊəriəs/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Investigations & Labs",
+      "level": "C2",
+      "definition": "Of a result, falsely abnormal because of a technical or sampling artifact rather than true physiology.",
+      "plain": "A fake-looking result caused by a lab or sampling glitch.",
+      "etymology": "Latin spurius 'illegitimate, false'.",
+      "morphemes": [],
+      "synonyms": [
+        "artifactual",
+        "false"
+      ],
+      "antonyms": [
+        "genuine",
+        "true"
+      ],
+      "collocations": [
+        "spurious hyperkalemia",
+        "a spurious result",
+        "spuriously elevated"
+      ],
+      "exampleClinical": "The potassium of seven didn't fit a well patient with a normal ECG — spurious hemolysis, confirmed on the repeat.",
+      "exampleCasual": "It generalizes neatly: a spurious correlation in the data is one that doesn't actually mean anything.",
+      "usageNote": "Near-synonym 'artifactual'. 'Spurious hyperkalemia' (pseudohyperkalemia from hemolysis) is the canonical example.",
+      "abbreviation": ""
+    },
+    {
+      "term": "concerning for",
+      "ipa": "/kənˈsɜːrnɪŋ fɔːr/",
+      "pos": "phrase",
+      "domain": "clinical",
+      "topic": "Investigations & Labs",
+      "level": "C1",
+      "definition": "Suggestive of a specified serious diagnosis and warranting further evaluation.",
+      "plain": "Pointing worryingly toward a particular diagnosis.",
+      "etymology": "From 'concern', Latin concernere (to relate to, sift together).",
+      "morphemes": [],
+      "synonyms": [
+        "suspicious for",
+        "worrisome for"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "concerning for malignancy",
+        "findings concerning for",
+        "clinically concerning"
+      ],
+      "exampleClinical": "The CT described a mass concerning for malignancy, which set the staging machinery in motion before lunch.",
+      "exampleCasual": "American clinical English loves these hedged-but-pointed phrases — concerning for, suspicious for, consistent with.",
+      "usageNote": "Part of the calibrated reporting ladder: consistent with (fits) < suspicious for < concerning for < diagnostic of. Note 'for', not 'of'.",
+      "abbreviation": ""
+    },
+    {
+      "term": "consistent with",
+      "ipa": "/kənˈsɪstənt wɪð/",
+      "pos": "phrase",
+      "domain": "clinical",
+      "topic": "Investigations & Labs",
+      "level": "C1",
+      "definition": "Compatible with a given diagnosis, though not proving it exclusively.",
+      "plain": "Fits the diagnosis, without proving it on its own.",
+      "etymology": "Latin consistere 'to stand firm together'.",
+      "morphemes": [],
+      "synonyms": [
+        "compatible with",
+        "in keeping with"
+      ],
+      "antonyms": [
+        "inconsistent with"
+      ],
+      "collocations": [
+        "consistent with pneumonia",
+        "clinically consistent with",
+        "appearances consistent with"
+      ],
+      "exampleClinical": "The film was consistent with pneumonia, but I chose my words so nobody would read it as proof.",
+      "exampleCasual": "It's the careful scientist's favorite hedge — the data are 'consistent with' the hypothesis, never quite 'proof of' it.",
+      "usageNote": "The softest rung of diagnostic certainty — compatible, not confirmatory. British reports prefer 'in keeping with'.",
+      "abbreviation": ""
+    },
+    {
+      "term": "antalgic",
+      "ipa": "/ænˈtældʒɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "C2",
+      "definition": "Of a gait, adopted to avoid pain, typically by shortening time spent bearing weight on the painful side.",
+      "plain": "A limping walk that protects a painful leg.",
+      "etymology": "Greek anti- (against) + algos (pain).",
+      "morphemes": [
+        "ant- (against)",
+        "alg (pain)",
+        "-ic (pertaining to)"
+      ],
+      "synonyms": [
+        "pain-avoiding gait"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "an antalgic gait",
+        "walks with an antalgic limp"
+      ],
+      "exampleClinical": "He came in with a clearly antalgic gait, shifting his weight off the right hip almost before he reached the chair.",
+      "exampleCasual": "Watching how a patient walks from the waiting room is free diagnostic data — antalgic, ataxic, or shuffling all show.",
+      "usageNote": "From the same anti-pain root as 'analgesic'. Gait adjectives — antalgic, ataxic, shuffling, spastic — each name a mechanism.",
+      "abbreviation": ""
+    },
+    {
+      "term": "ataxic",
+      "ipa": "/əˈtæksɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "C1",
+      "definition": "Showing a lack of voluntary coordination of muscle movements, typically a broad-based unsteady gait.",
+      "plain": "Uncoordinated and unsteady on the feet.",
+      "etymology": "Greek a- (without) + taxis (order, arrangement).",
+      "morphemes": [
+        "a- (without)",
+        "tax (order)",
+        "-ic (pertaining to)"
+      ],
+      "synonyms": [
+        "incoordinate",
+        "unsteady"
+      ],
+      "antonyms": [
+        "coordinated"
+      ],
+      "collocations": [
+        "an ataxic gait",
+        "broad-based and ataxic",
+        "cerebellar ataxia"
+      ],
+      "exampleClinical": "Her broad-based, ataxic gait pointed the workup squarely at the cerebellum.",
+      "exampleCasual": "The literal root is 'without order' — a satisfyingly honest description of bumping into the furniture.",
+      "usageNote": "Noun: ataxia. Localizes toward the cerebellum or proprioceptive pathways. Don't confuse with the pain-driven 'antalgic' gait.",
+      "abbreviation": ""
+    },
+    {
+      "term": "remission",
+      "ipa": "/rɪˈmɪʃən/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Hematology & Oncology",
+      "level": "B2+",
+      "definition": "A period during which the signs and symptoms of a disease abate, partially or completely.",
+      "plain": "A stretch where the disease quiets down or disappears.",
+      "etymology": "Latin remittere 'to send back, slacken'.",
+      "morphemes": [
+        "re- (back)",
+        "miss (send)",
+        "-ion (process)"
+      ],
+      "synonyms": [],
+      "antonyms": [
+        "relapse",
+        "progression"
+      ],
+      "collocations": [
+        "complete remission",
+        "in remission",
+        "to induce remission",
+        "sustained remission"
+      ],
+      "exampleClinical": "The marrow came back clean — complete remission — and you could feel the whole room exhale.",
+      "exampleCasual": "Outside oncology people borrow it hopefully: 'my procrastination is in remission this week'.",
+      "usageNote": "The triad remission / relapse / refractory organizes oncology and chronic inflammatory disease alike. 'Cure' is a bolder word, used cautiously.",
+      "abbreviation": ""
+    },
+    {
+      "term": "relapse",
+      "ipa": "/rɪˈlæps/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Hematology & Oncology",
+      "level": "B2+",
+      "definition": "The return of disease activity after a period of improvement or remission.",
+      "plain": "The illness coming back after it had eased.",
+      "etymology": "Latin relabi 'to slip back', from re- (back) + labi (to slide).",
+      "morphemes": [
+        "re- (back)",
+        "laps (to slide)"
+      ],
+      "synonyms": [
+        "recurrence",
+        "flare"
+      ],
+      "antonyms": [
+        "remission"
+      ],
+      "collocations": [
+        "early relapse",
+        "relapsed disease",
+        "to relapse",
+        "relapsing-remitting"
+      ],
+      "exampleClinical": "An early relapse like this, only months after remission, usually signals a more aggressive biology.",
+      "exampleCasual": "It crosses into addiction and habit talk constantly — 'relapse' is a heavy, human word.",
+      "usageNote": "Verb and noun both: 'she relapsed'. 'Relapsing-remitting' is the defining course pattern for multiple sclerosis.",
+      "abbreviation": ""
+    },
+    {
+      "term": "effusion",
+      "ipa": "/ɪˈfjuːʒən/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Musculoskeletal & Derm",
+      "level": "C1",
+      "definition": "An abnormal accumulation of fluid within a body cavity or joint space.",
+      "plain": "Fluid that has pooled inside a joint or body cavity.",
+      "etymology": "Latin effundere 'to pour out', from ex- (out) + fundere (to pour).",
+      "morphemes": [
+        "ef- (out)",
+        "fus (pour)",
+        "-ion (process)"
+      ],
+      "synonyms": [],
+      "antonyms": [],
+      "collocations": [
+        "a knee effusion",
+        "pleural effusion",
+        "pericardial effusion",
+        "tap the effusion"
+      ],
+      "exampleClinical": "The knee held a tense effusion, so we aspirated it both to settle it and to send the fluid for answers.",
+      "exampleCasual": "Same root as 'effusive' — a person overflowing with praise is, etymologically, just leaking enthusiasm.",
+      "usageNote": "Location names the problem: pleural, pericardial, joint. 'Tap' or 'aspirate' is the verb for sampling it.",
+      "abbreviation": ""
+    },
+    {
+      "term": "crepitus",
+      "ipa": "/ˈkrɛpɪtəs/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Musculoskeletal & Derm",
+      "level": "C2",
+      "definition": "A grating or crackling sensation felt or heard, from bone ends, roughened joint surfaces, or gas in tissue.",
+      "plain": "A grinding or crackling you feel under the skin or in a joint.",
+      "etymology": "Latin crepitus 'a rattling, creaking', from crepare (to crackle).",
+      "morphemes": [
+        "crepit (to crackle)",
+        "-us (noun)"
+      ],
+      "synonyms": [
+        "grating"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "bony crepitus",
+        "subcutaneous crepitus",
+        "crepitus on movement"
+      ],
+      "exampleClinical": "Crackling crepitus under the skin of the chest wall meant air where air should never be — surgical emphysema.",
+      "exampleCasual": "My knees produce a recreational crepitus on every staircase; the orthopods assure me it's mostly benign.",
+      "usageNote": "Subcutaneous crepitus (palpable gas) is the alarming kind. Joint crepitus is often harmless. Same word, very different stakes.",
+      "abbreviation": ""
+    },
+    {
+      "term": "pruritic",
+      "ipa": "/prʊˈrɪtɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Musculoskeletal & Derm",
+      "level": "C1",
+      "definition": "Itchy; causing or characterized by the urge to scratch.",
+      "plain": "Itchy.",
+      "etymology": "Latin prurire 'to itch'.",
+      "morphemes": [
+        "prurit (to itch)",
+        "-ic (pertaining to)"
+      ],
+      "synonyms": [
+        "itchy"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "an intensely pruritic rash",
+        "pruritic lesions",
+        "pruritus"
+      ],
+      "exampleClinical": "The rash was intensely pruritic and worse at night, which nudged scabies toward the top of the list.",
+      "exampleCasual": "'Pruritic' is simply the dignified, three-syllable way to say a rash itches like mad.",
+      "usageNote": "Noun: pruritus /prʊˈraɪtəs/ — note the pronunciation shifts. Generalized pruritus without a rash can flag systemic disease.",
+      "abbreviation": ""
+    },
+    {
+      "term": "desquamation",
+      "ipa": "/ˌdɛskwəˈmeɪʃən/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Musculoskeletal & Derm",
+      "level": "C2",
+      "definition": "Shedding or peeling of the outer layers of the skin.",
+      "plain": "Skin peeling off in flakes or sheets.",
+      "etymology": "Latin desquamare 'to scale off', from de- (off) + squama (scale).",
+      "morphemes": [
+        "de- (off)",
+        "squam (scale)",
+        "-ation (process)"
+      ],
+      "synonyms": [
+        "peeling",
+        "scaling"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "fine desquamation",
+        "sheet-like desquamation",
+        "palmar desquamation"
+      ],
+      "exampleClinical": "Days after the fever broke, the palms began a sheet-like desquamation that handed us the diagnosis retrospectively.",
+      "exampleCasual": "A bad sunburn ends in desquamation; you've shed skin like a scaly creature, medically speaking.",
+      "usageNote": "From squama, 'scale'. Sheet-like vs fine desquamation, and its timing after a rash, can be a diagnostic clue (Kawasaki, scarlet fever).",
+      "abbreviation": ""
+    },
+    {
+      "term": "euvolemic",
+      "ipa": "/ˌjuːvoʊˈliːmɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Endocrinology",
+      "level": "C2",
+      "definition": "Having a normal volume of body fluid — neither dehydrated nor overloaded.",
+      "plain": "Just-right on body fluid — not dry, not overloaded.",
+      "etymology": "Greek eu- (good, normal) + Latin volumen (volume) + Greek haima (blood).",
+      "morphemes": [
+        "eu- (normal)",
+        "vol (volume)",
+        "-emic (blood)"
+      ],
+      "synonyms": [
+        "normovolemic"
+      ],
+      "antonyms": [
+        "hypovolemic",
+        "hypervolemic"
+      ],
+      "collocations": [
+        "clinically euvolemic",
+        "euvolemic hyponatremia",
+        "restore euvolemia"
+      ],
+      "exampleClinical": "Classifying the hyponatremia starts at the bedside: is she hypovolemic, euvolemic, or overloaded? Euvolemic points at SIADH.",
+      "exampleCasual": "The 'eu-' prefix is a gift — euvolemic, euthyroid, euthymic all just mean 'the good, normal version'.",
+      "usageNote": "The 'eu-' (normal) family is worth collecting: euthyroid, euvolemic, eupneic. Volume status is the first fork in the hyponatremia algorithm.",
+      "abbreviation": ""
+    },
+    {
+      "term": "euthyroid",
+      "ipa": "/juːˈθaɪrɔɪd/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Endocrinology",
+      "level": "C1",
+      "definition": "Having normal thyroid function.",
+      "plain": "Thyroid working normally.",
+      "etymology": "Greek eu- (normal) + thyreoeides (shield-shaped, the thyroid).",
+      "morphemes": [
+        "eu- (normal)",
+        "thyroid (thyroid gland)"
+      ],
+      "synonyms": [],
+      "antonyms": [
+        "hypothyroid",
+        "hyperthyroid"
+      ],
+      "collocations": [
+        "clinically euthyroid",
+        "euthyroid on replacement",
+        "euthyroid sick syndrome"
+      ],
+      "exampleClinical": "She's euthyroid on her current levothyroxine dose, so we'll leave well alone and recheck in a year.",
+      "exampleCasual": "Once you spot the 'eu-' pattern, half of endocrinology vocabulary stops being intimidating.",
+      "usageNote": "'Euthyroid sick syndrome' confusingly describes abnormal thyroid labs in a non-thyroidal illness — the exception that tests the rule.",
+      "abbreviation": ""
+    },
+    {
+      "term": "bacteremic",
+      "ipa": "/ˌbæktəˈriːmɪk/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Infectious Disease",
+      "level": "C1",
+      "definition": "Having viable bacteria circulating in the bloodstream.",
+      "plain": "Having bacteria in the blood.",
+      "etymology": "Greek bakterion (small rod) + haima (blood).",
+      "morphemes": [
+        "bacter (bacterium)",
+        "-emic (blood)"
+      ],
+      "synonyms": [],
+      "antonyms": [],
+      "collocations": [
+        "persistently bacteremic",
+        "bacteremic on admission",
+        "bacteremia"
+      ],
+      "exampleClinical": "If he stays bacteremic on appropriate antibiotics, hunt for the source — an abscess or a seeded valve isn't clearing itself.",
+      "exampleCasual": "Noun: bacteremia. The mental jump from 'bacteremic' to 'where's the source?' is a habit worth building early.",
+      "usageNote": "Persistent bacteremia despite therapy is a red flag for endocarditis or undrained collections. Compare 'septic' (the host response).",
+      "abbreviation": ""
+    },
+    {
+      "term": "indwelling",
+      "ipa": "/ˈɪnˌdwɛlɪŋ/",
+      "pos": "adjective",
+      "domain": "clinical",
+      "topic": "Infectious Disease",
+      "level": "C1",
+      "definition": "Of a device, left in place within the body for an extended period.",
+      "plain": "A tube or line left inside the body for a while.",
+      "etymology": "From 'in' + 'dwell' (to remain, reside).",
+      "morphemes": [
+        "in- (within)",
+        "dwell (to remain)",
+        "-ing (adjective)"
+      ],
+      "synonyms": [],
+      "antonyms": [],
+      "collocations": [
+        "an indwelling catheter",
+        "indwelling line",
+        "indwelling device"
+      ],
+      "exampleClinical": "Any indwelling line is a suspect in a new fever — the catheter you forgot about is the one that's seeding the blood.",
+      "exampleCasual": "It's a quietly elegant word: the device 'dwells within', like an unwelcome long-term houseguest.",
+      "usageNote": "Indwelling devices are classic infection sources ('line sepsis'). 'Source control' often just means removing the indwelling culprit.",
+      "abbreviation": ""
+    },
+    {
+      "term": "exophthalmos",
+      "ipa": "/ˌɛksɒfˈθælmɒs/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Endocrinology",
+      "level": "C2",
+      "definition": "Abnormal protrusion of one or both eyeballs, classically from Graves' disease.",
+      "plain": "Bulging eyes, classically from an overactive thyroid.",
+      "etymology": "Greek ex- (out) + ophthalmos (eye).",
+      "morphemes": [
+        "ex- (out)",
+        "ophthalm (eye)",
+        "-os (noun)"
+      ],
+      "synonyms": [
+        "proptosis"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "bilateral exophthalmos",
+        "exophthalmos and lid lag",
+        "thyroid eye disease"
+      ],
+      "exampleClinical": "The exophthalmos and lid lag told the story before the TSH came back flat.",
+      "exampleCasual": "Spelling it is its own exam — that silent 'ph' cluster trips up nearly everyone.",
+      "usageNote": "Near-synonym 'proptosis' is used more broadly (any cause); 'exophthalmos' leans thyroid. Note the tricky 'xophth' cluster.",
+      "abbreviation": ""
+    },
+    {
+      "term": "de-escalate",
+      "ipa": "/diːˈɛskəleɪt/",
+      "pos": "verb",
+      "domain": "clinical",
+      "topic": "Pharmacology",
+      "level": "C1",
+      "definition": "To narrow or step down therapy, especially antibiotics, once culture results allow more targeted treatment.",
+      "plain": "To switch from broad, just-in-case treatment to a narrower targeted one.",
+      "etymology": "From 'escalate' (Latin scala, ladder) with reversing 'de-'.",
+      "morphemes": [
+        "de- (down)",
+        "scala (ladder)",
+        "-ate (verb)"
+      ],
+      "synonyms": [
+        "narrow",
+        "step down"
+      ],
+      "antonyms": [
+        "escalate",
+        "broaden"
+      ],
+      "collocations": [
+        "de-escalate antibiotics",
+        "de-escalate to oral",
+        "de-escalation of therapy"
+      ],
+      "exampleClinical": "Cultures grew a sensitive organism, so we de-escalated from the carbapenem to plain amoxicillin and slept easier about resistance.",
+      "exampleCasual": "The word travels well: de-escalating a tense conversation uses the same downward-step logic.",
+      "usageNote": "Core antibiotic-stewardship verb. The arc empiric → de-escalate → targeted is worth saying aloud until it's automatic.",
+      "abbreviation": ""
+    },
+    {
+      "term": "in extremis",
+      "ipa": "/ɪn ɪkˈstriːmɪs/",
+      "pos": "phrase",
+      "domain": "clinical",
+      "topic": "Physical Examination",
+      "level": "C2",
+      "definition": "At the point of death; in a critical, rapidly deteriorating state.",
+      "plain": "On the very edge of death.",
+      "etymology": "Latin in extremis 'in the furthest reaches' (of life).",
+      "morphemes": [],
+      "synonyms": [
+        "peri-arrest",
+        "moribund"
+      ],
+      "antonyms": [
+        "stable"
+      ],
+      "collocations": [
+        "arrived in extremis",
+        "a patient in extremis",
+        "in extremis on presentation"
+      ],
+      "exampleClinical": "He rolled through the doors in extremis — there was time to act, not to deliberate.",
+      "exampleCasual": "It keeps its Latin dignity, used half-seriously even outside medicine: 'I submitted the essay in extremis, two minutes to midnight'.",
+      "usageNote": "Untranslated Latin, kept for gravity. 'Moribund' is the near-synonym for a patient slowly, inevitably dying.",
+      "abbreviation": ""
+    },
+    {
+      "term": "incidentaloma",
+      "ipa": "/ˌɪnsɪˌdɛntəˈloʊmə/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Investigations & Labs",
+      "level": "C2",
+      "definition": "A mass or lesion discovered by chance on imaging performed for an unrelated reason.",
+      "plain": "A lump found by accident on a scan done for something else.",
+      "etymology": "English 'incidental' + the tumor suffix -oma — a playful modern coinage.",
+      "morphemes": [
+        "incidental (by chance)",
+        "-oma (tumor, mass)"
+      ],
+      "synonyms": [
+        "incidental finding"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "an adrenal incidentaloma",
+        "a pituitary incidentaloma",
+        "manage the incidentaloma"
+      ],
+      "exampleClinical": "The CT cleared the appendix but turned up an adrenal incidentaloma, and now we owe him a conversation and a plan.",
+      "exampleCasual": "It's a knowingly tongue-in-cheek word — doctors invented '-oma' for 'oops, found a thing' and somehow it stuck.",
+      "usageNote": "A modern, semi-jocular coinage now firmly in use. The plainer 'incidental finding' is the formal alternative in reports.",
+      "abbreviation": ""
+    },
+    {
+      "term": "photophobia",
+      "ipa": "/ˌfoʊtəˈfoʊbiə/",
+      "pos": "noun",
+      "domain": "clinical",
+      "topic": "Neurology",
+      "level": "C1",
+      "definition": "Abnormal sensitivity to and discomfort from light.",
+      "plain": "Light hurts the eyes.",
+      "etymology": "Greek phos, photos (light) + phobos (fear).",
+      "morphemes": [
+        "phot/o (light)",
+        "-phobia (aversion)"
+      ],
+      "synonyms": [
+        "light sensitivity"
+      ],
+      "antonyms": [],
+      "collocations": [
+        "photophobia and neck stiffness",
+        "marked photophobia",
+        "photophobic"
+      ],
+      "exampleClinical": "Headache, fever, photophobia, and a stiff neck cluster into one urgent question you have to answer fast.",
+      "exampleCasual": "After a migraine, ordinary daylight feels like an interrogation lamp — textbook photophobia.",
+      "usageNote": "Here '-phobia' means physical intolerance, not psychological fear. Adjective: photophobic. Travels with meningism and migraine.",
+      "abbreviation": ""
+    }
+  ]
+}
