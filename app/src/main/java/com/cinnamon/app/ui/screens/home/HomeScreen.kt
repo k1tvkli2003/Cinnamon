@@ -178,7 +178,7 @@ private fun HomeHeader(streak: Int, streakAlive: Boolean) {
     ) {
         Column {
             Text(
-                text = "Cinnamon",
+                text = "Cinnamon!",
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onBackground
             )

@@ -1,4 +1,4 @@
-# Cinnamon 🤎
+# Cinnamon! 🤎
 
 **Cinnamon** is a personal English-perfection companion built for one demanding reader: an advanced (above-B2) medical student who already knows the medicine and now wants the *language* — pronunciation, natural usage, collocations, register, and the difference between "concerning for" and "consistent with."
 
