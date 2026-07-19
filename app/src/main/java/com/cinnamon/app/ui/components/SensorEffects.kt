@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 
 /**
  * Phase 6: Next-Gen Processing, Voice & Audio
@@ -18,11 +19,14 @@ import androidx.compose.ui.platform.LocalContext
  */
 fun Modifier.gyroscopeParallax(intensity: Float = 15f): Modifier = composed {
     val context = LocalContext.current
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
     var pitch by remember { mutableFloatStateOf(0f) }
     var roll by remember { mutableFloatStateOf(0f) }
 
-    DisposableEffect(Unit) {
-        val sensorManager = context.getSystemService(android.content.Context.SENSOR_SERVICE) as? SensorManager
+    DisposableEffect(reduceMotion) {
+        val sensorManager = if (reduceMotion) null else {
+            context.getSystemService(android.content.Context.SENSOR_SERVICE) as? SensorManager
+        }
         val gyroSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
         val listener = object : SensorEventListener {
@@ -41,7 +45,12 @@ fun Modifier.gyroscopeParallax(intensity: Float = 15f): Modifier = composed {
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
 
-        sensorManager?.registerListener(listener, gyroSensor, SensorManager.SENSOR_DELAY_UI)
+        if (gyroSensor != null) {
+            sensorManager.registerListener(listener, gyroSensor, SensorManager.SENSOR_DELAY_UI)
+        } else {
+            pitch = 0f
+            roll = 0f
+        }
 
         onDispose {
             sensorManager?.unregisterListener(listener)
@@ -49,7 +58,7 @@ fun Modifier.gyroscopeParallax(intensity: Float = 15f): Modifier = composed {
     }
 
     val animPitch by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = pitch * intensity,
+        targetValue = if (reduceMotion) 0f else pitch * intensity,
         animationSpec = androidx.compose.animation.core.spring(
             dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
             stiffness = androidx.compose.animation.core.Spring.StiffnessLow
@@ -57,7 +66,7 @@ fun Modifier.gyroscopeParallax(intensity: Float = 15f): Modifier = composed {
         label = "animPitch"
     )
     val animRoll by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = roll * intensity,
+        targetValue = if (reduceMotion) 0f else roll * intensity,
         animationSpec = androidx.compose.animation.core.spring(
             dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
             stiffness = androidx.compose.animation.core.Spring.StiffnessLow

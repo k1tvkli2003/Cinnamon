@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,9 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
@@ -31,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 import com.cinnamon.app.ui.theme.*
 import com.cinnamon.app.viewmodel.UserProgressViewModel
 import kotlinx.coroutines.delay
@@ -44,7 +44,6 @@ fun NativeFluencyPlaygroundScreen(
     progressViewModel: UserProgressViewModel,
     initialTab: String = "Tone Slider"
 ) {
-    var selectedTab by remember { mutableStateOf(initialTab) }
     val haptic = LocalHapticFeedback.current
 
     val tabs = listOf(
@@ -56,7 +55,7 @@ fun NativeFluencyPlaygroundScreen(
         "Text Expander",
         "Between The Lines",
         "Professional Email",
-        "Interactive Podcast",
+        "Spoken Rhythm",
         "Contextual Idioms",
         "C2 Debate Club",
         "Storytelling Mode",
@@ -66,6 +65,9 @@ fun NativeFluencyPlaygroundScreen(
         "Grammar Deep-Dive",
         "Daily C2 Word"
     )
+    var selectedTab by remember {
+        mutableStateOf(initialTab.takeIf { it in tabs } ?: tabs.first())
+    }
 
     Scaffold(
         topBar = {
@@ -80,80 +82,162 @@ fun NativeFluencyPlaygroundScreen(
             )
         }
     ) { padding ->
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // Left Sidebar Tab Switcher (Fluid and fully responsive)
-            Column(
-                modifier = Modifier
-                    .width(135.dp)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                tabs.forEach { tab ->
-                    val isActive = selectedTab == tab
-                    Box(
+            val useCompactTabs = maxWidth < 600.dp
+            val selectTab: (String) -> Unit = { tab ->
+                selectedTab = tab
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            if (useCompactTabs) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    NativeFluencyTabs(
+                        tabs = tabs,
+                        selectedTab = selectedTab,
+                        compact = true,
+                        onSelect = selectTab,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    NativeFluencyWorkspace(
+                        selectedTab = selectedTab,
+                        progressViewModel = progressViewModel,
                         modifier = Modifier
+                            .weight(1f)
                             .fillMaxWidth()
-                            .clickable {
-                                selectedTab = tab
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
-                            .background(if (isActive) MaterialTheme.colorScheme.background else Color.Transparent)
-                            .padding(vertical = 14.dp, horizontal = 12.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(
-                            text = tab,
-                            color = if (isActive) NeonCyan else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        )
-                    }
+                    )
+                }
+            } else {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    NativeFluencyTabs(
+                        tabs = tabs,
+                        selectedTab = selectedTab,
+                        compact = false,
+                        onSelect = selectTab,
+                        modifier = Modifier
+                            .width(135.dp)
+                            .fillMaxHeight()
+                    )
+                    NativeFluencyWorkspace(
+                        selectedTab = selectedTab,
+                        progressViewModel = progressViewModel,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
                 }
             }
+        }
+    }
+}
 
-            // Central Workspace Box
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(16.dp)
-            ) {
-                AnimatedContent(
-                    targetState = selectedTab,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
-                    }, label = "fluencyTabTransition"
-                ) { targetTab ->
-                    when (targetTab) {
-                        "Tone Slider" -> ToneSliderComponent()
-                        "Shadowing & Rhythm" -> ShadowingRhythmComponent(progressViewModel)
-                        "Literal Translation" -> LiteralTranslationComponent()
-                        "Synonym Escalator" -> SynonymEscalatorComponent(progressViewModel)
-                        "Phrasal Verbs" -> PhrasalVerbsComponent(progressViewModel)
-                        "Text Expander" -> TextExpanderComponent(progressViewModel)
-                        "Between The Lines" -> BetweenTheLinesComponent(progressViewModel)
-                        "Professional Email" -> ProfessionalEmailDrafterComponent(progressViewModel)
-                        "Interactive Podcast" -> InteractivePodcastComponent()
-                        "Contextual Idioms" -> ContextualIdiomsComponent(progressViewModel)
-                        "C2 Debate Club" -> DebateClubComponent(progressViewModel)
-                        "Storytelling Mode" -> StorytellingComponent(progressViewModel)
-                        "Conference Sandbox" -> ConferenceSandboxComponent(progressViewModel)
-                        "Slang Decoder" -> SlangDecoderComponent(progressViewModel)
-                        "Vocab Vault" -> VocabVaultComponent()
-                        "Grammar Deep-Dive" -> GrammarDeepDiveComponent(progressViewModel)
-                        "Daily C2 Word" -> DailyC2WordComponent(progressViewModel)
-                        else -> Text("Component Coming Soon", color = Color.White)
-                    }
+@Composable
+private fun NativeFluencyTabs(
+    tabs: List<String>,
+    selectedTab: String,
+    compact: Boolean,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (compact) {
+        LazyRow(
+            modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(tabs, key = { it }) { tab ->
+                val isActive = selectedTab == tab
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (isActive) NeonCyan.copy(alpha = 0.20f) else MaterialTheme.colorScheme.surface,
+                    border = if (isActive) BorderStroke(1.dp, NeonCyan.copy(alpha = 0.72f)) else null,
+                    modifier = Modifier.clickable { onSelect(tab) }
+                ) {
+                    Text(
+                        text = tab,
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
+                        color = if (isActive) NeonCyan else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 12.sp
+                    )
                 }
+            }
+        }
+    } else {
+        Column(
+            modifier = modifier
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            tabs.forEach { tab ->
+                val isActive = selectedTab == tab
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(tab) }
+                        .background(if (isActive) MaterialTheme.colorScheme.background else Color.Transparent)
+                        .padding(vertical = 14.dp, horizontal = 12.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = tab,
+                        color = if (isActive) NeonCyan else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NativeFluencyWorkspace(
+    selectedTab: String,
+    progressViewModel: UserProgressViewModel,
+    modifier: Modifier = Modifier
+) {
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
+    Box(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        AnimatedContent(
+            targetState = selectedTab,
+            transitionSpec = {
+                if (reduceMotion) {
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+                }
+            },
+            label = "fluencyTabTransition"
+        ) { targetTab ->
+            when (targetTab) {
+                "Tone Slider" -> ToneSliderComponent()
+                "Shadowing & Rhythm" -> ShadowingRhythmComponent()
+                "Literal Translation" -> LiteralTranslationComponent()
+                "Synonym Escalator" -> SynonymEscalatorComponent(progressViewModel)
+                "Phrasal Verbs" -> PhrasalVerbsComponent(progressViewModel)
+                "Text Expander" -> TextExpanderComponent(progressViewModel)
+                "Between The Lines" -> BetweenTheLinesComponent(progressViewModel)
+                "Professional Email" -> ProfessionalEmailDrafterComponent(progressViewModel)
+                "Spoken Rhythm" -> InteractivePodcastComponent()
+                "Contextual Idioms" -> ContextualIdiomsComponent(progressViewModel)
+                "C2 Debate Club" -> DebateClubComponent(progressViewModel)
+                "Storytelling Mode" -> StorytellingComponent(progressViewModel)
+                "Conference Sandbox" -> ConferenceSandboxComponent(progressViewModel)
+                "Slang Decoder" -> SlangDecoderComponent(progressViewModel)
+                "Vocab Vault" -> VocabVaultComponent()
+                "Grammar Deep-Dive" -> GrammarDeepDiveComponent(progressViewModel)
+                "Daily C2 Word" -> DailyC2WordComponent(progressViewModel)
+                else -> ToneSliderComponent()
             }
         }
     }
@@ -169,7 +253,7 @@ fun ToneSliderComponent() {
 
     val sliderLabels = listOf("Street Slang", "Casual", "Professional", "Academic")
 
-    // Real-time morphed sentence outputs mapped with our custom engine
+    // Authored comparison variants for a small set of fixed prompts. This is not a general transformer.
     val outputSentence = remember(textInput, sliderValue) {
         val cleanInput = textInput.trim()
         if (cleanInput.isBlank()) ""
@@ -206,22 +290,23 @@ fun ToneSliderComponent() {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("THE NATIVE TONE SLIDER", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("REGISTER COMPARISON", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Text(
-            "Input a simplistic idea below, then slide the fluid control to see how a native speaker expresses it across various registers:",
+            "Choose an authored sentence below, then compare its pre-written informal and formal variants.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp
         )
 
         OutlinedTextField(
             value = textInput,
-            onValueChange = { textInput = it },
-            label = { Text("Base English thought") },
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Authored base sentence") },
             modifier = Modifier.fillMaxWidth(),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
-                unfocusedBorderColor = Color.Gray
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             )
         )
 
@@ -247,13 +332,13 @@ fun ToneSliderComponent() {
                     colors = SliderDefaults.colors(
                         thumbColor = NeonCyan,
                         activeTrackColor = NeonCyan,
-                        inactiveTrackColor = Color.Gray
+                        inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
                     )
                 )
             }
         }
 
-        Text("MORPHED NATIVE SENTENCE:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text("AUTHORED REGISTER EXAMPLE:", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 12.sp)
 
         Card(
             modifier = Modifier
@@ -265,12 +350,12 @@ fun ToneSliderComponent() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.4f))
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(16.dp)
             ) {
                 Text(
                     text = outputSentence,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Medium,
                     fontSize = 15.sp,
                     lineHeight = 22.sp
@@ -302,27 +387,20 @@ fun ToneSliderComponent() {
 }
 
 // ----------------------------------------------------
-// 2. SHADOWING COACH & PROSODY WAVEFORM COMPARISON (Ideas 21, 25, 39)
+// 2. GUIDED SHADOWING REHEARSAL
 // ----------------------------------------------------
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ShadowingRhythmComponent(viewModel: UserProgressViewModel) {
-    var isRecording by remember { mutableStateOf(false) }
-    var userWaveformPoints by remember { mutableStateOf(emptyList<Float>()) }
-    var hesitationCount by remember { mutableIntStateOf(0) } // Hesitation confidence tracker
+fun ShadowingRhythmComponent() {
+    var isRehearsing by remember { mutableStateOf(false) }
     var isDone by remember { mutableStateOf(false) }
-    var matchScore by remember { mutableIntStateOf(0) }
-    val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
-
-    // Advanced Next-Gen Settings (Steps 91-100)
-    var useWhisperSTT by remember { mutableStateOf(true) } // Whisper vs Fallback Hybrid Local STT
-    var activeNoiseFilter by remember { mutableStateOf(true) } // Noise cancellation toggle
+    var rehearsalStep by remember { mutableIntStateOf(0) }
     var sentenceIndex by remember { mutableIntStateOf(0) }
-    
-    // Pitch & Inflection Direction Tracker (Downward = Confident Medical Standard, Upward = Unsure)
-    var pitchDownwardTrend by remember { mutableStateOf(true) }
-    var detectedWordConfidenceList by remember { mutableStateOf(emptyList<Pair<String, Boolean>>()) }
+    var stressChecked by remember { mutableStateOf(false) }
+    var flowChecked by remember { mutableStateOf(false) }
+    var endingChecked by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
 
     val practiceSentences = listOf(
         "We highly recommend greenlighting this clinical trial.",
@@ -337,54 +415,29 @@ fun ShadowingRhythmComponent(viewModel: UserProgressViewModel) {
         else -> listOf(Pair("I", false), Pair("re-QUEST", true), Pair("im-ME-di-ate", true), Pair("I-C-U", true), Pair("con-SULT", true), Pair("due", false), Pair("to", false), Pair("shock", false), Pair("in-di-CA-tions", true))
     }
 
-    // Synthesized reference waveform points
+    // Authored pacing anchors. These are a visual rehearsal guide, not microphone data.
     val referencePoints = listOf(15f, 45f, 90f, 20f, 15f, 85f, 110f, 40f, 25f, 95f, 120f, 30f, 75f, 10f)
 
-    LaunchedEffect(isRecording) {
-        if (isRecording) {
-            userWaveformPoints = emptyList()
-            hesitationCount = 0
+    LaunchedEffect(isRehearsing, sentenceIndex, reduceMotion) {
+        if (isRehearsing) {
             isDone = false
-            matchScore = 0
-            pitchDownwardTrend = (0..1).random() == 1 // Randomly assign a pitch outcome simulation
-
-            // Simulated real-time speech analytics loop
-            for (i in 1..25) {
-                delay(100)
-                val randomStrength = if (activeNoiseFilter) {
-                    (40..120).random().toFloat() // Cleaned signal
-                } else {
-                    ((40..120).random() + (5..30).random()).toFloat() // Static noise bleeding in
-                }
-                userWaveformPoints = userWaveformPoints + randomStrength
-                
-                // Bespoke sonification click on signal bursts
-                if (i % 6 == 0) {
-                    scope.launch { com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.CLICK) }
-                }
-
-                // Simulate hesitancy detection (e.g., fillers um/uh)
-                if (i % 9 == 0) {
-                    hesitationCount++
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            rehearsalStep = 0
+            stressChecked = false
+            flowChecked = false
+            endingChecked = false
+            if (reduceMotion) {
+                rehearsalStep = referencePoints.size
+            } else {
+                referencePoints.indices.forEach { index ->
+                    delay(420)
+                    rehearsalStep = index + 1
+                    if (index == 0 || index == referencePoints.lastIndex) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
                 }
             }
-            
-            isRecording = false
+            isRehearsing = false
             isDone = true
-            
-            // OpenAI Whisper Alignment Calculation
-            val baseMatch = (86..99).random() - (hesitationCount * 6)
-            matchScore = if (useWhisperSTT) {
-                baseMatch + 2 // Whisper provides higher accuracy C2 phonetic alignment profiles
-            } else {
-                baseMatch - 4 // Local standard fallback mode has slightly lower word confidence metrics
-            }.coerceIn(50, 100)
-
-            viewModel.addPoints(matchScore)
-
-            // Play final success sound!
-            scope.launch { com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.SUCCESS) }
         }
     }
 
@@ -399,15 +452,13 @@ fun ShadowingRhythmComponent(viewModel: UserProgressViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("SHADOWING & PITCH ANALYZER v2.0", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            
-            // Next sentence trigger with pop sound
+            Text("SHADOWING REHEARSAL", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+
             TextButton(
                 onClick = {
                     sentenceIndex++
                     isDone = false
-                    userWaveformPoints = emptyList()
-                    scope.launch { com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.POP) }
+                    rehearsalStep = 0
                 }
             ) {
                 Text("Next Sentence ➔", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -415,7 +466,7 @@ fun ShadowingRhythmComponent(viewModel: UserProgressViewModel) {
         }
 
         Text(
-            "Speak the native professional line using the highlighted pitch emphasis points. Our speech processing pipeline runs Whisper AI to verify flow & inflection.",
+            "Speak aloud as the visual guide glides across the key stress points. This private practice does not record, analyze, or score your voice.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp
         )
@@ -427,7 +478,7 @@ fun ShadowingRhythmComponent(viewModel: UserProgressViewModel) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("PATIENT CONSULT PHRASE TO MIMIC:", color = Color.Yellow, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("AUTHORED PHRASE TO REHEARSE:", color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -436,7 +487,7 @@ fun ShadowingRhythmComponent(viewModel: UserProgressViewModel) {
                     stressGuide.forEach { (word, isStressed) ->
                         Text(
                             text = word,
-                            color = if (isStressed) NeonCyan else Color.White,
+                            color = if (isStressed) NeonCyan else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (isStressed) FontWeight.Bold else FontWeight.Normal,
                             fontSize = 15.sp,
                             modifier = Modifier
@@ -451,73 +502,12 @@ fun ShadowingRhythmComponent(viewModel: UserProgressViewModel) {
             }
         }
 
-        // NEXT-GEN SPEECH CONTROLS PANEL
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            border = BorderStroke(1.dp, Color.DarkGray),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("INTEGRATED SPEECH PROCESSING CHANNELS", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Active Engine Model", color = Color.LightGray, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        Text(
-                            if (useWhisperSTT) "OpenAI Whisper Cloud STT (High Accuracy)" else "On-Device Hybrid Local Recognizer (Offline Fallback)",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp
-                        )
-                    }
-                    Switch(
-                        checked = useWhisperSTT,
-                        onCheckedChange = { 
-                            useWhisperSTT = it 
-                            scope.launch { com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.CLICK) }
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = NeonCyan,
-                            checkedTrackColor = NeonCyan.copy(alpha = 0.5f)
-                        )
-                    )
-                }
-
-                HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Audio Noise Suppression", color = Color.LightGray, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        Text(
-                            if (activeNoiseFilter) "Hospital Cafeteria Sound-Canceling Filter ACTIVE" else "Standard Direct Passthrough Mode",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp
-                        )
-                    }
-                    Switch(
-                        checked = activeNoiseFilter,
-                        onCheckedChange = { 
-                            activeNoiseFilter = it 
-                            scope.launch { com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.CLICK) }
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = SurgicalGreen,
-                            checkedTrackColor = SurgicalGreen.copy(alpha = 0.5f)
-                        )
-                    )
-                }
-            }
-        }
-
-        // WAVEFORMS & PITCH CONTOURS VISUALIZER
-        Text("RHYTHM & PITCH COMPARATIVE SPECTRUM:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text(
+            "VISUAL PACING GUIDE",
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -525,157 +515,84 @@ fun ShadowingRhythmComponent(viewModel: UserProgressViewModel) {
             border = BorderStroke(1.dp, Color.DarkGray)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                // reference waveform
-                Text("NATIVE SPEAKER SYLLABIC CADENCE (PROSODY):", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                Text("TARGET RHYTHM", color = Color.White, fontSize = 10.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                Box(modifier = Modifier.fillMaxWidth().height(40.dp)) {
+                Box(modifier = Modifier.fillMaxWidth().height(64.dp)) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val spacing = size.width / (referencePoints.size + 1)
                         referencePoints.forEachIndexed { index, heightVal ->
                             val x = (index + 1) * spacing
                             drawLine(
-                                color = NeonCyan.copy(alpha = 0.7f),
+                                color = if (index < rehearsalStep) SurgicalGreen else NeonCyan.copy(alpha = 0.35f),
                                 start = Offset(x, size.height / 2f - heightVal / 2f),
                                 end = Offset(x, size.height / 2f + heightVal / 2f),
-                                strokeWidth = 5f,
+                                strokeWidth = if (index < rehearsalStep) 8f else 5f,
                                 cap = StrokeCap.Round
                             )
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = Color.DarkGray)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // user waveform
-                Text("YOUR CADENCE STRESS DISPATCH:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Box(modifier = Modifier.fillMaxWidth().height(40.dp)) {
-                    if (userWaveformPoints.isNotEmpty()) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val spacing = size.width / (userWaveformPoints.size + 1)
-                            userWaveformPoints.forEachIndexed { index, heightVal ->
-                                val x = (index + 1) * spacing
-                                drawLine(
-                                    color = if (matchScore > 80) SurgicalGreen else Color.Yellow,
-                                    start = Offset(x, size.height / 2f - heightVal / 2f),
-                                    end = Offset(x, size.height / 2f + heightVal / 2f),
-                                    strokeWidth = 5f,
-                                    cap = StrokeCap.Round
-                                )
-                            }
-                        }
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                if (isRecording) "Analysing microphone input streams..." else "Record speech below to populate visual envelope",
-                                color = Color.DarkGray,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-                }
-
-                if (isDone) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(color = Color.DarkGray)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Downward/Upward Pitch inflection simulation output
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("PITCH INTONATION CONTOUR:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                        Text(
-                            if (pitchDownwardTrend) "Confident Directive (Downward Inflection) ➔ APPROVED APPROVED" 
-                            else "Questioning Shaky Tone (Upward Inflection) ➔ NEEDS DIRECTIVENESS",
-                            color = if (pitchDownwardTrend) SurgicalGreen else AlertRed,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(30.dp)) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val width = size.width
-                            val h = size.height
-                            val path = Path().apply {
-                                moveTo(0f, h / 2f)
-                                cubicTo(
-                                    width * 0.3f, if (pitchDownwardTrend) h * 0.1f else h * 0.9f,
-                                    width * 0.7f, if (pitchDownwardTrend) h * 0.8f else h * 0.1f,
-                                    width, if (pitchDownwardTrend) h * 0.9f else h * 0.1f
-                                )
-                            }
-                            drawPath(
-                                path = path,
-                                color = if (pitchDownwardTrend) SurgicalGreen else AlertRed,
-                                style = Stroke(width = 4f, cap = StrokeCap.Round)
-                            )
-                        }
-                    }
-                }
+                LinearProgressIndicator(
+                    progress = { rehearsalStep.toFloat() / referencePoints.size.toFloat() },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = SurgicalGreen,
+                    trackColor = Color.DarkGray
+                )
             }
         }
 
-        // Hesitation indicator & controls
-        Row(
+        Button(
+            onClick = { isRehearsing = true },
+            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            enabled = !isRehearsing
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Timer, contentDescription = "Fills", tint = AlertRed, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Stalls Detected (um/uh/ah): $hesitationCount", color = if (hesitationCount > 1) AlertRed else SurgicalGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Button(
-                onClick = { 
-                    isRecording = true 
-                    scope.launch { com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.SWOOSH) }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = if (isRecording) AlertRed else NeonCyan),
-                enabled = !isRecording
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                        contentDescription = "Mic",
-                        tint = Color.Black
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isRecording) "RECORDING..." else "RECORD COACH", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            }
+            Icon(
+                if (isRehearsing) Icons.Default.HourglassTop else Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = Color.Black
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(if (isRehearsing) "REHEARSING..." else "START REHEARSAL", color = Color.Black, fontWeight = FontWeight.Bold)
         }
 
         if (isDone) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                border = BorderStroke(1.dp, if (matchScore > 80) SurgicalGreen else Color.Yellow),
+                border = BorderStroke(1.dp, SurgicalGreen),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "PROSODY & STT HARMONY REPLAY:",
-                        color = if (matchScore > 80) SurgicalGreen else Color.Yellow,
+                        "PRIVATE SELF-CHECK",
+                        color = SurgicalGreen,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Clarity & Rhythm Score: $matchScore%.\n" +
-                                (if (matchScore > 80) "Exceptional physician presence! You dynamically matched the native English stress anchors smoothly with zero hesitation pauses."
-                                else "Minor hesitation timing discrepancy detected. Keep speech flowing, reduce filler sounds and ensure a strong downward inflection at the end of the statement."),
-                        color = Color.White,
+                        "How did it feel? Mark what you noticed - no recording, algorithms, or automated score.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         lineHeight = 18.sp
                     )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = stressChecked,
+                            onClick = { stressChecked = !stressChecked },
+                            label = { Text("Hit the stress points") }
+                        )
+                        FilterChip(
+                            selected = flowChecked,
+                            onClick = { flowChecked = !flowChecked },
+                            label = { Text("Kept a continuous flow") }
+                        )
+                        FilterChip(
+                            selected = endingChecked,
+                            onClick = { endingChecked = !endingChecked },
+                            label = { Text("Delivered a clear ending") }
+                        )
+                    }
                 }
             }
         }
@@ -728,9 +645,9 @@ fun LiteralTranslationComponent() {
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
-                unfocusedBorderColor = Color.Gray
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             ),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -755,19 +672,24 @@ fun LiteralTranslationComponent() {
                             }
                         }
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(literal, color = Color.Gray, fontSize = 12.sp, style = TextStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough))
+                        Text(
+                            literal,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                            fontSize = 12.sp,
+                            style = TextStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough)
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("✔ Authentic Native flow: \"$natural\"", color = Color.Green, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Reference phrasing: \"$natural\"", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
 
                         if (why.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.3f))
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                             ) {
                                 Text(
                                     text = why,
-                                    color = Color.LightGray,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontSize = 11.sp,
                                     lineHeight = 16.sp,
                                     modifier = Modifier.padding(8.dp)
@@ -797,7 +719,12 @@ fun SynonymEscalatorComponent(viewModel: UserProgressViewModel) {
         listOf("very happy", "delighted", "exuberant", "ectatic")
     )
 
-    val labels = listOf("Level 1: Basic", "Level 2: Professional", "Level 3: Fluent C2", "Level 4: Master")
+    val labels = listOf(
+        "Stage 1: Everyday",
+        "Stage 2: More specific",
+        "Stage 3: Formal",
+        "Stage 4: High-register"
+    )
 
     Column(
         modifier = Modifier
@@ -805,7 +732,7 @@ fun SynonymEscalatorComponent(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("LIVE SYNONYM ESCALATOR", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("SYNONYM INTENSITY", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Text("Select a generic or basic word, and scale it up to magnificent collegiate C2 levels using the vertical escalator:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
 
         // Basic Word selector row
@@ -828,7 +755,12 @@ fun SynonymEscalatorComponent(viewModel: UserProgressViewModel) {
                         .padding(10.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(keyword, color = if (isActive) Color.Black else Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(
+                        keyword,
+                        color = if (isActive) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }
@@ -848,8 +780,8 @@ fun SynonymEscalatorComponent(viewModel: UserProgressViewModel) {
                 // Escalator Slider
                 Slider(
                     value = level,
-                    onValueChange = {
-                        level = it
+                    onValueChange = { level = it },
+                    onValueChangeFinished = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                     valueRange = 0f..3f,
@@ -867,10 +799,10 @@ fun SynonymEscalatorComponent(viewModel: UserProgressViewModel) {
                 Text(
                     text = escalatedWord,
                     color = when (level.toInt()) {
-                        0 -> Color.White
-                        1 -> Color.Green
+                        0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                        1 -> MaterialTheme.colorScheme.secondary
                         2 -> NeonCyan
-                        else -> Color(0xFFFFD700) // Golden C2 Custom Masterpiece colour
+                        else -> Color(0xFFFFD700)
                     },
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
@@ -879,16 +811,12 @@ fun SynonymEscalatorComponent(viewModel: UserProgressViewModel) {
             }
         }
 
-        Button(
-            onClick = {
-                viewModel.addPoints(15)
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
-            modifier = Modifier.align(Alignment.End),
-            enabled = level >= 2f
-        ) {
-            Text("Acquire C2 Synonym to Vocabulary Vault", color = Color.Black)
+        if (level >= 2f) {
+            Text(
+                "Try the high-register option in your own draft. This comparison tool does not grant XP or certify fluency.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
         }
     }
 }
@@ -926,7 +854,7 @@ fun PhrasalVerbsComponent(viewModel: UserProgressViewModel) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("CLINICAL CASE PHRASE:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(q.first, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(q.first, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -939,8 +867,7 @@ fun PhrasalVerbsComponent(viewModel: UserProgressViewModel) {
                         onClick = {
                             userAns = opt
                             if (opt == q.second) {
-                                feedback = "CORRECT! Perfect clinical phrasal verb application. +20 XP"
-                                viewModel.addPoints(20)
+                                feedback = "Correct. Compare the phrasal verb with the case sentence before moving on."
                             } else {
                                 feedback = "INCORRECT. The correct phrasal verb is '${q.second}'."
                             }
@@ -961,7 +888,7 @@ fun PhrasalVerbsComponent(viewModel: UserProgressViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(feedback, color = Color.White, fontSize = 13.sp)
+                        Text(feedback, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(
                             onClick = {
@@ -982,7 +909,14 @@ fun PhrasalVerbsComponent(viewModel: UserProgressViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Fluency Phrasal Mastery Met!", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Phrasal-verb drill complete", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        "You can replay this authored drill; it does not certify overall fluency.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(onClick = { currentIdx = 0 }) {
                         Text("Replay Drill")
@@ -1023,16 +957,15 @@ fun TextExpanderComponent(viewModel: UserProgressViewModel) {
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
-                unfocusedBorderColor = Color.Gray
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             ),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
         )
 
         Button(
             onClick = {
                 expandedOutput = expansionDatabase[rawInput.trim()]
                     ?: "I would like to kindly suggest that we proceed with '${rawInput}' in a highly polished and professional manner."
-                viewModel.addPoints(15)
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
@@ -1043,7 +976,12 @@ fun TextExpanderComponent(viewModel: UserProgressViewModel) {
         }
 
         if (expandedOutput.isNotEmpty()) {
-            Text("C2 EXPANDED SCHOLARLY PROSE:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(
+                "C2 EXPANDED SCHOLARLY PROSE:",
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
@@ -1059,7 +997,7 @@ fun TextExpanderComponent(viewModel: UserProgressViewModel) {
         }
 
         // Templates Row
-        Text("Try shorthand templates:", color = Color.Gray, fontSize = 11.sp)
+        Text("Try shorthand templates:", color = MaterialTheme.colorScheme.onBackground, fontSize = 11.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Hungry. Eat?", "Call doctor.", "Need help.").forEach { t ->
                 Button(
@@ -1113,7 +1051,7 @@ fun BetweenTheLinesComponent(viewModel: UserProgressViewModel) {
                 Text(
                     text = s.first,
                     modifier = Modifier.padding(14.dp),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
@@ -1123,8 +1061,7 @@ fun BetweenTheLinesComponent(viewModel: UserProgressViewModel) {
                 Button(
                     onClick = {
                         if (option.contains("CORRECT")) {
-                            reviewText = "BRILLIANT DECODER! You caught the underlying social nuance perfectly. +25 points added."
-                            viewModel.addPoints(25)
+                            reviewText = "That reading matches the intended social nuance in this example."
                         } else {
                             reviewText = "MISS: Pay attention to the passive wording structure typical of complex Anglo-Saxon feedback."
                         }
@@ -1144,7 +1081,7 @@ fun BetweenTheLinesComponent(viewModel: UserProgressViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(reviewText, color = Color.White, fontSize = 13.sp)
+                        Text(reviewText, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(10.dp))
                         Button(
                             onClick = {
@@ -1164,10 +1101,17 @@ fun BetweenTheLinesComponent(viewModel: UserProgressViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Nuance & Sarcasm Mastered!", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Nuance drill complete", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        "This result reflects this authored drill only, not a global mastery score.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(onClick = { currentIdx = 0 }) {
-                        Text("Reset Simulation")
+                        Text("Replay drill")
                     }
                 }
             }
@@ -1201,27 +1145,26 @@ fun ProfessionalEmailDrafterComponent(viewModel: UserProgressViewModel) {
                 .height(160.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
-                unfocusedBorderColor = Color.Gray
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             ),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
         )
 
         Button(
             onClick = {
                 val e = emailText.lowercase()
                 feedbackReport = if (e.contains("kindly") || e.contains("honor") || e.contains("looking forward")) {
-                    "EMAIL PASS GRADE: Highly respectful. Excellent use of soft conditional verbs (e.g. 'I was wondering if...'). Score: 95%. +40 points!"
+                    "Local guidance: the draft includes a courteous signal. Re-read it for clarity, specificity, and an appropriate request."
                 } else {
                     "CRITIQUE: Your email is too demanding/direct ('I want'). Use professional cushioning like 'I am writing to inquire about the possibility of...' to avoid coming off as over-assertive."
                 }
-                viewModel.addPoints(if (feedbackReport.contains("PASS")) 40 else 10)
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
             modifier = Modifier.align(Alignment.End),
             enabled = emailText.isNotBlank() && feedbackReport.isEmpty()
         ) {
-            Text("Analyze Politiness Tone", color = Color.Black)
+            Text("Show local writing guidance", color = Color.Black)
         }
 
         if (feedbackReport.isNotEmpty()) {
@@ -1229,30 +1172,23 @@ fun ProfessionalEmailDrafterComponent(viewModel: UserProgressViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(feedbackReport, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(feedbackReport, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }
 }
 
 // ----------------------------------------------------
-// 9. INTERACTIVE PODCAST COMPONENT (Idea 28)
+// 9. SELF-GUIDED SPOKEN RHYTHM PRACTICE
 // ----------------------------------------------------
 @Composable
 fun InteractivePodcastComponent() {
-    var isPlaying by remember { mutableStateOf(false) }
-    var currentProgress by remember { mutableFloatStateOf(0.12f) }
-
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) {
-            while (currentProgress < 1f) {
-                delay(300)
-                currentProgress += 0.015f
-            }
-            isPlaying = false
-            currentProgress = 0f
-        }
-    }
+    var completedCheckpoints by remember { mutableStateOf(emptySet<Int>()) }
+    val checkpoints = listOf(
+        "Emphasize key medical terms",
+        "Observe deliberate pauses",
+        "Summarize the core message aloud"
+    )
 
     Column(
         modifier = Modifier
@@ -1260,8 +1196,12 @@ fun InteractivePodcastComponent() {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("PERSONALIZED NATIVE PODCAST LAB", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Listen to a custom generated synthesized audio clip detailing common emergency clinical mistakes at top universities:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        Text("SPOKEN RHYTHM PRACTICE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(
+            "Read the text aloud at your own pace to practice natural phrasing and emphasis.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp
+        )
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -1269,52 +1209,65 @@ fun InteractivePodcastComponent() {
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    "EPISODE: Surviving Ward Audits as a Foreign Match",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Beautiful custom play slider
-                LinearProgressIndicator(
-                    progress = { currentProgress },
-                    modifier = Modifier.fillMaxWidth(),
+                    "PRACTICE TEXT",
                     color = NeonCyan,
-                    trackColor = Color.DarkGray
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
                 )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                IconButton(
-                    onClick = { isPlaying = !isPlaying },
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(NeonCyan)
-                ) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Playback Control",
-                        tint = Color.Black
-                    )
-                }
+                Text(
+                    "During the handoff, I’ll state the main concern first, pause for the supporting detail, and finish with one clear question.",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 14.sp,
+                    lineHeight = 21.sp
+                )
             }
         }
 
-        Text("REAL-TIME CLINICAL TRANSCRIPTION METADATA:", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text(
+            "SELF-CHECKPOINTS · ${completedCheckpoints.size}/${checkpoints.size}",
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        checkpoints.forEachIndexed { index, label ->
+            FilterChip(
+                selected = index in completedCheckpoints,
+                onClick = {
+                    completedCheckpoints = if (index in completedCheckpoints) {
+                        completedCheckpoints - index
+                    } else {
+                        completedCheckpoints + index
+                    }
+                },
+                label = { Text(label) },
+                leadingIcon = if (index in completedCheckpoints) {
+                    { Icon(Icons.Default.Check, contentDescription = null) }
+                } else null,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Surface(
+            color = if (completedCheckpoints.size == checkpoints.size) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+            shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                "\"In this snippet, notice how Dr. Cole stresses the word 'unacceptable' with a high pitch rise to convey legal and surgical urgency. Imitate this drop glide...\"",
+                "This is a self-guided exercise for independent phrasing practice; your voice is not recorded, analyzed, or evaluated.",
                 modifier = Modifier.padding(14.dp),
-                color = Color.LightGray,
+                color = if (completedCheckpoints.size == checkpoints.size) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 fontSize = 12.sp,
                 lineHeight = 18.sp
             )
@@ -1336,8 +1289,8 @@ fun ContextualIdiomsComponent(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("CONTEXTUAL IDIOM ENGINE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("The AI injected a native idiom into a standard clinical discussion. Demonstrate you understand its meaning.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("IDIOM REFERENCE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Review the meaning and typical context of this authored expression, then draft a direct reply.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -1345,8 +1298,8 @@ fun ContextualIdiomsComponent(viewModel: UserProgressViewModel) {
             border = BorderStroke(1.dp, Color.DarkGray)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("Chief Resident:", color = Color.Yellow, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("\"Alright team, let's not beat around the bush with this patient's prognosis. What's our next step?\"", color = Color.White, fontSize = 13.sp)
+                Text("Authored scene:", color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("\"Alright team, let's not beat around the bush with this patient's prognosis. What's our next step?\"", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
 
@@ -1355,7 +1308,7 @@ fun ContextualIdiomsComponent(viewModel: UserProgressViewModel) {
             onValueChange = { response = it },
             placeholder = { Text("Reply directly without ignoring the idiom...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth().height(120.dp),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
                 unfocusedBorderColor = Color.DarkGray
@@ -1364,22 +1317,21 @@ fun ContextualIdiomsComponent(viewModel: UserProgressViewModel) {
 
         Button(
             onClick = {
-                feedback = "Great job! Acknowledging 'beat around the bush' means getting straight to the point. +15 XP"
-                viewModel.addPoints(15)
+                feedback = "Reference cue: ‘beat around the bush’ means avoiding the main point. Check whether your reply addresses it directly."
             },
             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("SUBMIT REPLY", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW IDIOM CUE", color = Color.Black, fontWeight = FontWeight.Bold)
         }
 
         if (feedback.isNotEmpty()) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = SurgicalGreen.copy(alpha = 0.2f)),
-                border = BorderStroke(1.dp, SurgicalGreen),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(feedback, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(feedback, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSecondaryContainer, fontSize = 13.sp)
             }
         }
     }
@@ -1394,14 +1346,14 @@ fun DebateClubComponent(viewModel: UserProgressViewModel) {
     var resultText by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("C2 DEBATE CLUB", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Stretch your vocabulary by debating non-medical complex topics with an articulate AI.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("PERSPECTIVES EXERCISE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Draft a counterargument to one authored position, then self-check its claim, reason, and example.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), border = BorderStroke(1.dp, Color.DarkGray), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("THE RESOLUTION:", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("\"Universal Basic Income is fundamentally detrimental to societal work ethic and economic inflation.\"", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Text("The AI argues affirmative. You must argue negative (UBI is beneficial).", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                Text("\"Universal Basic Income is fundamentally detrimental to societal work ethic and economic inflation.\"", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Your role: argue the opposing position that UBI can be beneficial.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
         }
 
@@ -1410,7 +1362,7 @@ fun DebateClubComponent(viewModel: UserProgressViewModel) {
             onValueChange = { argument = it },
             placeholder = { Text("Draft your C2 scholarly opening statement...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth().height(160.dp),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
                 unfocusedBorderColor = Color.DarkGray
@@ -1419,18 +1371,17 @@ fun DebateClubComponent(viewModel: UserProgressViewModel) {
 
         Button(
             onClick = {
-                resultText = "Strong lexical resource deployed. You accurately paired 'economic stimuli' with 'alleviating systemic poverty'. +40 XP"
-                viewModel.addPoints(40)
+                resultText = "Draft saved in this session. Re-read it for a clear claim, supporting reason, and a concrete example; this screen does not score writing."
             },
             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("SUBMIT ARGUMENT", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW SELF-CHECK", color = Color.Black, fontWeight = FontWeight.Bold)
         }
 
         if (resultText.isNotEmpty()) {
-            Card(colors = CardDefaults.cardColors(containerColor = SurgicalGreen.copy(alpha = 0.2f)), border = BorderStroke(1.dp, SurgicalGreen), modifier = Modifier.fillMaxWidth()) {
-                Text(resultText, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer), border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary), modifier = Modifier.fillMaxWidth()) {
+                Text(resultText, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSecondaryContainer, fontSize = 13.sp)
             }
         }
     }
@@ -1447,15 +1398,22 @@ fun StorytellingComponent(viewModel: UserProgressViewModel) {
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), border = BorderStroke(1.dp, Color.DarkGray), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("PROMPT:", color = Color.Yellow, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("\"Tell a 2-minute funny story about a misunderstanding you had during your first week at the hospital.\"", color = Color.White, fontSize = 13.sp)
+                Text("PROMPT:", color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("\"Tell a 2-minute funny story about a misunderstanding you had during your first week at the hospital.\"", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
 
-        Button(onClick = { viewModel.addPoints(10) }, colors = ButtonDefaults.buttonColors(containerColor = AlertRed), modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Default.Mic, contentDescription = null, tint = Color.White)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("RECORD STORY & ANALYZE PACING", color = Color.White, fontWeight = FontWeight.Bold)
+        Surface(
+            color = MaterialTheme.colorScheme.errorContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.MicOff, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Audio recording and analysis are not available here. Rehearse aloud independently.", color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Medium, fontSize = 12.sp)
+            }
         }
     }
 }
@@ -1474,8 +1432,8 @@ fun ConferenceSandboxComponent(viewModel: UserProgressViewModel) {
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), border = BorderStroke(1.dp, Color.DarkGray), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("LIVE Q&A INTERRUPT:", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text(audienceQuestion, color = Color.White, fontSize = 13.sp)
+                Text("SAMPLE AUDIENCE QUESTION:", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text(audienceQuestion, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
 
@@ -1484,7 +1442,7 @@ fun ConferenceSandboxComponent(viewModel: UserProgressViewModel) {
             onValueChange = { response = it },
             placeholder = { Text("Draft your articulate response dodging or answering the question...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth().height(120.dp),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
                 unfocusedBorderColor = Color.DarkGray
@@ -1493,13 +1451,12 @@ fun ConferenceSandboxComponent(viewModel: UserProgressViewModel) {
 
         Button(
             onClick = {
-                audienceQuestion = "Excellent deflection. Validating the question's premise before reframing is a top-tier C2 skill. +25 XP"
-                viewModel.addPoints(25)
+                audienceQuestion = "Self-review cue: state what the data support, name any limitation, then answer the question directly."
             },
             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("ANSWER AUDIENCE", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW RESPONSE CUE", color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1519,7 +1476,7 @@ fun SlangDecoderComponent(viewModel: UserProgressViewModel) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), border = BorderStroke(1.dp, Color.DarkGray), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text("DECODE THIS PHRASE:", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("\"She really knocked it out of the park with that presentation.\"", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text("\"She really knocked it out of the park with that presentation.\"", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Text("(Origin: Baseball)", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
         }
@@ -1529,7 +1486,7 @@ fun SlangDecoderComponent(viewModel: UserProgressViewModel) {
             onValueChange = { guess = it },
             placeholder = { Text("What does this mean in plain English?", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth().height(100.dp),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
                 unfocusedBorderColor = Color.DarkGray
@@ -1537,10 +1494,9 @@ fun SlangDecoderComponent(viewModel: UserProgressViewModel) {
         )
 
         Button(onClick = { 
-            feedback = "Correct! It means to do something exceptionally well. +10 XP"
-            viewModel.addPoints(10)
+            feedback = "Reference: it means to do something exceptionally well. Compare this with your own explanation."
         }, colors = ButtonDefaults.buttonColors(containerColor = NeonCyan), modifier = Modifier.fillMaxWidth()) {
-            Text("SUBMIT DECODE", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW MEANING CUE", color = Color.Black, fontWeight = FontWeight.Bold)
         }
         
         if (feedback.isNotEmpty()) {
@@ -1555,8 +1511,8 @@ fun SlangDecoderComponent(viewModel: UserProgressViewModel) {
 @Composable
 fun VocabVaultComponent() {
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("VOCABULARY VAULT (SRS)", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Your saved words from long-pressing during roleplays. Review them using Spaced Repetition.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("VOCABULARY SAMPLER", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Review these bundled examples. This screen is not your saved-word history or an SRS queue.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         val words = listOf("Exacerbate" to "To make a problem, bad situation, or negative feeling worse.", "Ubiquitous" to "Present, appearing, or found everywhere.", "Malingering" to "Falsify or exaggerate physical or psychological symptoms for a secondary reward.")
         
@@ -1564,7 +1520,7 @@ fun VocabVaultComponent() {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth(), border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.3f))) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text(word, color = NeonCyan, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(def, color = Color.White, fontSize = 12.sp)
+                    Text(def, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
             }
         }
@@ -1583,30 +1539,32 @@ fun GrammarDeepDiveComponent(viewModel: UserProgressViewModel) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), border = BorderStroke(1.dp, Color.DarkGray), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("YOUR PHRASE:", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("\"If I will have time, I will review the chart.\"", color = Color.White, fontSize = 13.sp)
+                Text("\"If I will have time, I will review the chart.\"", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 
                 HorizontalDivider(color = Color.DarkGray)
                 
                 Text("NATIVE CORRECTION:", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("\"If I have time, I will review the chart.\"", color = Color.White, fontSize = 13.sp)
+                Text("\"If I have time, I will review the chart.\"", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background), modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text("THE \"WHY?\"", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("This is a First Conditional sentence. Native speakers do not use the future tense ('will') in the 'if' clause. The 'if' clause establishes a possible present condition that leads to a future result.", color = Color.LightGray, fontSize = 12.sp)
+                        Text(
+                            "This is a First Conditional sentence. Native speakers do not use the future tense ('will') in the 'if' clause. The 'if' clause establishes a possible present condition that leads to a future result.",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
         }
-        
-        Button(
-            onClick = { viewModel.addPoints(10) }, 
-            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan), 
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("ACKNOWLEDGE & ADD TO REVIEW", color = Color.Black, fontWeight = FontWeight.Bold)
-        }
+
+        Text(
+            "The explanation is shown above for self-review; this screen does not evaluate an answer.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall
+        )
     }
 }
 
@@ -1619,14 +1577,18 @@ fun DailyC2WordComponent(viewModel: UserProgressViewModel) {
     var feedback by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("DAILY C2 WORD INSTRUCTOR", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("A push notification drops a highly advanced word. Immediately reply using it in a valid sentence.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("C2 WORD PRACTICE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Use this bundled advanced word in a sentence, then reveal a self-check cue.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), border = BorderStroke(1.dp, NeonCyan), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("TODAY's WORD:", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("Intransigent (adjective)", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("Definition: Unwilling or refusing to change one's views or to agree about something.", color = Color.LightGray, fontSize = 12.sp)
+                Text("Intransigent (adjective)", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "Definition: Unwilling or refusing to change one's views or to agree about something.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
             }
         }
 
@@ -1635,7 +1597,7 @@ fun DailyC2WordComponent(viewModel: UserProgressViewModel) {
             onValueChange = { response = it },
             placeholder = { Text("Write a sentence using 'intransigent'...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth().height(100.dp),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = NeonCyan,
                 unfocusedBorderColor = Color.DarkGray
@@ -1643,10 +1605,9 @@ fun DailyC2WordComponent(viewModel: UserProgressViewModel) {
         )
 
         Button(onClick = { 
-            feedback = "Syntactically correct. Great usage! +15 XP"
-            viewModel.addPoints(15)
+            feedback = "Self-check: confirm the sentence uses ‘intransigent’ as an adjective and makes its meaning clear from context."
         }, colors = ButtonDefaults.buttonColors(containerColor = NeonCyan), modifier = Modifier.fillMaxWidth()) {
-            Text("SUBMIT SENTENCE", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW SELF-CHECK", color = Color.Black, fontWeight = FontWeight.Bold)
         }
         
         if (feedback.isNotEmpty()) {

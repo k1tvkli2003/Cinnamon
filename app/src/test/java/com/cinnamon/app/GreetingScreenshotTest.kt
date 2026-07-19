@@ -24,7 +24,8 @@ private fun Greeting(name: String) {
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+// Keep screenshot tests runnable on the verified JDK 17 CI runtime.
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [35])
 class GreetingScreenshotTest {
 
   @get:Rule val composeTestRule = createComposeRule()

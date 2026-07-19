@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>گزارش پرفکشن Cinnamon</title>
+<style>
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; direction: rtl; background: #fffaf4; color: #2a1d19; font-family: Tahoma, Arial, sans-serif; }
+body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; position: relative; overflow: hidden; padding: 17mm 15mm 19mm; page-break-after: always; break-after: page; background: linear-gradient(145deg, #fffdf9 0%, #fbf3e9 100%); }
+.page:last-child { page-break-after: auto; break-after: auto; }
+.page::after { content: ""; position: absolute; width: 72mm; height: 72mm; border-radius: 50%; left: -39mm; top: -39mm; border: 18mm solid rgba(137, 61, 88, .035); pointer-events: none; }
+.page-kicker { color: #9a6d5a; font-size: 10px; letter-spacing: .7px; margin-bottom: 5px; font-weight: 700; }
+h1 { color: #7e304e; font-size: 22px; line-height: 1.45; margin: 0 0 9px; font-weight: 800; }
+h2 { color: #176a60; font-size: 16px; line-height: 1.45; margin: 12px 0 6px; font-weight: 800; }
+p { font-size: 12.7px; line-height: 1.85; margin: 0 0 7px; text-align: right; }
+.lead { font-size: 13.7px; color: #49352d; }
+ul { list-style: none; padding: 0; margin: 0; }
+li { font-size: 12.2px; line-height: 1.75; position: relative; padding-right: 17px; margin: 3px 0; text-align: right; }
+li::before { content: "◆"; color: #ee8f5b; font-size: 7px; position: absolute; right: 1px; top: 6px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; direction: rtl; overflow: hidden; border-radius: 10px; border: 1px solid #d8c4b6; }
+th { background: #176a60; color: #fff; font-size: 11.2px; font-weight: 800; padding: 7px; text-align: center; border-left: 1px solid rgba(255,255,255,.18); }
+td { background: rgba(255,255,255,.78); font-size: 10.8px; line-height: 1.45; padding: 7px; text-align: right; border-left: 1px solid #e2d2c7; border-top: 1px solid #e2d2c7; vertical-align: middle; }
+tr:first-child td { border-top: 0; } td:last-child, th:last-child { border-left: 0; }
+.scorecard { margin-top: 3px; } .scorecard th:nth-child(1) { width: 29%; } .scorecard th:nth-child(2) { width: 21%; }
+.compact { margin-bottom: 10px; } .compact th:nth-child(1) { width: 52%; } .compact th:nth-child(2) { width: 18%; }
+.performance th:nth-child(1) { width: 27%; } .performance td { font-size: 10.4px; }
+.roadmap td { font-size: 10.3px; padding: 6px; } .roadmap th:nth-child(1) { width: 10%; } .roadmap th:nth-child(2) { width: 34%; }
+.evidence th:nth-child(1) { width: 27%; }
+.insight, .warning, .source-note, .archive-note, .test-strip { margin: 9px 0; padding: 10px 12px; border-radius: 10px; font-size: 11.8px; line-height: 1.75; }
+.insight { background: #fce0d0; border-right: 4px solid #ee8f5b; color: #6b3421; }
+.warning { background: #f7dbe4; border-right: 4px solid #9a3b5c; color: #65263d; font-weight: 700; }
+.source-note, .archive-note { background: #e2f2ec; border-right: 4px solid #2d8a79; color: #174d45; }
+.test-strip { background: #2b201c; color: #fff5e9; border-right: 4px solid #eea15f; }
+.flow { display: flex; align-items: center; justify-content: space-between; direction: rtl; margin: 6px 0 13px; padding: 13px; border-radius: 12px; background: #2b201c; color: #fff4e9; font-size: 11px; }
+.flow span { color: #f5a565; font-size: 17px; }
+.two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; direction: rtl; }
+.panel { padding: 8px 11px 11px; border-radius: 13px; min-height: 91mm; } .panel h2 { margin-top: 3px; }
+.panel.berry { background: #f5dbe4; border: 1px solid #d89bb1; } .panel.teal { background: #ddf1eb; border: 1px solid #8cc7ba; }
+.state-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 7px 0 9px; direction: ltr; }
+.state-row span { background: #8b3d58; color: white; border-radius: 999px; text-align: center; padding: 7px 2px; font-size: 10.5px; font-weight: 700; }
+.phone-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-top: 8px; direction: ltr; }
+.phone-grid figure { margin: 0; padding: 4px; border-radius: 13px; background: #241814; box-shadow: 0 5px 14px rgba(61,34,26,.15); }
+.phone-grid img { display: block; width: 100%; height: auto; object-fit: contain; border-radius: 9px; background: #17110e; }
+.phone-grid figcaption { color: #f9dbc9; font-size: 9px; text-align: center; padding: 5px 1px 3px; direction: rtl; }
+.journey-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; direction: ltr; }
+.journey-grid figure { margin: 0; padding: 4px; border-radius: 13px; background: #241814; box-shadow: 0 5px 14px rgba(61,34,26,.15); }
+.journey-grid img { display: block; width: 100%; height: auto; max-height: 118mm; object-fit: contain; border-radius: 9px; background: #17110e; }
+.journey-grid figcaption { color: #f9dbc9; font-size: 8.7px; text-align: center; padding: 5px 1px 3px; direction: rtl; }
+.campaign-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; direction: ltr; }
+.campaign-grid figure { margin: 0; padding: 4px; border-radius: 13px; background: #241814; box-shadow: 0 5px 14px rgba(61,34,26,.15); }
+.campaign-grid img { display: block; width: 100%; height: auto; max-height: 116mm; object-fit: contain; border-radius: 9px; background: #17110e; }
+.campaign-grid figcaption { color: #f9dbc9; font-size: 8.7px; text-align: center; padding: 5px 1px 3px; direction: rtl; }
+.journey-proof { margin-top: 8px; }
+.proof-grid, .metric-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 11px; direction: rtl; }
+.proof-grid div, .metric-cards div { background: #fff; border: 1px solid #d9c6b9; border-radius: 11px; padding: 9px 5px; text-align: center; }
+.proof-grid b, .proof-grid span, .metric-cards strong, .metric-cards span { display: block; }
+.proof-grid b { color: #7e304e; font-size: 10px; } .proof-grid span { font-size: 10.5px; margin-top: 3px; }
+.metric-cards strong { color: #7e304e; font-size: 18px; } .metric-cards span { color: #5e4a41; font-size: 9.5px; margin-top: 3px; }
+.gate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; direction: rtl; }
+.gate-grid div { background: #fff; border: 1px solid #d9b7c4; border-radius: 14px; padding: 10px 12px; min-height: 43mm; position: relative; }
+.gate-grid div > span { position: absolute; left: 9px; top: 9px; background: #8b3d58; color: white; border-radius: 999px; padding: 3px 8px; font-size: 9px; font-weight: 700; }
+.gate-grid h2 { margin-top: 1px; } .gate-grid p { font-size: 11px; }
+.identity-callout { margin-top: 12px; background: linear-gradient(135deg, #8b3d58, #61263d); color: white; padding: 11px 14px; border-radius: 14px; }
+.identity-callout h2 { color: #ffd9c1; margin-top: 0; } .identity-callout p { margin-bottom: 0; }
+.formula { margin-top: 11px; direction: ltr; text-align: center; color: #176a60; background: #dff1eb; border-radius: 10px; padding: 10px; font-size: 10.8px; font-weight: 700; }
+.contact-sheet { display: block; width: 100%; object-fit: contain; background: #17110e; border-radius: 14px; margin: 8px auto 0; box-shadow: 0 7px 20px rgba(48,31,24,.18); }
+.contact-sheet.first { max-height: 198mm; } .contact-sheet.second { max-height: 155mm; }
+.caption { color: #80695e; font-size: 9.5px; text-align: center; margin-top: 6px; direction: ltr; }
+.archive-title span, .archive-title small { display: block; }
+.archive-title small { color: #176a60; font-size: 18px; line-height: 1.55; margin-top: 1px; }
+.final-metrics { margin: 12px 0; } .final-metrics div { background: #2b201c; border-color: #2b201c; } .final-metrics strong { color: #f7a263; } .final-metrics span { color: #f9e9dc; }
+.final-verdict { margin-top: 8px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(135deg, #dcefe9, #f7dfd0); color: #24463f; font-size: 13px; font-weight: 700; line-height: 1.9; border: 1px solid #acd0c6; }
+.fine-print { margin-top: 12px; color: #745f54; font-size: 10.5px; }
+.cover { background: radial-gradient(circle at 12% 12%, rgba(243,155,96,.24), transparent 28%), linear-gradient(155deg, #201511 0%, #3a211c 54%, #642a42 100%); color: #fff7ef; }
+.cover::after { display: none; } .cover-kicker { margin-top: 26mm; color: #f2a168; font-size: 11px; letter-spacing: 2px; direction: ltr; text-align: center; }
+.cover-title { color: #fff6ed; font-size: 35px; line-height: 1.35; text-align: center; margin: 9px 0 2px; }
+.cover-subtitle { color: #e9cfc0; text-align: center; font-size: 15px; line-height: 1.9; margin: 0 auto 22px; max-width: 150mm; }
+.cover-callout { position: relative; z-index: 2; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.20); border-radius: 18px; padding: 16px 18px; backdrop-filter: blur(5px); }
+.cover-callout p { margin: 13px 0 0; color: #fff4e8; font-size: 14px; line-height: 2; }
+.pill { display: inline-block; border-radius: 999px; padding: 6px 11px; margin-left: 5px; font-size: 10px; font-weight: 800; } .pill.success { background: #7fc8b5; color: #123d35; } .pill.danger { background: #efa3b9; color: #5d2035; }
+.cover-date { color: #f3aa72; text-align: center; font-size: 14px; margin-top: 19px; }
+.cover-bottom { position: absolute; bottom: 34mm; left: 18mm; right: 18mm; color: #d6bdb0; text-align: center; font-size: 11.5px; line-height: 2; }
+.cover-orbit { position: absolute; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); } .orbit-one { width: 110mm; height: 110mm; left: -47mm; top: -40mm; } .orbit-two { width: 72mm; height: 72mm; right: -33mm; bottom: 15mm; }
+footer { position: absolute; left: 15mm; right: 15mm; bottom: 7mm; border-top: 1px solid #d7c6ba; padding-top: 4px; display: flex; direction: rtl; justify-content: space-between; color: #79645a; font-size: 9px; }
+.cover footer { border-color: rgba(255,255,255,.18); color: #c9aea1; }
+</style>
+</head>
+<body><section class="page page-1 cover">
+            <div class="cover-orbit orbit-one"></div>
+            <div class="cover-orbit orbit-two"></div>
+            <div class="cover-kicker">CINNAMON · PRODUCT CHECKPOINT</div>
+            <h1 class="cover-title">گزارش پرفکشن سینامون</h1>
+            <p class="cover-subtitle">از XP نمایشی تا Mission، Journey و Campaign نسخه‌دار با proof واقعی</p>
+            <div class="cover-callout">
+                <span class="pill success">هستهٔ داخلی: اثبات‌شده</span>
+                <span class="pill danger">انتشار عمومی: BLOCK</span>
+                <p>مسیر روزانه، Journey و Campaign دوشاخه روی APK نصب‌شده و دادهٔ ارتقایافته اجرا شده‌اند؛ اما امنیت بیرونی، زیرساخت، امضای release و تأیید محتوا همچنان گیت قطعی‌اند.</p>
+            </div>
+            <p class="cover-date">۲۸ تیر ۱۴۰۵ · ۱۹ ژوئیهٔ ۲۰۲۶</p>
+            <div class="cover-bottom">گزارش بر پایهٔ source، Room integration، build، آزمون Android، trace کارایی، digest artifact و تصویر اجرای واقعی است. هیچ preview مفهومی به‌عنوان implementation جا زده نشده است.</div>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>1</span></footer></section><section class="page page-2">
+            <div class="page-kicker">01 · حکم و مقیاس</div>
+            <h1>پروژه ۳هزار خط نیست؛ اما خط‌کد هم هدف نهایی نیست</h1>
+            <p class="lead">شمارش filesystem با حذف build، cache، output و temp نشان می‌دهد حتی با کنارگذاشتن schemaهای generated، ۳۳٬۲۲۹ خط مهندسی و دادهٔ تألیفی داریم. جمع مهندسی/داده با schemaها ۳۸٬۳۴۳ و همراه مستندات ۴۰٬۱۷۳ خط است؛ Baseline Profile نیز جداگانه ۲٬۶۴۵ rule دارد.</p>
+        <table class="compact"><thead><tr><th>بخش</th><th>فایل</th><th>خط فیزیکی</th></tr></thead><tbody><tr><td>Kotlin/Java و build logic</td><td>۹۷</td><td>۲۳٬۹۳۶</td></tr><tr><td>script/config/resource/data تألیفی</td><td>۳۳</td><td>۹٬۲۹۳</td></tr><tr><td>تألیفی؛ بدون schema generated</td><td>۱۳۰</td><td>۳۳٬۲۲۹</td></tr><tr><td>schemaهای generated Room</td><td>۳</td><td>۵٬۱۱۴</td></tr><tr><td>جمع مهندسی و داده</td><td>۱۳۳</td><td>۳۸٬۳۴۳</td></tr><tr><td>همراه Markdown</td><td>۱۶۹</td><td>۴۰٬۱۷۳</td></tr></tbody></table>
+            <div class="insight">قانون مقیاس: هر قابلیت فقط وقتی واقعی است که state، persistence، failure/retry، accessibility، امنیت و proof داشته باشد؛ صفحه و decoration به‌تنهایی عمق سوپراپ نیست.</div>
+            <h2>کارت وضعیت</h2>
+        <table class="scorecard"><thead><tr><th>حوزه</th><th>وضعیت</th><th>حکم</th></tr></thead><tbody><tr><td>تسویهٔ Quest/Achievement</td><td>گذرانده</td><td>اتمیک، idempotent و دارای replay guard</td></tr><tr><td>Mission Pulse</td><td>گذرانده</td><td>چهار state واقعی و proof روی APK نهایی</td></tr><tr><td>Journey v1</td><td>گذرانده</td><td>Room v3، چهار فصل persisted و runtime upgrade proof</td></tr><tr><td>Campaign route v1</td><td>گذرانده</td><td>Room v4، انتخاب zero-XP و cold restore</td></tr><tr><td>Build و آزمون</td><td>گذرانده</td><td>۱۰۴ JVM + سه instrumentation + lint بدون خطا</td></tr><tr><td>Baseline Profile</td><td>گذراندهٔ داخلی</td><td>۲٬۶۴۵ rule متمرکز و بسته‌بندی‌شده</td></tr><tr><td>هویت بصری</td><td>continuity لازم</td><td>انتخاب قبلی محفوظ؛ شناسهٔ canonical باید بازیابی شود</td></tr><tr><td>انتشار عمومی</td><td>مسدود</td><td>چهار گیت امنیت، زیرساخت، امضا و محتوا بازند</td></tr></tbody></table><footer><span>گزارش پرفکشن Cinnamon</span><span>2</span></footer></section><section class="page page-3">
+            <div class="page-kicker">02 · موتور انگیزش</div>
+            <h1>پاداش از یادگیری می‌آید، نه از لمس و انیمیشن</h1>
+            <div class="flow"><b>عمل معتبر</b><span>←</span><b>LearningEvent</b><span>←</span><b>Room transaction</b><span>←</span><b>Quest / Journey / Campaign</b><span>←</span><b>Receipt</b></div>
+            <div class="two-column">
+                <div class="panel berry">
+                    <h2>Settlement اتمیک</h2>
+        <ul><li>event، XP، balance، summary، Quest/Achievement، Journey stage و receipt در یک transaction.</li><li>collision یا payload متناقض کل عملیات را rollback می‌کند.</li><li>unlock، settlement، Journey reconciliation و claim تکراری XP دوباره تولید نمی‌کنند.</li><li>UI فقط projection و receipt را مصرف می‌کند؛ authority نوشتن XP ندارد.</li></ul>
+                </div>
+                <div class="panel teal">
+                    <h2>Evidence واقعی</h2>
+        <ul><li>مرور موفق distinct، itemهای due، mastery، study day و breadth از queryهای واقعی می‌آیند.</li><li>Again مرور موفق، streak یا Quest progress جعل نمی‌کند.</li><li>Quest فقط پس از سه مرور معتبر complete می‌شود.</li><li>claim دستی تنها پس از completion و فقط یک بار پذیرفته می‌شود؛ stage قفل‌شده evidence زودرس را مصرف نمی‌کند.</li></ul>
+                </div>
+            </div>
+            <h2>Mission Pulse در Home</h2>
+            <div class="state-row"><span>Unassigned</span><span>Active</span><span>Complete</span><span>Claimed</span></div>
+            <p>کارت مأموریت checkbox تزئینی نیست. عنوان، توضیح، XP، progress، CTA و قابلیت کلیک از state ذخیره‌شده می‌آیند و کنترل‌ها semantics و اندازهٔ لمس مناسب دارند.</p>
+            <div class="test-strip"><b>آزمون‌های سخت:</b> atomic unlock · collision rollback · duplicate · one-time claim · Journey replay · zero-XP campaign choice · route conflict</div>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>3</span></footer></section><section class="page page-4">
+            <div class="page-kicker">03 · proof اجرای واقعی</div>
+            <h1>یک حلقهٔ کامل، روی همان APK نهایی</h1>
+            <p>چهار تصویر زیر stateهای مستقل نیستند؛ یک مسیر پیوسته‌اند: مأموریت از due queue ساخته شد، سه مرور ثبت شد، claim ده XP افزود و تکرار دوباره هیچ XP یا receipt تازه‌ای نساخت.</p>
+            <div class="phone-grid">
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-final-quest-assigned-20260718.png" alt="مأموریت فعال" /><figcaption>فعال · ۰ از ۳</figcaption></figure>
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-final-quest-complete-20260718.png" alt="مأموریت کامل" /><figcaption>کامل · ۲۴ از ۸۰ XP</figcaption></figure>
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-final-quest-claimed-20260718.png" alt="رسید پاداش" /><figcaption>دریافت · ۳۴ از ۸۰ XP</figcaption></figure>
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-final-quest-replay-guard-20260718.png" alt="محافظ بازپخش" /><figcaption>تکرار · بدون XP تازه</figcaption></figure>
+            </div>
+            <div class="proof-grid">
+                <div><b>Session</b><span>۳ / ۱۶ مرور</span></div>
+                <div><b>Quest</b><span>۳ / ۳ verified</span></div>
+                <div><b>Balance</b><span>۲۴ ← ۳۴ XP</span></div>
+                <div><b>Replay</b><span>۳۴ XP ثابت</span></div>
+            </div>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>4</span></footer></section><section class="page page-5">
+            <div class="page-kicker">04 · Journey نسخه‌دار</div>
+            <h1>از مأموریت روزانه تا مسیر ماندگار چهار‌فصلی</h1>
+            <p>Foundation Expedition روی Room v3 ذخیره می‌شود. فصل‌ها sequential هستند، UI فقط projection واقعی را می‌بیند و milestone XP در همان transaction ledger تسویه می‌شود.</p>
+            <div class="journey-grid">
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-journey-home-active-v3-20260718.png" alt="Journey Pulse در Home" /><figcaption>Home · فصل ۲ فعال</figcaption></figure>
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-journey-map-v3-20260718.png" alt="Journey Map در Questboard" /><figcaption>Map · secured / active / locked</figcaption></figure>
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-journey-replay-guard-v3-20260718.png" alt="Journey replay guard" /><figcaption>Cold relaunch · بدون پاداش تازه</figcaption></figure>
+            </div>
+            <div class="proof-grid journey-proof">
+                <div><b>Schema</b><span>Room v3</span></div>
+                <div><b>Progress</b><span>فصل ۱ از ۴ secured</span></div>
+                <div><b>Balance</b><span>۳۴ ← ۴۴ XP</span></div>
+                <div><b>Replay</b><span>۱ event · ۱ transaction</span></div>
+            </div>
+            <div class="insight">Proof ارتقا با adb install -r و بدون reset داده انجام شد. یک defect واقعی bootstrap کشف شد، reconciliation Journey از catalog جدا شد و همان داده دوباره با cold start و SQLite query تأیید شد.</div>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>5</span></footer></section><section class="page page-6">
+            <div class="page-kicker">05 · Campaign route v1</div>
+            <h1>یک انتخاب واقعی، ذخیره‌شده و بدون XP لمسی</h1>
+            <p>پس از secure شدن فصل نخست Foundation، کاربر بین Precision Trail و Momentum Circuit انتخاب می‌کند. هر route سه فصل و ۱۱۰ XP دارد؛ اما خود commitment دقیقاً صفر XP است و route دوم هرگز materialize نمی‌شود.</p>
+            <div class="campaign-grid">
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-v4-campaign-choice-20260719.png" alt="انتخاب دو مسیر Campaign" /><figcaption>Choose · دو route هم‌ارزش</figcaption></figure>
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-v4-campaign-confirm-20260719.png" alt="هشدار commitment مسیر" /><figcaption>Confirm · بدون XP و غیرقابل‌تعویض</figcaption></figure>
+                <figure><img src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/output/cinnamon-runtime-v4-campaign-cold-restored-20260719.png" alt="بازیابی مسیر پس از cold relaunch" /><figcaption>Restored · Precision 0/3</figcaption></figure>
+            </div>
+            <div class="proof-grid journey-proof">
+                <div><b>Schema</b><span>Room v4</span></div>
+                <div><b>Choice</b><span>۱ route immutable</span></div>
+                <div><b>Reward</b><span>۰ transaction</span></div>
+                <div><b>Balance</b><span>۴۴ XP ثابت</span></div>
+            </div>
+            <div class="insight">ارتقای v3→v4 با adb install -r روی snapshot واقعی انجام شد. Foundation و ۴۴ XP حفظ شدند؛ commit یک event، یک choice، یک route Journey و سه stage ساخت. cold relaunch همین countها را بدون پاداش تازه نگه داشت.</div>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>6</span></footer></section><section class="page page-7">
+            <div class="page-kicker">06 · startup و سرعت</div>
+            <h1>Baseline Profile واقعی، با مرز ادعای روشن</h1>
+            <p class="lead">Profile از benchmark build غیرdebug، غیرminified و API 35 جمع‌آوری شد؛ سپس فقط ruleهای متعلق به Cinnamon نگه داشته شدند.</p>
+        <table class="performance"><thead><tr><th>سنجه</th><th>بدون compilation</th><th>Focused profile</th><th>نتیجهٔ p50</th></tr></thead><tbody><tr><td>TotalTime p50 / p95</td><td>۲۳۰۱ / ۲۴۶۸ ms</td><td>۲۱۲۷ / ۲۲۲۶ ms</td><td>حدود ۷٫۶٪ بهتر</td></tr><tr><td>Prepare p50 / p95</td><td>۷۴۸ / ۸۵۱ ms</td><td>۶۵۱ / ۷۹۵ ms</td><td>حدود ۱۳٪ بهتر</td></tr><tr><td>Reconciliation</td><td>۲۴ / ۳۷ ms</td><td>۳۱ / ۴۰ ms</td><td>noise؛ بدون claim</td></tr><tr><td>Overlap</td><td>۲۰۸ / ۳۲۷ ms</td><td>۱۷۷ / ۲۶۹ ms</td><td>diagnostic</td></tr></tbody></table>
+            <div class="metric-cards">
+                <div><strong>۲٬۶۴۵</strong><span>rule متمرکز</span></div>
+                <div><strong>۱۲٬۳۱۴ B</strong><span>baseline.prof</span></div>
+                <div><strong>۶۳۷ B</strong><span>baseline.profm</span></div>
+                <div><strong>۵ / ۵</strong><span>trace موفق هر حالت</span></div>
+            </div>
+            <h2>گیت دائمی</h2>
+        <ul><li>verifier تعداد rule، duplicate و owner خارجی را رد می‌کند.</li><li>CI benchmark APK را می‌سازد و وجود profile و metadata را داخل ZIP می‌سنجد.</li><li>startup بعد از دو frame واقعی آغاز می‌شود و reconciliation مسیر fast-path دارد.</li><li>این اندازه‌گیری emulator است؛ proof release فقط با دستگاه فیزیکی هدف و jank budget معتبر می‌شود.</li></ul>
+            <div class="source-note">مرجع روش: Android Baseline Profiles و manual collection رسمی. نسخهٔ کتابخانهٔ ۱٫۴٫۰ برای این build تک‌پردازه بسته‌بندی شده است.</div>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>7</span></footer></section><section class="page page-8">
+            <div class="page-kicker">07 · اعتماد و انتشار</div>
+            <h1>هسته سبز است؛ release هنوز عمداً قرمز می‌ماند</h1>
+            <div class="gate-grid">
+                <div><span>P0</span><h2>Credential</h2><p>کلیدهای تاریخی revoke/rotate و history، cache، clone و artifactها remediation شوند.</p></div>
+                <div><span>P0</span><h2>Gateway / Auth</h2><p>session کوتاه‌عمر، rate limit، abuse control، secret manager و observability امن deploy شوند.</p></div>
+                <div><span>P0</span><h2>Signing / Update</h2><p>lineage امضای release و install-update واقعی با artifact قابل‌ردیابی اثبات شود.</p></div>
+                <div><span>P0</span><h2>Content approval</h2><p>۸ فایل، ۷۰۱ item و ۲۴۳ entry بازبینی تحریری/بالینی ثبت‌شده بگیرند.</p></div>
+            </div>
+            <h2>مرز AI</h2>
+        <ul><li>Android فقط gateway HTTPS محصول را می‌پذیرد؛ provider key یا token ثابت داخل APK نیست.</li><li>failureهای 400/401/403/409/429/5xx همراه request ID، Retry-After و delivery state حفظ می‌شوند.</li><li>NotSent، ResponseReceived و UnknownAfterSend به UI اجازه می‌دهند retry و copy صادقانه داشته باشد.</li><li>بدون session معتبر، پیام بیرون نمی‌رود و guided practice محلی جایگزین می‌شود.</li></ul>
+            <div class="warning">حذف secret از HEAD به‌تنهایی credential remediation نیست؛ debug یا benchmark APK نیز proof انتشار محسوب نمی‌شود.</div>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>8</span></footer></section><section class="page page-9">
+            <div class="page-kicker">08 · نقشهٔ سوپراپ</div>
+            <h1>رشد بعدی باید عمق بسازد، نه فقط خط و صفحه</h1>
+        <table class="roadmap"><thead><tr><th>موج</th><th>قابلیت</th><th>تعریف Done</th></tr></thead><tbody><tr><td>P1</td><td>Campaign pack چند‌هفته‌ای</td><td>episode manifest، زمان‌بندی، save/restore و پایان روایی</td></tr><tr><td>P1</td><td>Collection و cosmetic economy</td><td>ledger-backed unlock، source/sink budget و anti-replay</td></tr><tr><td>P1</td><td>Personal plan از SRS</td><td>recommendation قابل‌توضیح، opt-out و عدم feed تصادفی</td></tr><tr><td>P1</td><td>Content packs تخصصی</td><td>manifest نسخه‌دار، provenance و editorial approval</td></tr><tr><td>P1</td><td>هویت و mascot منتخب</td><td>canonical ID، asset واقعی، semantics و screenshot diff</td></tr><tr><td>P1</td><td>Accessibility matrix</td><td>screen reader، contrast، focus و Reduce motion proof</td></tr><tr><td>P2</td><td>Sync و recovery چنددستگاهی</td><td>offline-first conflict، encryption و recovery drill</td></tr><tr><td>P2</td><td>Social challenge امن</td><td>server authority، consent، privacy، moderation و ضدتقلب</td></tr></tbody></table>
+            <div class="identity-callout">
+                <h2>هویت قبلاً انتخاب شده است</h2>
+                <p>شناسهٔ canonical آن در artifactهای قابل‌بازیابی گم شده؛ از کاربر انتخاب دوباره خواسته نمی‌شود. تا بازیابی مرجع، فقط mascot، palette، badge art، icon و screenshot-diff هویت‌محور متوقف‌اند.</p>
+            </div>
+            <p class="formula">Capability = Data contract + State machine + Persistence + Failure path + Accessibility + Secure telemetry + Runtime proof</p>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>9</span></footer></section><section class="page page-10">
+            <div class="page-kicker">09 · آرشیو تصمیم بصری</div>
+            <h1>پیش‌نمایش‌های ۱ تا ۶ — مرجع پیوستگی، نه فرم انتخاب</h1>
+            <p>این تصویرها آرشیو ایده‌پردازی ImageGen هستند. انتخاب قبلی کاربر معتبر است، اما identifier آن باید از artifact canonical بازیابی شود. هیچ‌کدام به‌تنهایی proof پیاده‌سازی یا mascot production-ready نیستند.</p>
+            <img class="contact-sheet first" src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/tmp/pdfs/cinnamon-brand-concepts-v1-contact-sheet-1.jpg" alt="پیش‌نمایش کانسپت‌های یک تا شش" />
+            <p class="caption">Questlands · Morph Lab · Clinical Comicverse · Care City · Pulse Jam · Cinnamon Orbit</p>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>10</span></footer></section><section class="page page-11">
+            <div class="page-kicker">10 · آرشیو تصمیم بصری</div>
+            <h1 class="archive-title"><span>پیش‌نمایش‌های ۷ تا ۱۰</span><small>فقط برای بازیابی مرجع منتخب</small></h1>
+            <p>پس از بازیابی شناسه، همان جهت به design token، mascot family، badge system، world object و screenهای واقعی تجزیه می‌شود. انتخاب تازه یا blend خودسرانه مجاز نیست.</p>
+            <img class="contact-sheet second" src="file:///C:/Users/K1/Desktop/Projects/Cinnamon/tmp/pdfs/cinnamon-brand-concepts-v1-contact-sheet-2.jpg" alt="پیش‌نمایش کانسپت‌های هفت تا ده" />
+            <p class="caption">Cinnamon Forge · Case Noir · Shift Theatre · Living Lexicon Wilds</p>
+            <div class="archive-note">Preview در docs می‌ماند و داخل APK بسته‌بندی نشده است؛ asset نهایی باید project-bound، بهینه، semantic و قابل سنجش در runtime باشد.</div>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>11</span></footer></section><section class="page page-12">
+            <div class="page-kicker">11 · شواهد نهایی</div>
+            <h1>گیت داخلی سبز است؛ ادعای آمادگی انتشار ممنوع</h1>
+            <div class="metric-cards final-metrics">
+                <div><strong>۱۰۴</strong><span>JVM test</span></div>
+                <div><strong>۲۶</strong><span>test suite</span></div>
+                <div><strong>۳ / ۳</strong><span>Android test</span></div>
+                <div><strong>۰</strong><span>lint error</span></div>
+            </div>
+        <table class="evidence"><thead><tr><th>Artifact</th><th>Evidence</th></tr></thead><tbody><tr><td>Debug APK</td><td>۲۱٬۸۲۵٬۳۷۵ byte · SHA-256: 58EA02…5A6F</td></tr><tr><td>Benchmark APK</td><td>۱۴٬۴۶۵٬۷۵۴ byte · SHA-256: 7B6C07…9504</td></tr><tr><td>Mission runtime</td><td>assign → سه review → complete → claim → replay guard</td></tr><tr><td>Journey runtime</td><td>v2→v3 · فصل ۱ secured · ۳۴→۴۴ XP · replay guard</td></tr><tr><td>Campaign runtime</td><td>v3→v4 · Precision 0/3 · zero XP · cold restore</td></tr><tr><td>Baseline Profile</td><td>۲٬۶۴۵ rule · source و packaging verify شده</td></tr><tr><td>Lexicon</td><td>۸ فایل · ۷۰۱ item · ۲۴۳ entry · approval لازم</td></tr></tbody></table>
+            <h2>حکم نهایی این checkpoint</h2>
+            <div class="final-verdict">Settlement، Mission Pulse، Journey v1، Campaign route v1، migration v4، replay guard، build/test و Baseline Profile دیگر گیت داخلی باز این موج نیستند. موج بعد باید campaign pack چند‌هفته‌ای، collection، personalization، accessibility و زیرساخت release را عمیق کند. انتشار تا رفع چهار P0 همچنان BLOCK است.</div>
+            <p class="fine-print">محدودیت: benchmark روی emulator است؛ محتوا approval بیرونی ندارد؛ backend و signing production در checkout نیستند؛ identifier هویت منتخب هنوز بازیابی نشده است.</p>
+        <footer><span>گزارش پرفکشن Cinnamon</span><span>12</span></footer></section></body>
+</html>

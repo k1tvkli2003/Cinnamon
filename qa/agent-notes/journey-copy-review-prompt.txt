@@ -1,0 +1,26 @@
+You are a concise senior mobile UX writer reviewing English copy for a gamified medical-English learning app.
+Return final answer only; no chain-of-thought. Maximum 10 bullets.
+
+Product constraints:
+- The experience should feel motivating, vivid, and grown-up—not dry, childish, coercive, or clinically authoritative.
+- Progress is evidence-backed and offline/local. Repeated actions must not imply duplicated progress.
+- XP wording must state value already settled by the ledger, never bait a tap.
+- The brand identity/mascot skin will be applied later, so this campaign copy must remain identity-neutral.
+
+Journey copy under review:
+- Eyebrow: YOUR LONG-RANGE JOURNEY
+- Title: Foundation Expedition
+- Description: Four connected chapters turn daily practice into a route you can finish—and keep.
+- Stage 1: Spark the memory trail — Review three different terms to light the first marker. Repeats still help, but do not inflate progress. CTA: Start reviews.
+- Stage 2: Cross-train your recall — Complete two different practice formats so recall works beyond one familiar game. CTA: Explore practice.
+- Stage 3: Lock in a lasting mastery — Bring one term through delayed review to confirmed mastery—not a same-session tap. CTA: Continue reviews.
+- Stage 4: Build a three-day rhythm — Record meaningful learning on three different days and finish the expedition with momentum. CTA: Keep the rhythm.
+- Completion: Expedition complete — Your first learning route is secured. Every chapter remains in your record.
+- System states: CHARTING YOUR JOURNEY / Restoring your saved route… / JOURNEY NEEDS ATTENTION / Your existing ledger and XP remain untouched.
+- Status terms: verified, secured, banked, active, locked.
+
+Task:
+1. Flag any line that sounds dry, awkward, infantilizing, ambiguous, overly technical, or potentially misleading.
+2. Suggest exact replacements only where they materially improve clarity or motivation.
+3. Check CTA clarity and the consistency of the expedition/route/chapter metaphor.
+4. Preserve the factual anti-inflation and persisted-progress meaning.

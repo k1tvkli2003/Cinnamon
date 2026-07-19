@@ -2,8 +2,12 @@ package com.cinnamon.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cinnamon.app.BuildConfig
-import com.cinnamon.app.data.ai.*
+import com.cinnamon.app.data.ai.AiConversationMode
+import com.cinnamon.app.data.ai.AiGatewayDeliveryCertainty
+import com.cinnamon.app.data.ai.AiGatewayClient
+import com.cinnamon.app.data.ai.AiGatewayResult
+import com.cinnamon.app.data.ai.ChatMessage
+import com.cinnamon.app.data.ai.OfflineGuidedPractice
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -11,31 +15,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
-import java.io.IOException
 
 class AiViewModel : ViewModel() {
 
-    private val apiService = AvalaiRetrofitClient.apiService
-    
-    // Global network/API error alerts for live toast pipeline
-    private val _errorEvents = MutableSharedFlow<String>(extraBufferCapacity = 10)
+    private val _errorEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val errorEvents: SharedFlow<String> = _errorEvents.asSharedFlow()
-
-    private val apiKey = try {
-        BuildConfig::class.java.getField("AVALAI_API_KEY").get(null) as? String ?: ""
-    } catch (e: Exception) {
-        ""
-    }
-
-    init {
-        // Tie into the OkHttp resilience interceptor callback
-        AvalaiRetrofitClient.networkErrorCallback = { errorDescription ->
-            viewModelScope.launch {
-                _errorEvents.emit(errorDescription)
-            }
-        }
-    }
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
@@ -43,85 +27,85 @@ class AiViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    fun initSystemPrompt(systemPrompt: String) {
-        if (_messages.value.isEmpty()) {
-            _messages.value = listOf(ChatMessage(role = "system", content = systemPrompt))
+    private var conversationMode = AiConversationMode.NativeCoach
+    private var scenarioId: String? = null
+
+    /**
+     * The client passes an allow-listed mode and catalog identifier, never a provider
+     * system prompt. The gateway owns prompt policy when live coaching is enabled.
+     */
+    fun configureSession(mode: AiConversationMode, scenarioId: String? = null) {
+        if (conversationMode != mode || this.scenarioId != scenarioId) {
+            conversationMode = mode
+            this.scenarioId = scenarioId
+            _messages.value = emptyList()
         }
     }
 
     fun sendMessage(content: String) {
+        val message = content.trim()
+        if (message.isEmpty() || _isLoading.value) return
+
         viewModelScope.launch {
-            val userMsg = ChatMessage(role = "user", content = content)
-            val currentList = _messages.value.toMutableList().apply { add(userMsg) }
-            _messages.value = currentList
-
+            val outgoingMessage = ChatMessage(role = "user", content = message)
+            _messages.value = _messages.value + outgoingMessage
             _isLoading.value = true
-            try {
-                // If API Key is empty, fallback to demo mode
-                if (apiKey.isEmpty() || apiKey == "null") {
-                    createDemoResponse(content)
-                    return@launch
-                }
-                
-                val req = ChatRequest(
-                    model = "gpt-4o-mini", 
-                    messages = currentList
-                )
-                val response = apiService.getChatCompletion("Bearer ${apiKey}", req)
-                val replyContent = response.choices?.firstOrNull()?.message?.content ?: "No response"
-                
-                _isLoading.value = false
-                streamResponse(replyContent)
-            } catch (e: Exception) {
-                val errMsg = "Medical Server Gateway issue: ${e.message}. Active fallback modes engaged."
-                _isLoading.value = false
-                _errorEvents.emit(errMsg)
-                streamResponse(errMsg)
-            }
-        }
-    }
-    
-    private suspend fun streamResponse(fullText: String) {
-        // Instantly append a blank assistant message to print on-screen immediately
-        val listWithBlank = _messages.value + ChatMessage(role = "assistant", content = "")
-        _messages.value = listWithBlank
 
-        // Tokenize/split with space, while keeping visual pacing high-performance and smooth
-        val tokens = fullText.split(" ")
-        var accumulatedText = ""
-        
-        for (i in tokens.indices) {
-            accumulatedText += (if (i == 0) "" else " ") + tokens[i]
-            val listCopy = _messages.value.toMutableList()
-            if (listCopy.isNotEmpty() && listCopy.last().role == "assistant") {
-                listCopy[listCopy.lastIndex] = ChatMessage(role = "assistant", content = accumulatedText)
-                _messages.value = listCopy
+            try {
+                when (val result = AiGatewayClient.send(
+                    mode = conversationMode,
+                    message = message,
+                    scenarioId = scenarioId,
+                    idempotencyKey = outgoingMessage.id
+                )) {
+                    is AiGatewayResult.Success -> appendAssistantMessage(result.reply)
+                    AiGatewayResult.NotConfigured,
+                    AiGatewayResult.NotAuthenticated -> {
+                        _errorEvents.emit(OfflineGuidedPractice.notSentNotice)
+                        appendAssistantMessage(
+                            OfflineGuidedPractice.responseWhenNotSent(conversationMode, scenarioId)
+                        )
+                    }
+                    is AiGatewayResult.Failure -> {
+                        when (result.error.deliveryCertainty) {
+                            AiGatewayDeliveryCertainty.NotSent -> {
+                                _errorEvents.emit(OfflineGuidedPractice.notSentNotice)
+                                appendAssistantMessage(
+                                    OfflineGuidedPractice.responseWhenNotSent(conversationMode, scenarioId)
+                                )
+                            }
+                            AiGatewayDeliveryCertainty.ResponseReceived -> {
+                                _errorEvents.emit(OfflineGuidedPractice.confirmedFailureNotice)
+                                appendAssistantMessage(
+                                    OfflineGuidedPractice.responseAfterConfirmedFailure(
+                                        conversationMode,
+                                        scenarioId
+                                    )
+                                )
+                            }
+                            AiGatewayDeliveryCertainty.UnknownAfterSend -> {
+                                _errorEvents.emit(OfflineGuidedPractice.deliveryUnconfirmedNotice)
+                                appendAssistantMessage(
+                                    OfflineGuidedPractice.responseAfterUnconfirmedDelivery(
+                                        conversationMode,
+                                        scenarioId
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            } finally {
+                _isLoading.value = false
             }
-            
-            // Dynamic fluid typing simulation based on word length to provide 60fps lifelike streaming!
-            val tokenLength = tokens[i].length
-            val pacingDelay = (20L + (tokenLength * 5L)).coerceIn(15L, 55L)
-            kotlinx.coroutines.delay(pacingDelay)
         }
     }
-    
-    private suspend fun createDemoResponse(userInput: String) {
-        kotlinx.coroutines.delay(800)
-        _isLoading.value = false
-        val demoMsg = "Connected via Clinical Demonstration Mode.\n\nReceived your patient instruction: \"${userInput}\".\n\nBedside Manner check: Highly responsive & conversational. Real-world API channels are fully configured and ready, and once AVALAI_API_KEY is defined in the Secrets panel, this simulation transitions instantly to direct live streaming medical assessment!"
-        streamResponse(demoMsg)
+
+    private fun appendAssistantMessage(content: String) {
+        _messages.value = _messages.value + ChatMessage(role = "assistant", content = content)
     }
 
     fun resetChat() {
-        val systemMsg = _messages.value.firstOrNull { it.role == "system" }
-        _messages.value = if (systemMsg != null) listOf(systemMsg) else emptyList()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        // Strict Memory Leak Prevention
-        // Cancel all heavy jobs and IO operations running inside ViewModel coroutines
-        // This ensures absolutely zero leaks across screen navigations.
-        android.util.Log.d("AiViewModel", "ViewModel cleanly destroyed. Ensuring zero memory leaks.")
+        _messages.value = emptyList()
     }
 }

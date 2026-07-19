@@ -4,16 +4,19 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,11 +30,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cinnamon.app.ui.components.SectionHeader
+import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 import com.cinnamon.app.ui.theme.CinnamonThemes
 import com.cinnamon.app.ui.theme.VitalsNumericStyle
 import com.cinnamon.app.viewmodel.UserProgressViewModel
@@ -41,16 +46,20 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
     val points by viewModel.points.collectAsState()
     val streak by viewModel.streak.collectAsState()
     val rank by viewModel.rank.collectAsState()
+    val progressionLevel by viewModel.progressionLevel.collectAsState()
     val achievements by viewModel.achievements.collectAsState()
-    val cardiologyDepth by viewModel.cardiologyDepth.collectAsState()
-    val pulmonologyDepth by viewModel.pulmonologyDepth.collectAsState()
-    val generalCareDepth by viewModel.generalCareDepth.collectAsState()
     val weeklyXp by viewModel.weeklyXpDistribution.collectAsState()
     val totalWords by viewModel.totalWords.collectAsState()
     val masteredWords by viewModel.masteredWords.collectAsState()
     val dailyGoal by viewModel.dailyGoalXp.collectAsState()
+    val reviewedToday by viewModel.reviewedToday.collectAsState()
+    val xpToday by viewModel.xpToday.collectAsState()
     val selectedTheme by viewModel.selectedTheme.collectAsState()
+    val soundEffectsEnabled by viewModel.soundEffectsEnabled.collectAsState()
+    val hapticFeedbackEnabled by viewModel.hapticFeedbackEnabled.collectAsState()
+    val reduceMotion by viewModel.reduceMotion.collectAsState()
     val haptic = LocalHapticFeedback.current
+    val feedbackPreferences = LocalCinnamonFeedbackPreferences.current
 
     val scheme = MaterialTheme.colorScheme
 
@@ -78,7 +87,7 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
                                 Modifier.clip(CircleShape).background(scheme.primary).padding(horizontal = 10.dp, vertical = 3.dp)
                             ) { Text(rank, color = scheme.onPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold) }
                             Spacer(Modifier.width(8.dp))
-                            Text("Level ${(points / 500) + 1}", style = MaterialTheme.typography.bodySmall, color = scheme.secondary, fontWeight = FontWeight.Bold)
+                            Text("Level $progressionLevel", style = MaterialTheme.typography.bodySmall, color = scheme.secondary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -90,7 +99,7 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MetricCard("$points", "total XP", Icons.Rounded.Verified, scheme.primary, Modifier.weight(1f))
                 MetricCard("$streak", "day streak", Icons.Rounded.LocalFireDepartment, scheme.tertiary, Modifier.weight(1f))
-                MetricCard("$masteredWords", "mastered", Icons.Rounded.MenuBook, scheme.secondary, Modifier.weight(1f))
+                MetricCard("$masteredWords", "mastered", Icons.AutoMirrored.Rounded.MenuBook, scheme.secondary, Modifier.weight(1f))
             }
         }
 
@@ -101,7 +110,11 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
                     Text("VOCABULARY MASTERY", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.primary)
                     Spacer(Modifier.height(12.dp))
                     val pct = if (totalWords > 0) masteredWords.toFloat() / totalWords else 0f
-                    val animated by animateFloatAsState(pct, tween(900), label = "mastery")
+                    val animated by animateFloatAsState(
+                        targetValue = pct,
+                        animationSpec = if (feedbackPreferences.reduceMotion) snap() else tween(900),
+                        label = "mastery"
+                    )
                     LinearProgressIndicator(
                         progress = { animated },
                         modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
@@ -118,17 +131,23 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
             }
         }
 
-        // Domain depth donuts
+        // Only signals that the product actually records are shown here.
         item {
             Surface(shape = RoundedCornerShape(20.dp), color = scheme.surface, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("CONFIDENCE BY DOMAIN", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.secondary)
+                    Text("TODAY’S VERIFIED SIGNALS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.secondary)
                     Spacer(Modifier.height(14.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                        DonutChart("Clinical", cardiologyDepth, scheme.primary)
-                        DonutChart("Ward talk", pulmonologyDepth, scheme.secondary)
-                        DonutChart("General", generalCareDepth, scheme.tertiary)
+                        EvidenceStat("$reviewedToday", "reviews committed", scheme.primary)
+                        EvidenceStat("$xpToday", "XP settled", scheme.secondary)
+                        EvidenceStat("$dailyGoal", "today’s target", scheme.tertiary)
                     }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "These numbers come from completed Room ledger events, not estimated clinical confidence.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = scheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -156,14 +175,24 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
                 Column(Modifier.padding(18.dp)) {
                     Text("DAILY GOAL", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.secondary)
                     Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(40 to "Casual", 80 to "Regular", 150 to "Serious", 250 to "Intense").forEach { (goal, label) ->
+                    Row(
+                        modifier = Modifier.selectableGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(40 to "Casual", 80 to "Regular", 120 to "Focused", 160 to "Full").forEach { (goal, label) ->
                             val selected = dailyGoal == goal
                             Surface(
-                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(13.dp)).clickable {
-                                    viewModel.setDailyGoal(goal)
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(13.dp))
+                                    .selectable(
+                                        selected = selected,
+                                        role = Role.RadioButton,
+                                        onClick = {
+                                            viewModel.setDailyGoal(goal)
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        }
+                                    ),
                                 shape = RoundedCornerShape(13.dp),
                                 color = if (selected) scheme.primary else scheme.surfaceVariant
                             ) {
@@ -184,14 +213,24 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
                 Column(Modifier.padding(18.dp)) {
                     Text("APPEARANCE", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.tertiary)
                     Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.selectableGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         CinnamonThemes.all.forEach { themeName ->
                             val selected = themeName == selectedTheme
                             Surface(
-                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(13.dp)).clickable {
-                                    viewModel.updateTheme(themeName)
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(13.dp))
+                                    .selectable(
+                                        selected = selected,
+                                        role = Role.RadioButton,
+                                        onClick = {
+                                            viewModel.updateTheme(themeName)
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        }
+                                    ),
                                 shape = RoundedCornerShape(13.dp),
                                 color = if (selected) scheme.primary else scheme.surfaceVariant,
                                 border = if (selected) null else BorderStroke(1.dp, scheme.outline)
@@ -211,14 +250,49 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
             }
         }
 
-        item { SectionHeader(title = "Milestones") }
+        item {
+            Surface(shape = RoundedCornerShape(20.dp), color = scheme.surface, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(vertical = 10.dp)) {
+                    Text(
+                        "ACCESSIBILITY & FEEDBACK",
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = scheme.secondary
+                    )
+                    PreferenceToggleRow(
+                        label = "Sound effects",
+                        checked = soundEffectsEnabled,
+                        onCheckedChange = viewModel::setSoundEffectsEnabled
+                    )
+                    PreferenceToggleRow(
+                        label = "Haptic feedback",
+                        checked = hapticFeedbackEnabled,
+                        onCheckedChange = viewModel::setHapticFeedbackEnabled
+                    )
+                    PreferenceToggleRow(
+                        label = "Reduce motion",
+                        checked = reduceMotion,
+                        onCheckedChange = viewModel::setReduceMotion
+                    )
+                    Text(
+                        "Adjusting these preferences will not affect your learning progress or rewards.",
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        item { SectionHeader(title = "Catalog milestones") }
 
         items(achievements) { achievement ->
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = if (achievement.unlocked) scheme.surface else scheme.surface.copy(alpha = 0.55f),
-                border = if (achievement.unlocked) BorderStroke(1.dp, scheme.primary.copy(alpha = 0.3f)) else null
+                color = if (achievement.reached) scheme.surface else scheme.surface.copy(alpha = 0.55f),
+                border = if (achievement.reached) BorderStroke(1.dp, scheme.primary.copy(alpha = 0.3f)) else null
             ) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(achievement.icon, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(end = 12.dp))
@@ -227,16 +301,50 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
                             achievement.title,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (achievement.unlocked) scheme.onSurface else scheme.onSurfaceVariant
+                            color = if (achievement.reached) scheme.onSurface else scheme.onSurfaceVariant
                         )
                         Text(achievement.description, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                        Text(
+                            "Evidence: ${achievement.progress}/${achievement.target}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = scheme.secondary,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    if (achievement.unlocked) {
-                        Icon(Icons.Rounded.EmojiEvents, contentDescription = "Earned", tint = scheme.primary, modifier = Modifier.size(24.dp))
+                    if (achievement.reached) {
+                        Icon(Icons.Rounded.EmojiEvents, contentDescription = "Evidence threshold reached", tint = scheme.primary, modifier = Modifier.size(24.dp))
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PreferenceToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = onCheckedChange
+            )
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 
@@ -256,25 +364,20 @@ private fun MetricCard(value: String, label: String, icon: androidx.compose.ui.g
 }
 
 @Composable
-private fun DonutChart(label: String, progress: Float, color: Color, modifier: Modifier = Modifier) {
-    var trigger by remember { mutableStateOf(false) }
-    LaunchedEffect(progress) { trigger = true }
-    val sweep by animateFloatAsState(
-        targetValue = if (trigger) progress * 360f else 0f,
-        animationSpec = tween(1100, easing = FastOutSlowInEasing),
-        label = "sweep"
-    )
+private fun EvidenceStat(value: String, label: String, color: Color, modifier: Modifier = Modifier) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(64.dp)) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val stroke = 6.dp.toPx()
-                drawArc(color = color.copy(alpha = 0.15f), startAngle = 0f, sweepAngle = 360f, useCenter = false, style = Stroke(width = stroke))
-                drawArc(color = color, startAngle = -90f, sweepAngle = sweep, useCenter = false, style = Stroke(width = stroke, cap = StrokeCap.Round))
-            }
-            Text("${(progress * 100).toInt()}%", style = VitalsNumericStyle.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = color)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = 0.14f))
+                .border(BorderStroke(1.dp, color.copy(alpha = 0.32f)), CircleShape)
+        ) {
+            Text(value, style = VitalsNumericStyle.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold), color = color)
         }
         Spacer(Modifier.height(6.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
     }
 }
 

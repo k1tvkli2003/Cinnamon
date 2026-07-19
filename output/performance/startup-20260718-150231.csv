@@ -1,0 +1,2 @@
+"run","started_at","scenario","am_this_time_ms","am_total_time_ms","catalog_ms","progress_snapshot_ms","progress_import_ms","progress_pipeline_ms","lexicon_seed_ms","prepare_ms","independent_stage_sum_ms","independent_overlap_ms","trace_ready"
+"1","2026-07-18T15:02:30.9078656+03:30","process-cold-existing-data",,"5156","1447","1","518","519","4","1487","1970","483","True"

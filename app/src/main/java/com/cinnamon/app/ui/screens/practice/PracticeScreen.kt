@@ -9,12 +9,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.SpeakerNotes
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Healing
 import androidx.compose.material.icons.rounded.RecordVoiceOver
 import androidx.compose.material.icons.rounded.Science
-import androidx.compose.material.icons.rounded.SpeakerNotes
 import androidx.compose.material.icons.rounded.Spellcheck
 import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.ViewAgenda
@@ -73,7 +73,7 @@ fun PracticeScreen(
         item { SectionHeader(title = "Word games") }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                GameTile("Cloze Clinic", "Fill the blank in real sentences", Icons.Rounded.SpeakerNotes, MaterialTheme.colorScheme.primary, Modifier.weight(1f), onStartCloze)
+                GameTile("Cloze Clinic", "Fill the blank in real sentences", Icons.AutoMirrored.Rounded.SpeakerNotes, MaterialTheme.colorScheme.primary, Modifier.weight(1f), onStartCloze)
                 GameTile("Word Match", "Pair terms with meanings", Icons.Rounded.Extension, MaterialTheme.colorScheme.secondary, Modifier.weight(1f), onStartVocabMatch)
             }
         }
@@ -84,7 +84,7 @@ fun PracticeScreen(
             }
         }
 
-        item { SectionHeader(title = "Speak with AI") }
+        item { SectionHeader(title = "Guided language practice") }
         item {
             PracticeRow("AI Patient", "Take a full history in English", Icons.Rounded.Healing, MaterialTheme.colorScheme.secondary, onOpenPatientSim)
         }

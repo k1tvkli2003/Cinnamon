@@ -10,11 +10,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,39 +36,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 import com.cinnamon.app.ui.theme.*
+import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 import com.cinnamon.app.viewmodel.UserProgressViewModel
 import com.cinnamon.app.ui.util.SoundSynthesizer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.UUID
 import kotlin.math.sin
 
 data class LabModule(
     val id: String,
     val title: String,
     val subtitle: String,
-    val difficulty: String, // "Easy", "Medium", "Hard"
-    val progress: Float, // 0f to 1f
+    val difficulty: String,
+    val mode: String,
     val icon: ImageVector
 )
 
 private val labModulesList = listOf(
-    LabModule("Morning Report", "Morning Report", "Review physician daily handoffs", "Easy", 0.72f, Icons.Default.Assessment),
-    LabModule("ECG & Image Lab", "ECG & Image Lab", "Analyze waves and reports", "Medium", 0.45f, Icons.Default.Timeline),
-    LabModule("DDx Sandbox", "DDx Sandbox", "Formulate clinical differentials", "Hard", 0.30f, Icons.Default.MedicalServices),
-    LabModule("Lab Translator", "Lab Translator", "Translate lab values instantly", "Easy", 0.88f, Icons.Default.Translate),
-    LabModule("Timed Crisis", "Timed Crisis", "Manage crashing clinical codes", "Hard", 0.55f, Icons.Default.CheckCircle),
-    LabModule("Pharmacology Audio", "Pharmacology Audio", "Review active audio scripts", "Easy", 0.95f, Icons.Default.VolumeUp),
-    LabModule("Abbreviations", "Abbreviations", "Expand complex shorthand codes", "Easy", 0.60f, Icons.Default.Description),
-    LabModule("SPIKES (Bad News)", "SPIKES Roleplay", "Deliver critical family news", "Medium", 0.70f, Icons.Default.RecordVoiceOver),
-    LabModule("SBAR Consult", "SBAR Consult", "SBAR structure communication", "Medium", 0.50f, Icons.Default.Forum),
-    LabModule("Audio Handoffs", "Audio Handoffs", "Shadow physician voice records", "Medium", 0.40f, Icons.Default.Mic),
-    LabModule("Surgical Consent", "Surgical Consent", "Perform informed risk consent", "Medium", 0.65f, Icons.Default.Assignment),
-    LabModule("Medical Ethics", "Medical Ethics", "Resolve critical clinic choices", "Hard", 0.20f, Icons.Default.Gavel),
-    LabModule("Cultural Competence", "Cultural Comp.", "Tailor care to specific values", "Easy", 0.80f, Icons.Default.People),
-    LabModule("EMR Simulator", "EMR Simulator", "Parse electronic medical files", "Hard", 0.15f, Icons.Default.Computer),
-    LabModule("Review Graveyard", "Review Case Archive", "Review past medical cases", "Easy", 1.0f, Icons.Default.Warning)
+    LabModule("Morning Report", "Morning Report", "Practice handoff vocabulary in an authored scene", "Easy", "REFERENCE CUE", Icons.Default.Assessment),
+    LabModule("ECG & Image Lab", "ECG & Image Lab", "Describe an authored ECG-vocabulary prompt", "Medium", "REFERENCE CUE", Icons.Default.Timeline),
+    LabModule("DDx Sandbox", "DDx Sandbox", "Practice differential-language vocabulary", "Hard", "SELF-REVIEW", Icons.Default.MedicalServices),
+    LabModule("Lab Translator", "Lab Translator", "Rewrite lab terminology in plain language", "Easy", "SELF-REVIEW", Icons.Default.Translate),
+    LabModule("Timed Crisis", "Timed Vocabulary", "Practice a timed fictional handoff phrase", "Hard", "WRITTEN PROMPT", Icons.Default.CheckCircle),
+    LabModule("Pharmacology Audio", "Pharmacology Terms", "Read pharmacology wording cues; no audio analysis", "Easy", "WRITTEN PROMPT", Icons.AutoMirrored.Filled.VolumeUp),
+    LabModule("Abbreviations", "Abbreviations", "Expand bundled shorthand examples", "Easy", "REFERENCE CUE", Icons.Default.Description),
+    LabModule("SPIKES (Bad News)", "SPIKES Roleplay", "Practice compassionate wording in a fictional prompt", "Medium", "SELF-REVIEW", Icons.Default.RecordVoiceOver),
+    LabModule("SBAR Consult", "SBAR Consult", "Build a written SBAR language structure", "Medium", "WRITTEN PROMPT", Icons.Default.Forum),
+    LabModule("Audio Handoffs", "Handoff Transcript", "Read an authored handoff transcript; no audio recording", "Medium", "WRITTEN PROMPT", Icons.Default.Mic),
+    LabModule("Surgical Consent", "Surgical Consent", "Practice plain-language wording in a fictional prompt", "Medium", "SELF-REVIEW", Icons.AutoMirrored.Filled.Assignment),
+    LabModule("Medical Ethics", "Medical Ethics", "Practice structured argument language in a fictional prompt", "Hard", "SELF-REVIEW", Icons.Default.Gavel),
+    LabModule("Cultural Competence", "Cultural Comp.", "Practice language choices in authored scenarios", "Easy", "SELF-REVIEW", Icons.Default.People),
+    LabModule("EMR Simulator", "Record Vocabulary", "Practice vocabulary from fictional record snippets", "Hard", "REFERENCE CUE", Icons.Default.Computer),
+    LabModule("Review Graveyard", "Prompt Archive", "Revisit authored language prompts", "Easy", "REFERENCE CUE", Icons.Default.Warning)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,7 +91,7 @@ fun ClinicalSimLabsScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Clinical Simulation Labs", color = SurgicalGreen, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp) },
+                    title = { Text("Clinical-English Practice Labs", color = SurgicalGreen, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = SurgicalGreen)
@@ -110,11 +119,17 @@ fun ClinicalSimLabsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("SIM ACADEMY CURRICULUM PROFILE", style = MaterialTheme.typography.labelSmall, color = SurgicalGreen, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                        Text("15 Specialized clinical chambers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("LANGUAGE PRACTICE CATALOG", style = MaterialTheme.typography.labelSmall, color = SurgicalGreen, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        Text("15 authored practice modules", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("⚡ XP Multiplier ON", style = MaterialTheme.typography.labelSmall, color = NeonOrange, fontWeight = FontWeight.Bold)
+                    Text("Language practice only", style = MaterialTheme.typography.labelSmall, color = NeonOrange, fontWeight = FontWeight.Bold)
                 }
+                Text(
+                    "These are vocabulary and communication prompts, not clinical decision support or competency assessment.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
 
                 // Smooth responsive 2-column staggered layout
                 Row(
@@ -161,7 +176,7 @@ fun ClinicalSimLabsScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(activeSimLab ?: "Active simulator", color = SurgicalGreen, fontWeight = FontWeight.Bold) },
+                    title = { Text(activeSimLab ?: "Active practice lab", color = SurgicalGreen, fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { activeSimLab = null }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Sim Hub", tint = SurgicalGreen)
@@ -182,7 +197,7 @@ fun ClinicalSimLabsScreen(
                     "ECG & Image Lab" -> ImageDescriptionLab(progressViewModel)
                     "DDx Sandbox" -> DifferentialDiagnosisSandbox(progressViewModel)
                     "Lab Translator" -> LabValueTranslatorLab(progressViewModel)
-                    "Timed Crisis" -> TimedCrisisSimulatorLab(progressViewModel)
+                    "Timed Crisis" -> TimedVocabularySprintLab()
                     "Pharmacology Audio" -> PharmacologyGlossaryLab()
                     "Abbreviations" -> AbbreviationsExpanderLab(progressViewModel)
                     "SPIKES (Bad News)" -> SpikesRoleplayLab(progressViewModel)
@@ -193,10 +208,35 @@ fun ClinicalSimLabsScreen(
                     "Cultural Competence" -> CulturalCompetenceLab(progressViewModel)
                     "EMR Simulator" -> EmrSimulatorLab(progressViewModel)
                     "Review Graveyard" -> ReviewGraveyardLab()
-                    else -> Text("Coming Soon", color = Color.White)
+                    else -> UnavailablePracticeLab(onReturnToCatalog = { activeSimLab = null })
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun UnavailablePracticeLab(onReturnToCatalog: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "Practice module unavailable",
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "This module is not part of the installed practice catalog. Return to the catalog to choose an available authored activity.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onReturnToCatalog) { Text("Return to practice catalog") }
     }
 }
 
@@ -244,21 +284,16 @@ fun LabGridCard(
                     )
                 }
 
-                // Curved miniature vector-based progress meter (glowing neon arc)
-                Canvas(modifier = Modifier.size(24.dp)) {
-                    drawArc(
-                        color = Color.Gray.copy(alpha = 0.15f),
-                        startAngle = -220f,
-                        sweepAngle = 260f,
-                        useCenter = false,
-                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
-                    )
-                    drawArc(
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = neonAccent.copy(alpha = 0.14f)
+                ) {
+                    Text(
+                        lab.mode,
                         color = neonAccent,
-                        startAngle = -220f,
-                        sweepAngle = 260f * lab.progress,
-                        useCenter = false,
-                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -301,7 +336,7 @@ fun LabGridCard(
 }
 
 // ----------------------------------------------------
-// 1. MORNING REPORT SIMULATOR COMPONENT (Idea 5)
+// 1. AUTHORED HANDOFF STRUCTURE PRACTICE
 // ----------------------------------------------------
 @Composable
 fun MorningReportSimLab(viewModel: UserProgressViewModel) {
@@ -309,7 +344,6 @@ fun MorningReportSimLab(viewModel: UserProgressViewModel) {
     var currentAnswer by remember { mutableStateOf("") }
     var attendingCommentary by remember { mutableStateOf("") }
     var isSubmitted by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
 
     Column(
@@ -330,8 +364,8 @@ fun MorningReportSimLab(viewModel: UserProgressViewModel) {
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column {
-                Text("Dr. Harrington", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Text("Strict Attending Cardiologist", color = AlertRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Dr. Harrington (fictional)", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("AUTHORED LANGUAGE-PRACTICE PERSONA", color = AlertRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -341,15 +375,15 @@ fun MorningReportSimLab(viewModel: UserProgressViewModel) {
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text(
-                    "CASE STUDY:",
+                    "FICTIONAL CASE EXCERPT:",
                     color = SurgicalGreen,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "You present a 62-year-old male with pressing chest pain radiating to his left interscapular region. He is hypertensive at 178/95 mmHg with asymmetric pulses.",
-                    color = Color.LightGray,
+                    "During a fictional handoff, the speaker reports sudden chest discomfort, marked hypertension, and unequal pulses; they want a senior review.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp
                 )
             }
@@ -357,8 +391,8 @@ fun MorningReportSimLab(viewModel: UserProgressViewModel) {
 
         if (step == 1) {
             Text(
-                "ATTENDING INTERRUPTING QUESTION:\n\"What is your immediate primary differential, and why are asymmetric pulses a diagnostic emergency? Explain clinical pathophysiology in professional English.\"",
-                color = Color.White,
+                "HANDOFF STRUCTURE PRACTICE\nRewrite the excerpt as one concise handoff opening with the main concern, two supporting facts, and one clear request.",
+                color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp
             )
@@ -367,11 +401,11 @@ fun MorningReportSimLab(viewModel: UserProgressViewModel) {
                 value = currentAnswer,
                 onValueChange = { currentAnswer = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Describe pathophysiology e.g. Aortic Dissection, intimal tear...", fontSize = 12.sp) },
-                textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+                placeholder = { Text("Type your structured handoff opening here...", fontSize = 12.sp) },
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = SurgicalGreen,
-                    unfocusedBorderColor = Color.Gray
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 ),
                 maxLines = 4
             )
@@ -379,41 +413,32 @@ fun MorningReportSimLab(viewModel: UserProgressViewModel) {
             Button(
                 onClick = {
                     isSubmitted = true
-                    attendingCommentary = if (currentAnswer.lowercase().contains("aortic dissection") || currentAnswer.lowercase().contains("intimal tear")) {
-                        "Excellent catch. The asymmetric pulse indicates blood pooling in the false lumen due to retrograde dissection. Grade: A (Fluent Clinical English. +50 XP)"
-                    } else {
-                        "Incomplete formulation! You must consider Aortic Dissection immediately with unequal pulses. Always exclude deadly aortic pathology. Grade: C (-15 XP)"
-                    }
-                    if (attendingCommentary.contains("Excellent")) {
-                        viewModel.addPoints(50)
-                    } else {
-                        viewModel.addPoints(10)
-                    }
+                    attendingCommentary = "Model structure: Main concern—sudden chest discomfort; supporting facts—marked hypertension and unequal pulses; request—please review this fictional case. Compare structure, not clinical correctness."
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
                 modifier = Modifier.align(Alignment.End),
                 enabled = currentAnswer.isNotBlank() && !isSubmitted
             ) {
-                Text("Submit Oral Presentation", color = Color.Black)
+                Text("View model structure", color = Color.Black)
             }
 
             if (isSubmitted) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = if (attendingCommentary.contains("Excellent")) SurgicalGreen.copy(alpha = 0.15f) else AlertRed.copy(alpha = 0.15f)),
+                    colors = CardDefaults.cardColors(containerColor = SurgicalGreen.copy(alpha = 0.15f)),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (attendingCommentary.contains("Excellent")) SurgicalGreen else AlertRed),
+                    border = BorderStroke(1.dp, SurgicalGreen),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            "DR. HARRINGTON'S CRITIQUE:",
+                            "REFERENCE CUE:",
                             fontWeight = FontWeight.Bold,
-                            color = if (attendingCommentary.contains("Excellent")) SurgicalGreen else AlertRed,
+                            color = SurgicalGreen,
                             fontSize = 12.sp
                         )
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(attendingCommentary, color = Color.White, fontSize = 13.sp)
+                        Text(attendingCommentary, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
                     }
                 }
             }
@@ -422,7 +447,7 @@ fun MorningReportSimLab(viewModel: UserProgressViewModel) {
 }
 
 // ----------------------------------------------------
-// 2. MEDICAL IMAGE DESCRIPTION LAB COMPONENT (Idea 6)
+// 2. ABSTRACT WAVEFORM LANGUAGE PRACTICE
 // ----------------------------------------------------
 @Composable
 fun ImageDescriptionLab(viewModel: UserProgressViewModel) {
@@ -436,9 +461,9 @@ fun ImageDescriptionLab(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("ECG RHYTHM INTERPRETATION LAB", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("WAVEFORM DESCRIPTION", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
 
-        // Dynanically draw an ischemic ECG waveform with hyperacute T waves or ST elevation on Canvas!
+        // Abstract authored waveform for geometric language practice only.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -457,7 +482,7 @@ fun ImageDescriptionLab(viewModel: UserProgressViewModel) {
                     drawLine(Color.DarkGray.copy(alpha = 0.5f), Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), strokeWidth = 1f)
                 }
 
-                // DRAW ECG WAVEFORM (STEMI hyperacute MI waveform)
+                // Draw a deliberately abstract repeating shape; it is not diagnostic data.
                 val path = Path()
                 path.moveTo(0f, size.height / 2f)
                 
@@ -471,9 +496,8 @@ fun ImageDescriptionLab(viewModel: UserProgressViewModel) {
                     path.lineTo(currentX + 40f, startY + 5f) // Q wave
                     path.lineTo(currentX + 48f, startY - 50f) // R wave
                     path.lineTo(currentX + 54f, startY + 20f) // S wave
-                    // ST Elevation & Giant Hyperacute T wave!
-                    path.lineTo(currentX + 70f, startY - 35f) // ST segment elevated
-                    path.quadraticTo(currentX + 85f, startY - 45f, currentX + 100f, startY) // Hyperacute T wave
+                    path.lineTo(currentX + 70f, startY - 35f)
+                    path.quadraticTo(currentX + 85f, startY - 45f, currentX + 100f, startY)
                     path.lineTo(currentX + beatWidth, startY)
                     currentX += beatWidth
                     count++
@@ -482,14 +506,14 @@ fun ImageDescriptionLab(viewModel: UserProgressViewModel) {
                 drawPath(path, SurgicalGreen, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
                 
                 // Text marker of Lead II
-                drawCircle(Color.Green, radius = 5f, center = Offset(50f, 30f))
+                drawCircle(SurgicalGreen, radius = 5f, center = Offset(50f, 30f))
             }
-            Text("LEAD II - EMERGENCY RUN", color = Color.Green, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(8.dp).align(Alignment.BottomEnd), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            Text("AUTHORED SHAPE · NOT AN ECG", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(8.dp).align(Alignment.BottomEnd), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
         }
 
         Text(
-            "DESCRIBE THE RHYTHM DIAGNOSIS (Use clinical terms like 'elevation', 'hyperacute', 'infarction'):",
-            color = Color.White,
+            "Describe the visible shape using terms such as rise, fall, peak, and level segment. This is not an interpretation task.",
+            color = MaterialTheme.colorScheme.onBackground,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold
         )
@@ -497,30 +521,25 @@ fun ImageDescriptionLab(viewModel: UserProgressViewModel) {
         OutlinedTextField(
             value = userDescription,
             onValueChange = { userDescription = it },
+            placeholder = { Text("Describe the visible shape changes here...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = SurgicalGreen,
-                unfocusedBorderColor = Color.Gray
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             ),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
         )
 
         Button(
             onClick = {
-                val inputLower = userDescription.lowercase()
-                evaluationResult = if (inputLower.contains("st elevation") || inputLower.contains("elevation") || inputLower.contains("stemi")) {
-                    "PERFECT! You identified ST-Elevation (anterior STEMI) correctly. Clinical nomenclature score: 100%. +40 Points added."
-                } else {
-                    "PARTIAL: This ECG shows classic STEMI morphology with dramatic ST elevation (tombstoning target pattern). Refine terminology. +10 Points added."
-                }
-                viewModel.addPoints(if (evaluationResult.contains("PERFECT")) 40 else 10)
+                evaluationResult = "Wording cue: an initial rapid rise, a brief peak, a gradual fall, and a level segment. Compare only the geometric language; no clinical inference is made."
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.align(Alignment.End),
             enabled = userDescription.isNotBlank() && evaluationResult.isEmpty()
         ) {
-            Text("Evaluate Description", color = Color.Black)
+            Text("View wording cue", color = Color.Black)
         }
 
         if (evaluationResult.isNotEmpty()) {
@@ -529,9 +548,9 @@ fun ImageDescriptionLab(viewModel: UserProgressViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("AI GRADE PROFILE:", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("REFERENCE CUE:", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(evaluationResult, color = Color.White, fontSize = 13.sp)
+                    Text(evaluationResult, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 }
             }
         }
@@ -539,7 +558,7 @@ fun ImageDescriptionLab(viewModel: UserProgressViewModel) {
 }
 
 // ----------------------------------------------------
-// 3. DIFFERENTIAL DIAGNOSIS SANDBOX (Idea 7)
+// 3. TERMINOLOGY STUDY-ORDER ORGANIZER
 // ----------------------------------------------------
 @Composable
 fun DifferentialDiagnosisSandbox(viewModel: UserProgressViewModel) {
@@ -554,9 +573,9 @@ fun DifferentialDiagnosisSandbox(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("DDx COGNITIVE TRIAGE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("STUDY ORDER ORGANIZER", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Text(
-            "Rank the top differential diagnoses for an acute tearing chest pain radiating to the back in order of likelihood:",
+            "Arrange these bundled medical terms into your preferred personal study sequence. This does not rank likelihood or recommend a differential.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -578,11 +597,15 @@ fun DifferentialDiagnosisSandbox(viewModel: UserProgressViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(option, color = if (isAdded) Color.Gray else Color.White, fontSize = 14.sp)
+                        Text(
+                            option,
+                            color = if (isAdded) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
                         if (isAdded) {
                             Icon(Icons.Default.Check, contentDescription = "Added", tint = SurgicalGreen)
                         } else {
-                            Icon(Icons.Default.Add, contentDescription = "Add to ranks", tint = NeonCyan)
+                            Icon(Icons.Default.Add, contentDescription = "Add to study order", tint = NeonCyan)
                         }
                     }
                 }
@@ -590,10 +613,10 @@ fun DifferentialDiagnosisSandbox(viewModel: UserProgressViewModel) {
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        Text("YOUR DDx TRIAGE ORDER:", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text("YOUR STUDY ORDER:", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
 
         if (rankedList.isEmpty()) {
-            Text("Tap conditions above to rank them", color = Color.Gray, fontSize = 12.sp)
+            Text("Tap terms above to add them", color = MaterialTheme.colorScheme.onBackground, fontSize = 12.sp)
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 rankedList.forEachIndexed { idx, name ->
@@ -605,7 +628,7 @@ fun DifferentialDiagnosisSandbox(viewModel: UserProgressViewModel) {
                             modifier = Modifier.padding(10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("${idx + 1}. $name", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("${idx + 1}. $name", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Remove",
@@ -622,20 +645,14 @@ fun DifferentialDiagnosisSandbox(viewModel: UserProgressViewModel) {
 
         Button(
             onClick = {
-                if (rankedList.firstOrNull() == "Aortic Dissection") {
-                    evaluationComment = "Excellent! You ranked Aortic Dissection as #1 due to back radiation and tear description. This is clinical genius level. +50 XP"
-                    viewModel.addPoints(50)
-                } else {
-                    evaluationComment = "Alert: The tearing radiation to back makes Aortic Dissection the absolute most likely emergent diagnosis. Refine ranks. +15 XP"
-                    viewModel.addPoints(15)
-                }
+                evaluationComment = "Your on-screen study sequence is ready. It reflects your preference only; no clinical priority, likelihood, or diagnostic relationship is inferred."
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.align(Alignment.End),
             enabled = rankedList.size >= 3
         ) {
-            Text("Verify DDx Formulation", color = Color.Black)
+            Text("Confirm study order", color = Color.Black)
         }
 
         if (evaluationComment.isNotEmpty()) {
@@ -643,7 +660,7 @@ fun DifferentialDiagnosisSandbox(viewModel: UserProgressViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(evaluationComment, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(evaluationComment, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }
@@ -671,12 +688,12 @@ fun LabValueTranslatorLab(viewModel: UserProgressViewModel) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("DENSE LAB REPORT:", color = Color.Yellow, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("AUTHORED LAB-VOCABULARY EXCERPT:", color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     "Potassium (K+): 5.9 mEq/L (HIGH)\nSodium (Na+): 132 mEq/L (LOW)\nCreatinine: 2.1 mg/dL (HIGH)\nBUN: 45 mg/dL (HIGH)",
                     fontFamily = FontFamily.Monospace,
-                    color = Color.Green,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
                 )
@@ -686,7 +703,7 @@ fun LabValueTranslatorLab(viewModel: UserProgressViewModel) {
         Text(
             "Empathize and explain these complex renal findings to a scared patient without terrifying medical jargon in gentle English:",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         OutlinedTextField(
@@ -696,27 +713,26 @@ fun LabValueTranslatorLab(viewModel: UserProgressViewModel) {
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = SurgicalGreen,
-                unfocusedBorderColor = Color.Gray
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             ),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
         )
 
         Button(
             onClick = {
                 val explanation = userTranslation.lowercase()
                 ratingOutcome = if (explanation.contains("filter") || explanation.contains("gentle") || explanation.contains("kidney")) {
-                    "EXCELLENT EMPATHIC BED-SIDE MANNER! Bed-side manner rating: 98% (No offensive clinical jargon like hyperkalemia or chronic kidney injury used aggressively). +35 points! Use of 'filter' makes it highly layman."
+                    "Language cue found: compare your wording with the plain-language examples. This screen does not measure empathy or bedside manner."
                 } else {
-                    "ALERT: Your explanation is slightly technical. Try using simpler analogies (e.g., 'the organ that washes your blood' or 'filters'). Empathy rating: 70%."
+                    "Try a plain-language analogy such as ‘the organ that filters blood’. This is writing guidance, not an empathy score."
                 }
-                viewModel.addPoints(if (ratingOutcome.contains("EXCELLENT")) 35 else 10)
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.align(Alignment.End),
             enabled = userTranslation.isNotBlank() && ratingOutcome.isEmpty()
         ) {
-            Text("Score Empathy Translator", color = Color.Black)
+            Text("Check plain-language cue", color = Color.Black)
         }
 
         if (ratingOutcome.isNotEmpty()) {
@@ -724,33 +740,47 @@ fun LabValueTranslatorLab(viewModel: UserProgressViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(ratingOutcome, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(ratingOutcome, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }
 }
 
 // ----------------------------------------------------
-// 5. TIMED CRISIS RESUSCITATION SIMULATOR (Idea 10)
+// 5. TIMED VOCABULARY SPRINT
 // ----------------------------------------------------
 @Composable
-fun TimedCrisisSimulatorLab(viewModel: UserProgressViewModel) {
-    var timerSeconds by remember { mutableIntStateOf(30) }
+fun TimedVocabularySprintLab() {
+    var timerSeconds by remember { mutableIntStateOf(45) }
     var running by remember { mutableStateOf(false) }
-    var crashMessage by remember { mutableStateOf("") }
-    var orderText by remember { mutableStateOf("") }
-    var stateCode by remember { mutableStateOf("VT") } // VT = V-Tach, VF = V-Fib, SR = Sinus Rhythm
-    val scope = rememberCoroutineScope()
+    var roundMessage by remember { mutableStateOf("") }
+    var phraseText by remember { mutableStateOf("") }
+    var signalState by remember { mutableStateOf("PROMPT") }
     val haptic = LocalHapticFeedback.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isForeground by remember { mutableStateOf(true) }
 
-    // Background timer thread loop
-    LaunchedEffect(running, timerSeconds) {
-        if (running && timerSeconds > 0) {
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> isForeground = true
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP -> isForeground = false
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // This timer is a pacing aid for a written language cue, never a patient state.
+    LaunchedEffect(running, timerSeconds, isForeground) {
+        if (running && isForeground && timerSeconds > 0) {
             delay(1000)
             timerSeconds--
             if (timerSeconds == 0) {
                 running = false
-                crashMessage = "CRITICAL COMA OUTCOME: Patient crashed. Streak reset halted, review procedures. Try again."
+                roundMessage = "Round ended. No streak, patient outcome, or clinical score changed. Restart whenever you want another vocabulary sprint."
             }
         }
     }
@@ -766,9 +796,9 @@ fun TimedCrisisSimulatorLab(viewModel: UserProgressViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("TIMED CRISIS SCENARIO", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Badge(containerColor = if (timerSeconds < 10) AlertRed else NeonCyan) {
-                Text("00:${if (timerSeconds < 10) "0" else ""}$timerSeconds", modifier = Modifier.padding(4.dp), color = Color.Black)
+            Text("TIMED VOCABULARY SPRINT", color = NeonOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Badge(containerColor = if (timerSeconds < 10) NeonOrange else NeonCyan) {
+                Text("00:" + (if (timerSeconds < 10) "0" else "") + timerSeconds, modifier = Modifier.padding(4.dp), color = Color.Black)
             }
         }
 
@@ -778,35 +808,43 @@ fun TimedCrisisSimulatorLab(viewModel: UserProgressViewModel) {
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text(
-                    "STATUS: PATIENT CRASHING!",
-                    color = AlertRed,
+                    "AUTHORED LANGUAGE CUE",
+                    color = NeonOrange,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Patient is unresponsive, pulseless, and monitor shows alarming wild ventricular waveforms. Give verbal orders to nurses in clinical English now!",
-                    color = Color.LightGray,
+                    "This fictional handoff prompt lets you rehearse neutral communication vocabulary. It is not a patient simulation, clinical protocol, or care instruction.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
             }
         }
 
-        // Animated ECG waveform for severe ventricular crisis!
+        // Abstract signal art makes the timed round feel alive without implying
+        // an ECG, diagnosis, or real patient state.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(100.dp)
                 .background(Color.Black)
-                .border(2.dp, if (stateCode == "SR") SurgicalGreen else AlertRed, RoundedCornerShape(8.dp)),
+                .border(2.dp, if (signalState == "COMPLETE") SurgicalGreen else NeonOrange, RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
-            val transition = rememberInfiniteTransition()
-            val phase by transition.animateFloat(
-                initialValue = 0f,
-                targetValue = 2f * Math.PI.toFloat(),
-                animationSpec = infiniteRepeatable(tween(500, easing = LinearEasing)), label = "ecgWave"
-            )
+            val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
+            val phase = if (running && isForeground && !reduceMotion) {
+                val transition = rememberInfiniteTransition(label = "languageSignal")
+                val animatedPhase by transition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 2f * Math.PI.toFloat(),
+                    animationSpec = infiniteRepeatable(tween(500, easing = LinearEasing)),
+                    label = "languageSignalPhase"
+                )
+                animatedPhase
+            } else {
+                0f
+            }
 
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val width = size.width
@@ -816,17 +854,11 @@ fun TimedCrisisSimulatorLab(viewModel: UserProgressViewModel) {
                 path.moveTo(0f, midY)
 
                 for (x in 0..width.toInt() step 5) {
-                    val relativeX = x / width
-                    val y = when (stateCode) {
-                        "SR" -> {
-                            // Sinus Normal Beat with P-QRS-T
-                            val p = sin(x * 0.1f + phase) * 5f
-                            midY + p
-                        }
+                    val y = when (signalState) {
+                        "COMPLETE" -> midY + sin(x * 0.1f + phase) * 5f
                         else -> {
-                            // Chaotic fibrillation oscillations
-                            val chaosSum = sin(x * 0.2f + phase * 3f) * 25f + sin(x * 0.4f + phase * 1.5f) * 15f
-                            midY + chaosSum
+                            val pulse = sin(x * 0.2f + phase * 3f) * 18f + sin(x * 0.4f + phase * 1.5f) * 9f
+                            midY + pulse
                         }
                     }
                     path.lineTo(x.toFloat(), y)
@@ -834,80 +866,100 @@ fun TimedCrisisSimulatorLab(viewModel: UserProgressViewModel) {
 
                 drawPath(
                     path = path,
-                    color = if (stateCode == "SR") SurgicalGreen else AlertRed,
+                    color = if (signalState == "COMPLETE") SurgicalGreen else NeonOrange,
                     style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
         }
 
-        if (!running && crashMessage.isEmpty()) {
+        if (!running && roundMessage.isEmpty()) {
             Button(
                 onClick = {
                     running = true
-                    timerSeconds = 30
-                    crashMessage = ""
-                    stateCode = "VF"
+                    timerSeconds = 45
+                    roundMessage = ""
+                    phraseText = ""
+                    signalState = "PROMPT"
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Start Code Blue Protocol", color = Color.White)
+                Text("Start 45-second language round", color = Color.Black)
             }
         }
 
         if (running) {
             Text(
-                "Type nurse order e.g. 'Shock 200 Joules', 'Epinephrine 1mg IV push', 'Defibrillate':",
-                color = Color.White,
+                "Write one neutral reference phrase from this fictional prompt (for example, ‘rapid response’, ‘clear handoff’, or ‘monitoring update’):",
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )
 
             OutlinedTextField(
-                value = orderText,
-                onValueChange = { orderText = it },
+                value = phraseText,
+                onValueChange = { phraseText = it },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AlertRed,
-                    unfocusedBorderColor = Color.Gray
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 ),
-                textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
             )
 
             Button(
                 onClick = {
-                    val orderLower = orderText.lowercase()
-                    if (orderLower.contains("shock") || orderLower.contains("defibrillate") || orderLower.contains("epinephrine")) {
+                    val phraseLower = phraseText.lowercase()
+                    val matchedReferencePhrase = listOf(
+                        "rapid response",
+                        "handoff",
+                        "monitor",
+                        "request help",
+                        "clarify"
+                    ).any(phraseLower::contains)
+                    if (matchedReferencePhrase) {
                         running = false
-                        stateCode = "SR" // Reset to sinus wave rhythm!
-                        crashMessage = "LIFE ACCLAIMED! You delivered perfect resuscitation commands. Rhythms returned to Normal Sinus. +100 XP"
-                        viewModel.addPoints(100)
+                        signalState = "COMPLETE"
+                        roundMessage = "Reference phrase matched in this authored language cue. It is not a clinical assessment or protocol."
                     } else {
-                        crashMessage = "ORDER CORRECTION REQUIRED: The nurse awaits specific therapeutic instruction: Shock or epinephrine. Keep trying!"
+                        roundMessage = "Reference cue: try a neutral handoff or help-request phrase from the prompt. No clinical score is recorded."
                     }
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
                 modifier = Modifier.align(Alignment.End),
-                enabled = orderText.isNotBlank()
+                enabled = phraseText.isNotBlank()
             ) {
-                Text("Execute Order", color = Color.Black)
+                Text("Check reference phrase", color = Color.Black)
             }
         }
 
-        if (crashMessage.isNotEmpty()) {
+        if (roundMessage.isNotEmpty()) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(crashMessage, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(roundMessage, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    Button(
+                        onClick = {
+                            timerSeconds = 45
+                            roundMessage = ""
+                            phraseText = ""
+                            signalState = "PROMPT"
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                    ) {
+                        Text("Start another language round", color = Color.Black)
+                    }
+                }
             }
         }
     }
 }
 
 // ----------------------------------------------------
-// 6. NATIVE PHARMACOLOGY GLOSSARY & AUDIO (Idea 11)
+// 6. PHARMACOLOGY PRONUNCIATION GUIDE
 // ----------------------------------------------------
 @Composable
 fun PharmacologyGlossaryLab() {
@@ -925,8 +977,8 @@ fun PharmacologyGlossaryLab() {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("PHARMACOLOGICAL AUDIO REFERENCE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Listen to proper pronunciation of complex US generic medication formulas:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        Text("PHARMACOLOGY PRONUNCIATION GUIDE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Read the syllable guides for these generic-name vocabulary examples. No audio playback is connected.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             drugs.forEach { (name, desc) ->
@@ -941,15 +993,15 @@ fun PharmacologyGlossaryLab() {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(name, color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text(desc, color = Color.LightGray, fontSize = 12.sp)
+                            Text(desc, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                         }
-                        IconButton(
-                            onClick = { /* Simulated native audio playback trigger */ },
+                        Box(
                             modifier = Modifier
                                 .clip(CircleShape)
                                 .background(SurgicalGreen.copy(alpha = 0.2f))
+                                .padding(10.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = "Play Native Phonetics", tint = SurgicalGreen)
+                            Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = "Syllable guide", tint = SurgicalGreen)
                         }
                     }
                 }
@@ -973,7 +1025,20 @@ fun AbbreviationsExpanderLab(viewModel: UserProgressViewModel) {
     var activeIdx by remember { mutableIntStateOf(0) }
     var userEntry by remember { mutableStateOf("") }
     var textReport by remember { mutableStateOf("") }
+    var answerIsCorrect by remember { mutableStateOf(false) }
+    var practiceSessionKey by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(activeIdx, practiceSessionKey) {
+        if (activeIdx >= items.size) {
+            viewModel.recordPracticeSession(
+                subjectType = "abbreviation_reference",
+                subjectId = items.joinToString(separator = "|") { it.first.lowercase() },
+                occurrenceKey = practiceSessionKey,
+                completedItemCount = items.size
+            )
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -981,7 +1046,7 @@ fun AbbreviationsExpanderLab(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("CLINICAL ABBREVIATION MASTER", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("ABBREVIATION REFERENCE ROUND", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
 
         if (activeIdx < items.size) {
             val element = items[activeIdx]
@@ -999,7 +1064,11 @@ fun AbbreviationsExpanderLab(viewModel: UserProgressViewModel) {
                 }
             }
 
-            Text("Type the full English clinical meaning of the abbreviation (e.g. 'Nothing by mouth' for NPO):", color = Color.White, fontSize = 12.sp)
+            Text(
+                "Type the full English reference meaning (for example, ‘Nothing by mouth’ for NPO). This checks authored vocabulary only, never a care decision.",
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 12.sp
+            )
 
             OutlinedTextField(
                 value = userEntry,
@@ -1007,19 +1076,19 @@ fun AbbreviationsExpanderLab(viewModel: UserProgressViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = SurgicalGreen,
-                    unfocusedBorderColor = Color.Gray
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 ),
-                textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
             )
 
             Button(
                 onClick = {
                     val rightMeaning = element.third.lowercase()
-                    if (userEntry.lowercase().contains(rightMeaning) || userEntry.lowercase().contains(element.second)) {
-                        textReport = "CORRECT! '${element.first}' literally translates to '${element.third}'."
-                        viewModel.addPoints(20)
+                    answerIsCorrect = userEntry.lowercase().contains(rightMeaning) || userEntry.lowercase().contains(element.second)
+                    textReport = if (answerIsCorrect) {
+                        "Reference wording matched: '${element.first}' means '${element.third}'."
                     } else {
-                        textReport = "INCORRECT. '${element.first}' means '${element.third}'."
+                        "Reference cue: '${element.first}' means '${element.third}'. Revise your wording, then try this item again."
                     }
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 },
@@ -1036,18 +1105,21 @@ fun AbbreviationsExpanderLab(viewModel: UserProgressViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(textReport, color = Color.White, fontSize = 13.sp)
+                        Text(textReport, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(10.dp))
                         Button(
                             onClick = {
-                                activeIdx++
+                                if (answerIsCorrect) {
+                                    activeIdx++
+                                }
                                 userEntry = ""
                                 textReport = ""
+                                answerIsCorrect = false
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("Next Abbreviation", color = Color.Black)
+                            Text(if (answerIsCorrect) "Next reference item" else "Try this item again", color = Color.Black)
                         }
                     }
                 }
@@ -1058,10 +1130,25 @@ fun AbbreviationsExpanderLab(viewModel: UserProgressViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Mastery Level Achieved!", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Reference round complete", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Spacer(modifier = Modifier.height(10.dp))
-                    Button(onClick = { activeIdx = 0 }) {
-                        Text("Reset Simulation")
+                    Text(
+                        "All five authored expansions were matched. Saving one verified vocabulary-practice completion.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            activeIdx = 0
+                            userEntry = ""
+                            textReport = ""
+                            answerIsCorrect = false
+                            practiceSessionKey = UUID.randomUUID().toString()
+                        }
+                    ) {
+                        Text("Start a fresh round")
                     }
                 }
             }
@@ -1084,10 +1171,10 @@ fun SpikesRoleplayLab(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("SPIKES Bad News Delivery Simulator", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("SPIKES Wording Practice", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Text(
             "Scenario: You must tell a patient's daughter that her father has progressed to severe metastatic carcinoma. Practice using the 'SPIKES' framework.",
-            color = Color.LightGray,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 12.sp
         )
 
@@ -1099,14 +1186,14 @@ fun SpikesRoleplayLab(viewModel: UserProgressViewModel) {
                 Text("SPIKES STEPS:", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 Text(
                     "S - Setting up the interview\nP - Assessing the patient's Perception\nI - Obtaining the patient's Invitation\nK - Giving Knowledge and information\nE - Addressing the patient's Emotions\nS - Strategy & Summary",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
                 )
             }
         }
 
-        Text("Type how you would professionally deliver this warning (e.g., 'I am sorry to share some difficult news about your father's biopsy results'):", color = Color.White, fontSize = 12.sp)
+        Text("Type how you would professionally deliver this warning (e.g., 'I am sorry to share some difficult news about your father's biopsy results'):", color = MaterialTheme.colorScheme.onBackground, fontSize = 12.sp)
 
         OutlinedTextField(
             value = userText,
@@ -1115,27 +1202,26 @@ fun SpikesRoleplayLab(viewModel: UserProgressViewModel) {
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = SurgicalGreen,
-                unfocusedBorderColor = Color.Gray
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             ),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
         )
 
         Button(
             onClick = {
                 val input = userText.lowercase()
                 stepReview = if (input.contains("sorry") || input.contains("unfortunate") || input.contains("biopsy")) {
-                    "SPIKES PASS GRADE: You incorporated soft delivery cues (Perception & Empathy) beautifully. Bed-side tone: Masterful (C2). +40 XP"
+                    "Language cue found. Compare your draft with the prompt’s example; this screen does not grade communication competency."
                 } else {
-                    "CRITIQUE: Always prepare the family before revealing oncology findings, avoiding abrupt delivery. Rephrase using warning shots."
+                    "Writing cue: consider a gentle transition before introducing difficult information. This is educational copy, not clinical guidance."
                 }
-                viewModel.addPoints(if (stepReview.contains("PASS")) 40 else 10)
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.align(Alignment.End),
             enabled = userText.isNotBlank() && stepReview.isEmpty()
         ) {
-            Text("Analyze Delivery", color = Color.Black)
+            Text("Show writing cue", color = Color.Black)
         }
 
         if (stepReview.isNotEmpty()) {
@@ -1143,7 +1229,7 @@ fun SpikesRoleplayLab(viewModel: UserProgressViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stepReview, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(stepReview, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }
@@ -1167,8 +1253,8 @@ fun SbarConsultationLab(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("SBAR INTRA-MEDICAL CONSULT", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Assemble SBAR consulting protocol to call the on-call surgical chief:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("SBAR WRITING PRACTICE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Build an authored SBAR writing structure. It is not a live consult or medical instruction.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
@@ -1176,46 +1262,57 @@ fun SbarConsultationLab(viewModel: UserProgressViewModel) {
                 onValueChange = { situationText = it },
                 label = { Text("S - Situation") },
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = TextStyle(color = Color.White),
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, focusedLabelColor = SurgicalGreen)
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedLabelColor = SurgicalGreen
+                )
             )
             OutlinedTextField(
                 value = backgroundText,
                 onValueChange = { backgroundText = it },
                 label = { Text("B - Background") },
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = TextStyle(color = Color.White),
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, focusedLabelColor = SurgicalGreen)
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedLabelColor = SurgicalGreen
+                )
             )
             OutlinedTextField(
                 value = assessmentText,
                 onValueChange = { assessmentText = it },
                 label = { Text("A - Assessment") },
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = TextStyle(color = Color.White),
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, focusedLabelColor = SurgicalGreen)
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedLabelColor = SurgicalGreen
+                )
             )
             OutlinedTextField(
                 value = recommendationText,
                 onValueChange = { recommendationText = it },
                 label = { Text("R - Recommendation") },
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = TextStyle(color = Color.White),
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, focusedLabelColor = SurgicalGreen)
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedLabelColor = SurgicalGreen
+                )
             )
         }
 
         Button(
             onClick = {
-                consultReview = "SBAR GRADE: Solid structural assembly. You clearly structured your findings. Outstanding consult format! +40 XP added."
-                viewModel.addPoints(40)
+                consultReview = "Structure captured. Re-read the four sections for clarity and completeness; this screen does not issue a clinical grade."
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.fillMaxWidth(),
             enabled = situationText.isNotBlank() && backgroundText.isNotBlank() && assessmentText.isNotBlank() && recommendationText.isNotBlank()
         ) {
-            Text("Publish SBAR Formulation", color = Color.Black)
+            Text("Show structure cue", color = Color.Black)
         }
 
         if (consultReview.isNotEmpty()) {
@@ -1223,14 +1320,14 @@ fun SbarConsultationLab(viewModel: UserProgressViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(consultReview, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(consultReview, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }
 }
 
 // ----------------------------------------------------
-// 10. AUDIO HANDOFFS DRILL (Idea 19)
+// 10. HANDOFF TRANSCRIPT DRILL
 // ----------------------------------------------------
 @Composable
 fun AudioHandoffsLab(viewModel: UserProgressViewModel) {
@@ -1244,26 +1341,26 @@ fun AudioHandoffsLab(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("FAST MEDICAL AUDIO HANDOFFS", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Practice rapid comprehension. Listen or read and identify errors instantly.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("HANDOFF TRANSCRIPT DRILL", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Read an authored handoff transcript and identify its reference phrase. No audio playback or triage support is connected.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("NURSE STAT HANDOFF TRANSCRIPT (READING AT 180 WPM):", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("AUTHORED HANDOFF TRANSCRIPT:", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     "\"We have Mr. Evans in critical room 6 post-op coronary bypass. He has chest tube outputting 180 ml serosanguineous fluids, potassium is 3.4, he has bid medication due in 10 minutes, but is hypotensive at 88/44 mmHg. I also gave him 10mg morphine as needed for pain.\"",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 18.sp,
                     fontSize = 12.sp
                 )
             }
         }
 
-        Text("Select the primary immediate clinical threat from this fast handoff:", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text("Which reference phrase does this authored vocabulary prompt expect?", color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.Bold)
 
         val answers = listOf(
             "Hypokalemia (K+ 3.4) affecting surgery recovery",
@@ -1279,15 +1376,14 @@ fun AudioHandoffsLab(viewModel: UserProgressViewModel) {
                         .fillMaxWidth()
                         .clickable(enabled = feedback.isEmpty()) {
                             if (ans.contains("Hypotension")) {
-                                feedback = "CORRECT! Post-op hemodynamic failure (88/44 pressure) combined with chest tube fluid output is an emergency hemorrhage sign. Outstanding clinically! +50 XP"
-                                viewModel.addPoints(50)
+                                feedback = "Reference answer matched this authored vocabulary scenario. It is not a patient-triage tool."
                             } else {
-                                feedback = "INCORRECT. Although potassium is marginally low, arterial hypotension is the immediate clinical emergency threat."
+                                feedback = "Reference cue: compare the selected phrase with the authored prompt. This screen does not triage patients or direct care."
                             }
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
                 ) {
-                    Text(ans, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                    Text(ans, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 }
             }
         }
@@ -1297,7 +1393,7 @@ fun AudioHandoffsLab(viewModel: UserProgressViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(feedback, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(feedback, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }
@@ -1327,7 +1423,7 @@ fun SurgicalConsentLab(viewModel: UserProgressViewModel) {
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("PATIENT SCENARIO:", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("A 65-year-old highly anxious patient needs an emergent Coronary Artery Bypass Graft (CABG). They ask: 'Doctor, are you going to stop my heart? Is it safe?'", color = Color.White, fontSize = 13.sp)
+                Text("A 65-year-old highly anxious patient needs an emergent Coronary Artery Bypass Graft (CABG). They ask: 'Doctor, are you going to stop my heart? Is it safe?'", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
 
@@ -1336,7 +1432,7 @@ fun SurgicalConsentLab(viewModel: UserProgressViewModel) {
             onValueChange = { response = it },
             placeholder = { Text("Draft your empathetic response explaining the bypass machine and risks...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth().height(150.dp),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = SurgicalGreen,
                 unfocusedBorderColor = Color.DarkGray
@@ -1345,13 +1441,12 @@ fun SurgicalConsentLab(viewModel: UserProgressViewModel) {
 
         Button(
             onClick = {
-                feedback = "Excellent compassion. Using terms like 'heart-lung machine' instead of 'cardiopulmonary bypass' builds trust. +25 XP"
-                viewModel.addPoints(25)
+                feedback = "Plain-language cue: compare technical and everyday phrasing. This screen does not score compassion or consent quality."
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("SUBMIT FOR EMPATHY REVIEW", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW SELF-REVIEW CUE", color = Color.Black, fontWeight = FontWeight.Bold)
         }
 
         if (feedback.isNotEmpty()) {
@@ -1360,7 +1455,7 @@ fun SurgicalConsentLab(viewModel: UserProgressViewModel) {
                 border = BorderStroke(1.dp, SurgicalGreen),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(feedback, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(feedback, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
             }
         }
     }
@@ -1380,8 +1475,8 @@ fun MedicalEthicsLab(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("ETHICS BOARD SIMULATOR", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Test your C2 argumentative English in high-stakes bioethical scenarios.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("ETHICS PERSPECTIVES EXERCISE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Practice a structured C2 argument around one fictional bioethics prompt; no ethics judgment or care recommendation is produced.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -1390,7 +1485,7 @@ fun MedicalEthicsLab(viewModel: UserProgressViewModel) {
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("THE CASE:", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("A family demands continued life-sustaining ventilation for a brain-dead patient, citing religious convictions, despite clinical futility. The Ethics Board asks for your justification to withdraw care.", color = Color.White, fontSize = 13.sp)
+                Text("A family demands continued life-sustaining ventilation for a brain-dead patient, citing religious convictions, despite clinical futility. The Ethics Board asks for your justification to withdraw care.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
 
@@ -1399,7 +1494,7 @@ fun MedicalEthicsLab(viewModel: UserProgressViewModel) {
             onValueChange = { response = it },
             placeholder = { Text("Draft your C2 academic response addressing autonomy, beneficence, and non-maleficence...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth().height(150.dp),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = SurgicalGreen,
                 unfocusedBorderColor = Color.DarkGray
@@ -1408,13 +1503,12 @@ fun MedicalEthicsLab(viewModel: UserProgressViewModel) {
 
         Button(
             onClick = {
-                feedback = "Argument logically structured. Phenomenal use of C2 terminology such as 'clinical futility' and 'resource allocation'. +30 XP"
-                viewModel.addPoints(30)
+                feedback = "Self-review cue: state your claim, a reason, and an acknowledged limitation. This screen does not score ethics reasoning."
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("SUBMIT ARGUMENT TO BOARD", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW SELF-REVIEW CUE", color = Color.Black, fontWeight = FontWeight.Bold)
         }
 
         if (feedback.isNotEmpty()) {
@@ -1423,14 +1517,14 @@ fun MedicalEthicsLab(viewModel: UserProgressViewModel) {
                 border = BorderStroke(1.dp, SurgicalGreen),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(feedback, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(feedback, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
             }
         }
     }
 }
 
 // ----------------------------------------------------
-// 14. CULTURAL COMPETENCE AI MODIFIERS (Idea 18)
+// 14. AUTHORED CULTURAL-LANGUAGE SELF-REVIEW
 // ----------------------------------------------------
 @Composable
 fun CulturalCompetenceLab(viewModel: UserProgressViewModel) {
@@ -1443,8 +1537,8 @@ fun CulturalCompetenceLab(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("CULTURAL COMPETENCE CALIBRATOR", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Adapt your bedside manner to diverse cultural and linguistic backgrounds.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("CULTURAL-LANGUAGE SELF-REVIEW", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Draft a clear, respectful reply to one authored fictional prompt, then reveal communication tips. This is not a cultural-competence assessment.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -1453,7 +1547,7 @@ fun CulturalCompetenceLab(viewModel: UserProgressViewModel) {
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("CULTURAL PROFILE: RURAL APPALACHIA", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                Text("Patient: 'Doc, I got the sugar real bad and my nerves are shot.'", color = Color.White, fontSize = 13.sp)
+                Text("Patient: 'Doc, I got the sugar real bad and my nerves are shot.'", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 Text("How do you respond to build rapport while transitioning to discussing their diabetic neuropathy?", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
         }
@@ -1463,7 +1557,7 @@ fun CulturalCompetenceLab(viewModel: UserProgressViewModel) {
             onValueChange = { response = it },
             placeholder = { Text("Draft your response adapting your vocabulary...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth().height(150.dp),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = SurgicalGreen,
                 unfocusedBorderColor = Color.DarkGray
@@ -1472,13 +1566,12 @@ fun CulturalCompetenceLab(viewModel: UserProgressViewModel) {
 
         Button(
             onClick = {
-                feedback = "Culturally appropriate validation. Translating \"the sugar\" to diabetes gently without sounding condescending is vital. +20 XP"
-                viewModel.addPoints(20)
+                feedback = "Self-review cue: use the person’s own words, then check that your explanation remains clear and respectful."
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("ANALYZE RAPPORT", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW COMMUNICATION TIPS", color = Color.Black, fontWeight = FontWeight.Bold)
         }
 
         if (feedback.isNotEmpty()) {
@@ -1487,7 +1580,7 @@ fun CulturalCompetenceLab(viewModel: UserProgressViewModel) {
                 border = BorderStroke(1.dp, SurgicalGreen),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(feedback, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(feedback, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
             }
         }
     }
@@ -1508,8 +1601,8 @@ fun EmrSimulatorLab(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("SPLIT-SCREEN EMR SIMULATOR", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Practice interacting with a patient while typing structured notes simultaneously.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("CASE SCENARIO & REFERENCE NOTE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Rewrite one authored fictional statement in a concise practice note. This is not a live patient feed, real chart, or charting evaluation.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         // Split view container: Top is Chat, Bottom is EMR
         Card(
@@ -1518,7 +1611,7 @@ fun EmrSimulatorLab(viewModel: UserProgressViewModel) {
             border = BorderStroke(1.dp, Color.DarkGray)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("LIVE PATIENT FEED:", color = NeonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("AUTHORED FICTIONAL SCENE:", color = NeonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Patient: 'Yeah, the pain started yesterday around noon. Feels like an elephant sitting on my chest.'", color = Color.White, fontSize = 13.sp)
                 Spacer(modifier = Modifier.weight(1f))
@@ -1539,27 +1632,26 @@ fun EmrSimulatorLab(viewModel: UserProgressViewModel) {
             border = BorderStroke(1.dp, SurgicalGreen.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("EPIC EMR CHARTING (HPI):", color = Color.LightGray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("PRACTICE NOTE:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = emrNotes,
                     onValueChange = { emrNotes = it },
                     placeholder = { Text("Translate to clinical chart (e.g. Pt reports acute onset substernal crushing pain x 24hrs)", fontSize = 11.sp) },
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-                    textStyle = TextStyle(color = Color.White, fontSize = 12.sp)
+                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
                 )
             }
         }
 
         Button(
             onClick = {
-                feedback = "Outstanding multi-tasking. Your charting correctly abstracted 'elephant' to 'crushing pain' while maintaining patient engagement. +40 XP"
-                viewModel.addPoints(40)
+                feedback = "Reference cue: compare the metaphor with the authored plain-language description. This screen does not evaluate charting."
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("SUBMIT CHART FOR REVIEW", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("SHOW REFERENCE CUE", color = Color.Black, fontWeight = FontWeight.Bold)
         }
 
         if (feedback.isNotEmpty()) {
@@ -1568,7 +1660,7 @@ fun EmrSimulatorLab(viewModel: UserProgressViewModel) {
                 border = BorderStroke(1.dp, SurgicalGreen),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(feedback, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 13.sp)
+                Text(feedback, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
             }
         }
     }
@@ -1580,10 +1672,11 @@ fun EmrSimulatorLab(viewModel: UserProgressViewModel) {
 @Composable
 fun ReviewGraveyardLab() {
     val reviewItems = listOf(
-        Pair("Dypnea -> Dyspnea", "Incorrect clinical transcription spelling found in medical charting."),
-        Pair("Mitral stenosis -> High pitched murmur", "Misdiagnosed murmur sound feedback in Case 3."),
-        Pair("PRN vs PO", "Confused as needed with enteral administration guidelines.")
+        Pair("Dypnea → Dyspnea", "Spelling reference: dyspnea is the standard English spelling."),
+        Pair("high pitched → high-pitched", "Hyphenation reference: use a hyphen when the phrase modifies a noun."),
+        Pair("PRN / PO", "Vocabulary reference: these are different abbreviations and should not be used interchangeably.")
     )
+    var revealedItems by remember { mutableStateOf(emptySet<Int>()) }
 
     Column(
         modifier = Modifier
@@ -1591,11 +1684,11 @@ fun ReviewGraveyardLab() {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("REVIEW GRAVEYARD SPECIAL SRS", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text("Your failed clinical items. Clear them using periodic spacing cards:", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text("COMMON CORRECTIONS", color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Study these bundled examples of typical wording improvements. They are not your personal error history.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            reviewItems.forEach { item ->
+            reviewItems.forEachIndexed { index, item ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.fillMaxWidth(),
@@ -1603,16 +1696,29 @@ fun ReviewGraveyardLab() {
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(item.first, color = AlertRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(item.second, color = Color.White, fontSize = 12.sp)
+                        if (index in revealedItems) {
+                            Text(item.second, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                             Button(
-                                onClick = { /* Clear from review history */ },
+                                onClick = {
+                                    revealedItems = if (index in revealedItems) {
+                                        revealedItems - index
+                                    } else {
+                                        revealedItems + index
+                                    }
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 modifier = Modifier.height(28.dp)
                             ) {
-                                Text("Acknowledge & Resurrect", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (index in revealedItems) "Hide reference note" else "View reference note",
+                                    color = Color.Black,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }

@@ -24,18 +24,25 @@ import com.cinnamon.app.ui.theme.NeonCyan
 
 data class PatientScenario(val id: String, val title: String, val mood: String, val description: String)
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ScenarioSelectionScreen(
-    onBack: () -> Unit,
-    onScenarioSelected: (String, String) -> Unit
-) {
-    val scenarios = listOf(
+object PatientScenarioCatalog {
+    val all = listOf(
         PatientScenario("chest_pain", "Acute Chest Pain", "Anxious and in moderate pain", "Middle-aged patient complaining of a crushing sensation."),
         PatientScenario("abdominal_pain", "Severe Abdominal Pain", "Lethargic and groaning", "Young adult with sharp right lower quadrant pain."),
         PatientScenario("headache", "Thunderclap Headache", "Sensory sensitive, whispering", "Patient reports the worst headache of their life starting suddenly."),
         PatientScenario("short_breath", "Shortness of Breath", "Panicked, speaking in short sentences", "Elderly patient struggling to catch their breath after walking stairs.")
     )
+
+    fun findById(id: String): PatientScenario? = all.firstOrNull { it.id == id }
+    val fallback: PatientScenario = all.first()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ScenarioSelectionScreen(
+    onBack: () -> Unit,
+    onScenarioSelected: (PatientScenario) -> Unit
+) {
+    val scenarios = PatientScenarioCatalog.all
 
     Scaffold(
         topBar = {
@@ -92,7 +99,7 @@ fun ScenarioSelectionScreen(
                                 fraction = 1f - pageOffset.coerceIn(0f, 1f)
                             )
                         },
-                    onClick = { onScenarioSelected(scenario.title, scenario.mood) },
+                    onClick = { onScenarioSelected(scenario) },
                     colors = CardDefaults.cardColors(containerColor = com.cinnamon.app.ui.theme.SurfaceDark),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
@@ -106,7 +113,7 @@ fun ScenarioSelectionScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.LocalHospital,
-                            contentDescription = "Hospital Icon",
+                            contentDescription = null,
                             tint = if (scenario.id == "chest_pain" || scenario.id == "headache") AlertRed else SurgicalGreen,
                             modifier = Modifier.size(64.dp)
                         )

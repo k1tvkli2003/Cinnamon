@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +30,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -35,36 +38,46 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 import com.cinnamon.app.ui.theme.*
 import com.cinnamon.app.viewmodel.UserProgressViewModel
-import com.cinnamon.app.viewmodel.Quest
-import com.cinnamon.app.viewmodel.Replay
+import com.cinnamon.app.viewmodel.CampaignRouteChoiceUiModel
+import com.cinnamon.app.viewmodel.CampaignUiState
+import com.cinnamon.app.viewmodel.JourneyStageUiState
+import com.cinnamon.app.viewmodel.JourneyStageUiModel
+import com.cinnamon.app.viewmodel.JourneyUiState
+import com.cinnamon.app.domain.gamification.CampaignRouteTone
+import com.cinnamon.app.domain.gamification.JourneyDestination
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.sin
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GamificationHubScreen(
     onBack: () -> Unit,
-    progressViewModel: UserProgressViewModel
+    progressViewModel: UserProgressViewModel,
+    onStartReview: () -> Unit,
+    onOpenPractice: () -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf("Quests & Guilds") }
+    var selectedTab by rememberSaveable { mutableStateOf("Journey Map") }
     val haptic = LocalHapticFeedback.current
 
     val tabs = listOf(
-        "Quests & Guilds",
-        "RPG Skill Tree",
-        "Weekly Bosses",
+        "Journey Map",
+        "Practice & Focus",
+        "Weekly Challenge",
         "Match-3 Vocab",
-        "Audio Escape",
-        "Case Replays"
+        "Transcript Escape",
+        "Study Log"
     )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Clinical Progression Zone", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text("Learning Questboard", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = SurgicalGreen)
@@ -74,85 +87,175 @@ fun GamificationHubScreen(
             )
         }
     ) { padding ->
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // RPG Navigation Sidebar
-            Column(
-                modifier = Modifier
-                    .width(140.dp)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Spacer(modifier = Modifier.height(8.dp))
-                tabs.forEach { tab ->
-                    val isActive = selectedTab == tab
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                selectedTab = tab
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
-                            .background(if (isActive) MaterialTheme.colorScheme.background else Color.Transparent)
-                            .padding(vertical = 16.dp, horizontal = 12.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(
-                            text = tab,
-                            color = if (isActive) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
+            val useCompactTabs = maxWidth < 600.dp
+            val selectTab: (String) -> Unit = { tab ->
+                selectedTab = tab
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             }
-
-            // Gamified Action Area
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(16.dp)
-            ) {
-                AnimatedContent(
-                    targetState = selectedTab,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
-                    }, label = "gamificationHubTransition"
-                ) { targetTab ->
-                    when (targetTab) {
-                        "Quests & Guilds" -> QuestsAndGuildsComponent(progressViewModel)
-                        "RPG Skill Tree" -> RpgSkillTreeComponent(progressViewModel)
-                        "Weekly Bosses" -> WeeklyBossBattlesComponent(progressViewModel)
-                        "Match-3 Vocab" -> Match3VocabComponent(progressViewModel)
-                        "Audio Escape" -> AudioEscapeRoomComponent(progressViewModel)
-                        "Case Replays" -> CaseReplaysComponent(progressViewModel)
-                        else -> Text("Section Coming Soon", color = MaterialTheme.colorScheme.onSurface)
-                    }
+            if (useCompactTabs) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    QuestboardTabs(
+                        tabs = tabs,
+                        selectedTab = selectedTab,
+                        compact = true,
+                        onSelect = selectTab,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    QuestboardWorkspace(
+                        selectedTab = selectedTab,
+                        progressViewModel = progressViewModel,
+                        onStartReview = onStartReview,
+                        onOpenPractice = onOpenPractice,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    )
+                }
+            } else {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    QuestboardTabs(
+                        tabs = tabs,
+                        selectedTab = selectedTab,
+                        compact = false,
+                        onSelect = selectTab,
+                        modifier = Modifier
+                            .width(140.dp)
+                            .fillMaxHeight()
+                    )
+                    QuestboardWorkspace(
+                        selectedTab = selectedTab,
+                        progressViewModel = progressViewModel,
+                        onStartReview = onStartReview,
+                        onOpenPractice = onOpenPractice,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
                 }
             }
         }
     }
 }
 
+@Composable
+private fun QuestboardTabs(
+    tabs: List<String>,
+    selectedTab: String,
+    compact: Boolean,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (compact) {
+        LazyRow(
+            modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(tabs, key = { it }) { tab ->
+                val isActive = selectedTab == tab
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (isActive) SurgicalGreen.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surface,
+                    border = if (isActive) BorderStroke(1.dp, SurgicalGreen.copy(alpha = 0.7f)) else null,
+                    modifier = Modifier.clickable { onSelect(tab) }
+                ) {
+                    Text(
+                        text = tab,
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
+                        color = if (isActive) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    } else {
+        Column(
+            modifier = modifier
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+            tabs.forEach { tab ->
+                val isActive = selectedTab == tab
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(tab) }
+                        .background(if (isActive) MaterialTheme.colorScheme.background else Color.Transparent)
+                        .padding(vertical = 16.dp, horizontal = 12.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = tab,
+                        color = if (isActive) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuestboardWorkspace(
+    selectedTab: String,
+    progressViewModel: UserProgressViewModel,
+    onStartReview: () -> Unit,
+    onOpenPractice: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
+    Box(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
+    ) {
+        AnimatedContent(
+            targetState = selectedTab,
+            transitionSpec = {
+                if (reduceMotion) {
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+                }
+            },
+            label = "gamificationHubTransition"
+        ) { targetTab ->
+            when (targetTab) {
+                "Journey Map" -> RpgSkillTreeComponent(
+                    viewModel = progressViewModel,
+                    onStartReview = onStartReview,
+                    onOpenPractice = onOpenPractice
+                )
+                "Practice & Focus" -> QuestsAndGuildsComponent(progressViewModel)
+                "Weekly Challenge" -> ScenarioLanguageSprintComponent(progressViewModel)
+                "Match-3 Vocab" -> Match3VocabComponent(progressViewModel)
+                "Transcript Escape" -> TranscriptEscapeComponent(progressViewModel)
+                "Study Log" -> CaseReplaysComponent(progressViewModel)
+                else -> QuestsAndGuildsComponent(progressViewModel)
+            }
+        }
+    }
+}
+
 // --------------------------------------------------------------------------------------
-// TAB 1: DAILY QUESTS, FACTIONS/GUILDS, ANONYMOUS LEADERBOARD, MMR ADAPTIVE DIFFICULTIES
+// TAB 1: LEDGER-BACKED DAILY CHECKPOINTS AND LOCAL FOCUS
 // --------------------------------------------------------------------------------------
 @Composable
 fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
     val points by viewModel.points.collectAsState()
     val dailyQuests by viewModel.dailyQuests.collectAsState()
-    val selectedFaction by viewModel.selectedFaction.collectAsState()
-    val factionProgress by viewModel.factionProgress.collectAsState()
-    val eloRating by viewModel.eloRating.collectAsState()
+    val selectedFocus by viewModel.selectedFocus.collectAsState()
     val streak by viewModel.streak.collectAsState()
 
     val haptic = LocalHapticFeedback.current
@@ -161,7 +264,7 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Daily Clinical Quests (Idea 47)
+        // Checkpoints are projections of committed events, never tappable state.
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -174,9 +277,9 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("DAILY CLINICAL QUESTS", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("TODAY’S REAL CHECKPOINTS", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         Badge(containerColor = SurgicalGreen.copy(alpha = 0.2f)) {
-                            Text("+50 XP Each", color = SurgicalGreen, modifier = Modifier.padding(4.dp), fontSize = 10.sp)
+                            Text("LEDGER-BACKED", color = SurgicalGreen, modifier = Modifier.padding(4.dp), fontSize = 10.sp)
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
@@ -188,15 +291,11 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                                 .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
-                                checked = quest.completed,
-                                onCheckedChange = {
-                                    if (!quest.completed) {
-                                        viewModel.completeQuest(index)
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    }
-                                },
-                                colors = CheckboxDefaults.colors(checkedColor = SurgicalGreen)
+                            Icon(
+                                imageVector = if (quest.completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                contentDescription = if (quest.completed) "Checkpoint complete" else "Checkpoint in progress",
+                                tint = if (quest.completed) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
@@ -206,7 +305,44 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium
                                 )
-                                Text("Progress: ${quest.progress}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                                Text("Progress: ${quest.progress}/${quest.target}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                                Text(quest.detail, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 13.sp)
+                                when {
+                                    quest.claimable && quest.instanceId != null -> {
+                                        FilledTonalButton(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                viewModel.claimQuestReward(quest.instanceId)
+                                            },
+                                            modifier = Modifier
+                                                .padding(top = 8.dp)
+                                                .heightIn(min = 48.dp),
+                                            colors = ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = SurgicalGreen.copy(alpha = 0.18f),
+                                                contentColor = SurgicalGreen
+                                            )
+                                        ) {
+                                            Text(
+                                                if (quest.rewardXp > 0) "CLAIM +${quest.rewardXp} XP" else "CLAIM EARNED REWARD",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                    quest.claimed -> {
+                                        Text(
+                                            if (quest.rewardXp > 0) {
+                                                "${quest.rewardXp} XP CLAIMED · SETTLED ONCE"
+                                            } else {
+                                                "REWARD CLAIMED · SETTLED ONCE"
+                                            },
+                                            color = SurgicalGreen,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(top = 8.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                         if (index < dailyQuests.size - 1) {
@@ -217,24 +353,24 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
             }
         }
 
-        // Factions & Guilds (Idea 55)
+        // Local learning focus. It is deliberately not a networked team.
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("CLINICAL SPECIALTY GUILDS", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text("All guild contributors pool weekly XP to unlock clinical item packages for all members.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(bottom = 12.dp))
+                    Text("LEARNING FOCUS", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Choose a local topic focus for this device. It does not join a networked team or pool rewards.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(bottom = 12.dp))
 
-                    if (selectedFaction == "None") {
+                    if (selectedFocus == "None") {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Button(
                                 onClick = {
-                                    viewModel.joinFaction("Team Cardiology")
+                                    viewModel.selectLearningFocus("Cardiology")
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 },
                                 modifier = Modifier.weight(1f),
@@ -242,13 +378,13 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("🫀", fontSize = 20.sp)
-                                    Text("Team Cardiology", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text("Cardiology", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
                             Button(
                                 onClick = {
-                                    viewModel.joinFaction("Team Neurology")
+                                    viewModel.selectLearningFocus("Neurology")
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 },
                                 modifier = Modifier.weight(1f),
@@ -256,121 +392,70 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("🧠", fontSize = 20.sp)
-                                    Text("Team Neurology", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                    Text("Neurology", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                                 }
                             }
                         }
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                            Badge(containerColor = if (selectedFaction == "Team Cardiology") AlertRed else NeonCyan) {
-                                Text("COMBAT INTEGRATION: $selectedFaction", color = Color.Black, fontWeight = FontWeight.Bold, modifier = Modifier.padding(6.dp))
+                            Badge(containerColor = if (selectedFocus == "Cardiology") AlertRed else NeonCyan) {
+                                Text("LOCAL FOCUS: $selectedFocus", color = Color.Black, fontWeight = FontWeight.Bold, modifier = Modifier.padding(6.dp))
                             }
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text("Your Guild Weekly Goal Progress: $factionProgress / 10,000 pts", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp)
-                            LinearProgressIndicator(
-                                progress = { factionProgress.toFloat() / 10000f },
-                                color = if (selectedFaction == "Team Cardiology") AlertRed else NeonCyan,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                                    .height(10.dp)
-                                    .clip(RoundedCornerShape(5.dp))
-                            )
-                            Button(
-                                onClick = {
-                                    viewModel.addPoints(50)
-                                    viewModel.completeQuest(0) // increment activity contribution
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.background),
-                                border = BorderStroke(1.dp, SurgicalGreen)
-                            ) {
-                                Text("Donate 50 XP to Guild Vault", color = SurgicalGreen)
-                            }
+                            Text("Your focus is saved only on this device. It does not join a team or change rewards.", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp)
+                            TextButton(onClick = { viewModel.selectLearningFocus("None") }) { Text("Clear focus") }
                         }
                     }
                 }
             }
         }
 
-        // Anonymous Global Leaderboard (Idea 43)
+        // Personal progress only; no fabricated social ranking.
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("GLOBAL CLINICAL LEADERBOARD (ANONYMOUS)", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("YOUR LEARNING RECORD", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    val leaderboardMembers = listOf(
-                        Triple("1. MedGenius_TX", "72 Days", "4,200 XP"),
-                        Triple("2. RetroSuture", "48 Days", "3,850 XP"),
-                        Triple("3. Dr_Stethoscope", "$streak Days", "$points XP (YOU)"),
-                        Triple("4. ECG_Wizard", "19 Days", "1,220 XP"),
-                        Triple("5. ThoracicGuru", "14 Days", "980 XP")
-                    )
-
-                    leaderboardMembers.forEach { (user, streakInfo, xp) ->
-                        val isSelf = user.contains("(YOU)")
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(if (isSelf) MaterialTheme.colorScheme.background else Color.Transparent)
-                                .padding(vertical = 8.dp, horizontal = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(user, color = if (isSelf) SurgicalGreen else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Normal)
-                            Row {
-                                Text(streakInfo, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(xp, color = if (isSelf) SurgicalGreen else NeonCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Current streak", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
+                        Text("$streak days", color = SurgicalGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Verified ledger balance", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
+                        Text("$points XP", color = SurgicalGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
-        // MMR/Elo Adaptive Difficulty Gauge (Idea 51)
+        // The product makes the evidence policy visible instead of inventing a rating.
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("MMR / CLINICAL DIFFICULTY ELIGIBILITY", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("FAIR-PLAY PROMISE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Your current dynamic rating is $eloRating. At higher ELO ratings, the standardized patients speak faster, use complex layout structures, and demand perfect clinical politeness.",
+                        "Your pathway is shaped only by completed, persisted learning evidence—not a manually moved rating or a made-up clinical score.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp
                     )
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Adaptive Difficulty Dynamic Level:", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
-                        Badge(containerColor = MaterialTheme.colorScheme.background, contentColor = SurgicalGreen) {
-                            Text(if (eloRating >= 1400) "CRITICAL MASTER (C2)" else "INTERMEDIATE CLINICIAN", modifier = Modifier.padding(4.dp), fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Slider(
-                        value = eloRating.toFloat(),
-                        onValueChange = {
-                            viewModel.increaseElo((it - eloRating).toInt())
-                        },
-                        valueRange = 800f..2000f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = SurgicalGreen,
-                            activeTrackColor = SurgicalGreen
-                        )
-                    )
+                    Text("Practice remains author-led until adaptive changes can be measured and explained honestly.", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
                 }
             }
         }
@@ -378,21 +463,17 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
 }
 
 // --------------------------------------------------------------------------------------
-// TAB 2: RPG-STYLE SKILL TREE (Idea 42)
+// TAB 2: EVIDENCE-BACKED LEARNING ROUTE
 // --------------------------------------------------------------------------------------
 @Composable
-fun RpgSkillTreeComponent(viewModel: UserProgressViewModel) {
-    val skillPoints by viewModel.skillPoints.collectAsState()
-    val unlockedSkills by viewModel.unlockedSkills.collectAsState()
-    val haptic = LocalHapticFeedback.current
-
-    val skills = listOf(
-        Triple("Basic Latin Roots", "Fundamental terminology stems.", "Anatomy Matcher"),
-        Triple("Bedside Intonation", "Soft vocal modifiers.", "Basic Latin Roots"),
-        Triple("Complex Prepositions", "Required for Cardiology consult.", "Bedside Intonation"),
-        Triple("Passive Assertiveness", "Expressing emergency urgency.", "Complex Prepositions"),
-        Triple("SPIKES Cushioning", "Oncology bad news protocol.", "Passive Assertiveness")
-    )
+fun RpgSkillTreeComponent(
+    viewModel: UserProgressViewModel,
+    onStartReview: () -> Unit,
+    onOpenPractice: () -> Unit
+) {
+    val journeyState by viewModel.learningJourney.collectAsState()
+    val campaignState by viewModel.campaignRoute.collectAsState()
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
 
     Column(
         modifier = Modifier
@@ -400,71 +481,128 @@ fun RpgSkillTreeComponent(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text("RPG CLINICAL SKILL TREE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("Unlock high-tier skills to access expert roleplay zones.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        when (val state = journeyState) {
+            JourneyUiState.Loading -> Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
+                    modifier = Modifier.padding(18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(26.dp), strokeWidth = 3.dp)
+                    Column {
+                        Text("CHARTING YOUR JOURNEY", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Restoring the route from your local record…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    }
+                }
             }
-            Badge(containerColor = NeonCyan, contentColor = Color.Black) {
-                Text("$skillPoints SP", fontWeight = FontWeight.Black, modifier = Modifier.padding(6.dp))
-            }
-        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 10.dp),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-            val dashOffset = infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 50f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1500, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                ),
-                label = "dashOffset"
-            )
+            is JourneyUiState.Unavailable -> Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("JOURNEY NEEDS ATTENTION", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(state.message, color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 12.sp)
+                    Text("Your existing ledger and XP remain untouched.", color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.76f), fontSize = 11.sp)
+                    FilledTonalButton(
+                        onClick = viewModel::retryStartup,
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
+                        Text("Retry journey setup", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            is JourneyUiState.Ready -> {
+                val journey = state.journey
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(journey.eyebrow, color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(journey.title, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
+                        Text(journey.description, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), fontSize = 12.sp, lineHeight = 17.sp)
+                        LinearProgressIndicator(
+                            progress = {
+                                journey.completedStageCount.toFloat() / journey.totalStageCount.coerceAtLeast(1)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                            color = NeonCyan,
+                            trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f)
+                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("${journey.completedStageCount}/${journey.totalStageCount} chapters secured", color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("${journey.securedXp} XP secured", color = SurgicalGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        if (journey.isComplete) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.14f))
+                            Text(journey.completionTitle, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                            Text(journey.completionDescription, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), fontSize = 11.sp)
+                        }
+                    }
+                }
+
+            val dashOffset: Float
+            val activeGlowAlpha: Float
+            if (reduceMotion) {
+                dashOffset = 0f
+                activeGlowAlpha = 0.75f
+            } else {
+                val infiniteTransition = rememberInfiniteTransition(label = "pathwayPulse")
+                dashOffset = infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 50f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1500, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "dashOffset"
+                ).value
+                activeGlowAlpha = infiniteTransition.animateFloat(
+                    initialValue = 0.5f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "activeGlow"
+                ).value
+            }
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                skills.forEachIndexed { index, (skillName, desc, prereq) ->
-                    val isUnlocked = unlockedSkills.contains(skillName)
-                    val canUnlock = unlockedSkills.contains(prereq) || prereq == "Anatomy Matcher"
-
-                    // Animate node glow
-                    val glowAlpha = if (isUnlocked) {
-                        infiniteTransition.animateFloat(
-                            initialValue = 0.5f,
-                            targetValue = 1f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(1000, easing = FastOutSlowInEasing),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "glow"
-                        ).value
-                    } else 0f
+                journey.stages.forEachIndexed { index, stage ->
+                    val completed = stage.state == JourneyStageUiState.COMPLETED
+                    val active = stage.state == JourneyStageUiState.ACTIVE
+                    val glowAlpha = if (active) activeGlowAlpha else 0f
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(if (isUnlocked) 10.dp else 0.dp, RoundedCornerShape(12.dp), spotColor = NeonCyan.copy(alpha = glowAlpha))
+                            .shadow(if (active) 13.dp else 0.dp, RoundedCornerShape(18.dp), spotColor = NeonCyan.copy(alpha = glowAlpha))
                     ) {
                         Card(
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isUnlocked) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.background
+                                containerColor = when {
+                                    active -> MaterialTheme.colorScheme.secondaryContainer
+                                    completed -> MaterialTheme.colorScheme.surfaceVariant
+                                    else -> MaterialTheme.colorScheme.surface
+                                }
                             ),
-                            border = if (isUnlocked) BorderStroke(1.5.dp, NeonCyan.copy(alpha = glowAlpha)) 
-                                    else if (canUnlock) BorderStroke(1.dp, SurgicalGreen.copy(alpha = 0.6f)) 
-                                    else BorderStroke(1.dp, Color.DarkGray),
+                            border = when {
+                                active -> BorderStroke(1.5.dp, NeonCyan.copy(alpha = glowAlpha))
+                                completed -> BorderStroke(1.dp, SurgicalGreen.copy(alpha = 0.7f))
+                                else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            },
+                            shape = RoundedCornerShape(18.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -475,52 +613,64 @@ fun RpgSkillTreeComponent(viewModel: UserProgressViewModel) {
                                     modifier = Modifier
                                         .size(46.dp)
                                         .clip(CircleShape)
-                                        .background(if (isUnlocked) NeonCyan.copy(alpha = 0.2f) else MaterialTheme.colorScheme.background)
-                                        .border(2.dp, if (isUnlocked) NeonCyan else Color.DarkGray, CircleShape),
+                                        .background(if (active) NeonCyan.copy(alpha = 0.2f) else MaterialTheme.colorScheme.background)
+                                        .border(2.dp, if (completed) SurgicalGreen else if (active) NeonCyan else Color.DarkGray, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = if (isUnlocked) "⚡" else "🔒",
+                                        text = if (completed) "✓" else if (active) stage.order.toString() else "🔒",
                                         fontSize = 18.sp
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(skillName, color = if (isUnlocked) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Text(desc, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 14.sp)
-                                    if (prereq != "Anatomy Matcher" && !isUnlocked) {
-                                        Text("Requires: $prereq", color = AlertRed, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("CHAPTER ${stage.order}", color = if (active) NeonCyan else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                                        Text("+${stage.rewardXp} XP", color = if (completed) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 10.sp)
                                     }
-                                }
-
-                                if (!isUnlocked) {
-                                    Button(
-                                        onClick = {
-                                            if (viewModel.investSkillPoint(skillName)) {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            }
+                                    Text(stage.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                                    Text(stage.description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 15.sp)
+                                    Spacer(Modifier.height(8.dp))
+                                    LinearProgressIndicator(
+                                        progress = { stage.progress.toFloat() / stage.target.coerceAtLeast(1) },
+                                        modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+                                        color = if (completed) SurgicalGreen else NeonCyan,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    Text(
+                                        when {
+                                            completed -> "SECURED · ${stage.progress}/${stage.target} verified"
+                                            active -> "ACTIVE · ${stage.progress}/${stage.target} verified"
+                                            else -> "LOCKED · finish chapter ${stage.order - 1} first"
                                         },
-                                        enabled = canUnlock && skillPoints > 0,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = SurgicalGreen,
-                                            disabledContainerColor = Color.DarkGray
-                                        )
-                                    ) {
-                                        Text("Unlock", color = if (canUnlock) Color.Black else Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                } else {
-                                    Badge(containerColor = NeonCyan.copy(alpha = 0.2f)) {
-                                        Text("ACTIVE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(4.dp))
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (active) {
+                                        FilledTonalButton(
+                                            onClick = when (stage.destination) {
+                                                JourneyDestination.REVIEW -> onStartReview
+                                                JourneyDestination.PRACTICE -> onOpenPractice
+                                                JourneyDestination.JOURNEY -> onOpenPractice
+                                            },
+                                            modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp),
+                                            colors = ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = NeonCyan.copy(alpha = 0.18f),
+                                                contentColor = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        ) {
+                                            Text(stage.actionLabel, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
 
-                    // Visual Connective Arrow / Pipe
-                    if (index < skills.size - 1) {
-                        val nextSkillUnlocked = unlockedSkills.contains(skills[index + 1].first)
-                        val pipeColor = if (nextSkillUnlocked) NeonCyan else Color.DarkGray
+                    if (index < journey.stages.lastIndex) {
+                        val connectorReached = completed
+                        val pipeColor = if (connectorReached) SurgicalGreen else Color.DarkGray
                         
                         Canvas(modifier = Modifier.width(4.dp).height(24.dp)) {
                             drawLine(
@@ -530,10 +680,355 @@ fun RpgSkillTreeComponent(viewModel: UserProgressViewModel) {
                                 strokeWidth = 4.dp.toPx(),
                                 pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
                                     floatArrayOf(10f, 10f),
-                                    phase = if (nextSkillUnlocked) -dashOffset.value else 0f
+                                    phase = if (connectorReached) -dashOffset else 0f
                                 )
                             )
                         }
+                    }
+                }
+            }
+            }
+        }
+
+        CampaignRouteBoard(
+            state = campaignState,
+            onChooseRoute = viewModel::chooseCampaignRoute,
+            onStartReview = onStartReview,
+            onOpenPractice = onOpenPractice
+        )
+    }
+}
+
+@Composable
+private fun CampaignRouteBoard(
+    state: CampaignUiState,
+    onChooseRoute: (String) -> Unit,
+    onStartReview: () -> Unit,
+    onOpenPractice: () -> Unit
+) {
+    var pendingRouteId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 4.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+    )
+    Text(
+        text = "CAMPAIGN ROUTES",
+        color = NeonCyan,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 12.sp
+    )
+
+    when (state) {
+        CampaignUiState.Loading -> Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+                Text("Restoring your committed campaign route…", fontSize = 12.sp)
+            }
+        }
+
+        is CampaignUiState.Locked -> Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Lock, contentDescription = null)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(state.eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                    Text(state.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
+                    Text(state.message, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 16.sp)
+                }
+            }
+        }
+
+        is CampaignUiState.Unavailable -> Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("CAMPAIGN RECORD NEEDS ATTENTION", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(state.message, color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 12.sp)
+                Text("No route, Journey progress, or XP was rewritten.", color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.76f), fontSize = 11.sp)
+            }
+        }
+
+        is CampaignUiState.Choose -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF6C3B20), MaterialTheme.colorScheme.primaryContainer, Color(0xFF134F4B))
+                        )
+                    )
+                    .border(1.dp, NeonCyan.copy(alpha = 0.45f), RoundedCornerShape(22.dp))
+                    .padding(18.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(state.eyebrow, color = NeonCyan, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
+                    Text(state.title, color = Color.White, fontWeight = FontWeight.Black, fontSize = 23.sp)
+                    Text(state.description, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp, lineHeight = 17.sp)
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.24f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "Choosing a route grants no XP. The saved route moves only when verified learning evidence reaches a chapter target.",
+                            modifier = Modifier.padding(11.dp),
+                            color = Color.White.copy(alpha = 0.82f),
+                            fontSize = 10.sp,
+                            lineHeight = 15.sp
+                        )
+                    }
+                }
+            }
+
+            state.routes.forEach { route ->
+                CampaignRouteChoiceCard(
+                    route = route,
+                    saving = state.savingRouteId == route.id,
+                    enabled = state.savingRouteId == null,
+                    onChoose = { pendingRouteId = route.id }
+                )
+            }
+
+            state.errorMessage?.let { message ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Text(
+                        message,
+                        modifier = Modifier.padding(14.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            val pendingRoute = state.routes.firstOrNull { it.id == pendingRouteId }
+            if (pendingRoute != null) {
+                AlertDialog(
+                    onDismissRequest = { pendingRouteId = null },
+                    icon = { Icon(Icons.Default.Route, contentDescription = null) },
+                    title = { Text("Commit to ${pendingRoute.title}?") },
+                    text = {
+                        Text(
+                            "This choice is saved and cannot be switched in this campaign version. Selecting it grants no XP; only verified learning moves its three chapters."
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                pendingRouteId = null
+                                onChooseRoute(pendingRoute.id)
+                            },
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        ) { Text("Commit route", fontWeight = FontWeight.Bold) }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { pendingRouteId = null },
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        ) { Text("Not yet") }
+                    }
+                )
+            }
+        }
+
+        is CampaignUiState.Ready -> CampaignRouteProgressCard(
+            state = state,
+            onStartReview = onStartReview,
+            onOpenPractice = onOpenPractice
+        )
+    }
+}
+
+@Composable
+private fun CampaignRouteChoiceCard(
+    route: CampaignRouteChoiceUiModel,
+    saving: Boolean,
+    enabled: Boolean,
+    onChoose: () -> Unit
+) {
+    val precision = route.tone == CampaignRouteTone.PRECISION
+    val accent = if (precision) Color(0xFFF1A55B) else NeonCyan
+    val icon = if (precision) Icons.Default.Tune else Icons.Default.Bolt
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.5.dp, accent.copy(alpha = 0.72f)),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    modifier = Modifier.size(46.dp).clip(CircleShape).background(accent.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = accent)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(route.title, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    Text(route.tagline, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 15.sp)
+                }
+                Surface(color = accent.copy(alpha = 0.14f), shape = RoundedCornerShape(999.dp)) {
+                    Text("${route.totalRewardXp} XP", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = accent, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                }
+            }
+            Text(route.commitmentCopy, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+            Button(
+                onClick = onChoose,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color(0xFF1E1613))
+            ) {
+                if (saving) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color(0xFF1E1613))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Saving route…", fontWeight = FontWeight.Bold)
+                } else {
+                    Text("Choose ${route.title}", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CampaignRouteProgressCard(
+    state: CampaignUiState.Ready,
+    onStartReview: () -> Unit,
+    onOpenPractice: () -> Unit
+) {
+    val journey = state.journey
+    val precision = state.tone == CampaignRouteTone.PRECISION
+    val accent = if (precision) Color(0xFFF1A55B) else NeonCyan
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.linearGradient(
+                    if (precision) listOf(Color(0xFF6F3C20), Color(0xFF30231D))
+                    else listOf(Color(0xFF155B56), Color(0xFF1E2928))
+                )
+            )
+            .border(1.5.dp, accent.copy(alpha = 0.72f), RoundedCornerShape(22.dp))
+            .padding(18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("ROUTE COMMITTED", color = accent, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
+                    Text(state.routeTitle, color = Color.White, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                }
+                Surface(color = accent.copy(alpha = 0.16f), shape = RoundedCornerShape(999.dp)) {
+                    Text("${journey.completedStageCount}/${journey.totalStageCount}", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = accent, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(state.routeTagline, color = Color.White.copy(alpha = 0.78f), fontSize = 11.sp, lineHeight = 16.sp)
+            LinearProgressIndicator(
+                progress = { journey.completedStageCount.toFloat() / journey.totalStageCount.coerceAtLeast(1) },
+                modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
+                color = accent,
+                trackColor = Color.White.copy(alpha = 0.14f)
+            )
+            Text(
+                if (journey.isComplete) journey.completionDescription
+                else "${journey.securedXp} XP secured · route choice is preserved",
+                color = Color.White.copy(alpha = 0.78f),
+                fontSize = 10.sp
+            )
+        }
+    }
+
+    journey.stages.forEach { stage ->
+        CampaignStageCard(
+            stage = stage,
+            accent = accent,
+            onStartReview = onStartReview,
+            onOpenPractice = onOpenPractice
+        )
+    }
+}
+
+@Composable
+private fun CampaignStageCard(
+    stage: JourneyStageUiModel,
+    accent: Color,
+    onStartReview: () -> Unit,
+    onOpenPractice: () -> Unit
+) {
+    val active = stage.state == JourneyStageUiState.ACTIVE
+    val completed = stage.state == JourneyStageUiState.COMPLETED
+    Card(
+        modifier = Modifier.fillMaxWidth().shadow(if (active) 10.dp else 0.dp, RoundedCornerShape(18.dp), spotColor = accent.copy(alpha = 0.6f)),
+        colors = CardDefaults.cardColors(
+            containerColor = if (active) accent.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, when { active -> accent; completed -> SurgicalGreen; else -> MaterialTheme.colorScheme.outlineVariant }),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(modifier = Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background).border(2.dp, if (completed) SurgicalGreen else if (active) accent else Color.DarkGray, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(if (completed) "✓" else if (active) stage.order.toString() else "🔒", fontSize = 17.sp)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("ROUTE CHAPTER ${stage.order}", color = if (active) accent else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                    Text("+${stage.rewardXp} XP", color = if (completed) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                }
+                Text(stage.title, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                Text(stage.description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 14.sp)
+                LinearProgressIndicator(
+                    progress = { stage.progress.toFloat() / stage.target.coerceAtLeast(1) },
+                    modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+                    color = if (completed) SurgicalGreen else accent,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Text(
+                    when {
+                        completed -> "SECURED · ${stage.progress}/${stage.target} verified"
+                        active -> "ACTIVE · ${stage.progress}/${stage.target} verified"
+                        else -> "LOCKED · finish route chapter ${stage.order - 1} first"
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                if (active) {
+                    FilledTonalButton(
+                        onClick = when (stage.destination) {
+                            JourneyDestination.REVIEW -> onStartReview
+                            JourneyDestination.PRACTICE, JourneyDestination.JOURNEY -> onOpenPractice
+                        },
+                        modifier = Modifier.padding(top = 5.dp).heightIn(min = 48.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = accent.copy(alpha = 0.18f))
+                    ) {
+                        Text(stage.actionLabel, fontWeight = FontWeight.Bold, fontSize = 10.sp)
                     }
                 }
             }
@@ -541,54 +1036,95 @@ fun RpgSkillTreeComponent(viewModel: UserProgressViewModel) {
     }
 }
 
+internal data class ScenarioLanguageSprintPrompt(
+    val title: String,
+    val prompt: String,
+    val acceptedAnswers: List<String>,
+    val cue: String
+)
+
+internal val scenarioLanguageSprintPrompts = listOf(
+    ScenarioLanguageSprintPrompt(
+        title = "Name the reference term",
+        prompt = "In this fictional scene, the pain is described as sudden and 'ripping' through the back. Type the authored reference term.",
+        acceptedAnswers = listOf("aortic dissection", "dissection"),
+        cue = "Look for the two-word term in the authored reference card: aortic …"
+    ),
+    ScenarioLanguageSprintPrompt(
+        title = "Clarify the timeline",
+        prompt = "Write the clear follow-up question: 'When did the pain begin?'",
+        acceptedAnswers = listOf("when did the pain begin", "when did it begin"),
+        cue = "Use a short, open timing question beginning with 'When'."
+    ),
+    ScenarioLanguageSprintPrompt(
+        title = "Signpost the next question",
+        prompt = "Write this calm signpost: 'I'll ask a few questions first.'",
+        acceptedAnswers = listOf("i'll ask a few questions", "i will ask a few questions", "ask a few questions first"),
+        cue = "Begin with a calm first-person signpost, then mention 'a few questions'."
+    )
+)
+
+internal fun matchesScenarioLanguageSprintPrompt(
+    answer: String,
+    prompt: ScenarioLanguageSprintPrompt
+): Boolean {
+    val normalizedAnswer = answer.lowercase(Locale.ROOT).trim()
+    return normalizedAnswer.isNotBlank() && prompt.acceptedAnswers.any { acceptedAnswer ->
+        normalizedAnswer.contains(acceptedAnswer)
+    }
+}
+
 // --------------------------------------------------------------------------------------
-// TAB 3: WEEKLY BOSS BATTLES (Idea 44) & SECRET MODIFIERS (Idea 53)
+// TAB 3: AUTHORED THREE-STEP LANGUAGE SPRINT
 // --------------------------------------------------------------------------------------
 @Composable
-fun WeeklyBossBattlesComponent(viewModel: UserProgressViewModel) {
-    var timerSeconds by remember { mutableIntStateOf(180) } // 3 minutes strictly!
-    var battleActive by remember { mutableStateOf(false) }
-    var inputDiagnosis by remember { mutableStateOf("") }
-    var isModifierAnxious by remember { mutableStateOf(false) }
-    var isModifierIntoxicated by remember { mutableStateOf(false) }
+fun ScenarioLanguageSprintComponent(viewModel: UserProgressViewModel) {
+    val prompts = scenarioLanguageSprintPrompts
+    var timerSeconds by rememberSaveable { mutableIntStateOf(150) }
+    var battleActive by rememberSaveable { mutableStateOf(false) }
+    var inputAnswer by rememberSaveable { mutableStateOf("") }
+    var currentPromptIndex by rememberSaveable { mutableIntStateOf(0) }
+    var completedPromptCount by rememberSaveable { mutableIntStateOf(0) }
+    var practiceSessionKey by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     var battleStatus by remember { mutableStateOf("") }
+    var completedSuccessfully by rememberSaveable { mutableStateOf(false) }
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
 
     val haptic = LocalHapticFeedback.current
-    val isWeekend = true // Weekend XP Multipler mock checker (Idea 52)
+    val focusManager = LocalFocusManager.current
     var showConfetti by remember { mutableStateOf(false) }
 
-    LaunchedEffect(battleStatus) {
-        if (battleStatus.contains("VICTORY")) {
-            showConfetti = true
-            delay(3000)
+    if (showConfetti && !reduceMotion) {
+        LaunchedEffect(Unit) {
+            delay(2200)
             showConfetti = false
         }
-    }
-
-    if (showConfetti) {
-        // Simple confetti simulator
         Canvas(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            val colors = listOf(Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Cyan, Color.Magenta)
-            val random = java.util.Random()
-            for (i in 0..100) {
-                val randX = random.nextFloat() * size.width
-                val randY = random.nextFloat() * size.height
-                val color = colors.random()
-                drawCircle(color = color, radius = (5..15).random().toFloat(), center = Offset(randX, randY))
+            val colors = listOf(NeonCyan, SurgicalGreen, Color(0xFFFFC857), Color(0xFFFF8C69))
+            repeat(24) { index ->
+                val column = index % 6
+                val row = index / 6
+                val x = size.width * ((column + 0.5f) / 6f)
+                val y = size.height * ((row + 1f) / 5f)
+                drawCircle(color = colors[index % colors.size], radius = 7f + (index % 3) * 2f, center = Offset(x, y))
             }
         }
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "bossPulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
+    val pulseAlpha = if (reduceMotion) {
+        0.75f
+    } else {
+        val infiniteTransition = rememberInfiniteTransition(label = "bossPulse")
+        infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(800, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseAlpha"
+        ).value
+    }
 
     LaunchedEffect(battleActive) {
         if (battleActive) {
@@ -598,7 +1134,7 @@ fun WeeklyBossBattlesComponent(viewModel: UserProgressViewModel) {
             }
             if (timerSeconds == 0) {
                 battleActive = false
-                battleStatus = "TIME IS UP! The patient decompensated before you could identify the hidden diagnosis."
+                battleStatus = "Time is up. Your progress was not recorded; restart whenever you want to complete all three authored prompts."
             }
         }
     }
@@ -614,12 +1150,13 @@ fun WeeklyBossBattlesComponent(viewModel: UserProgressViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("WEEKLY EPIC PATIENT BOSS", color = AlertRed, fontWeight = FontWeight.Black, fontSize = 16.sp)
-            if (isWeekend) {
-                Badge(containerColor = Color(0xFFFFD700), contentColor = Color.Black) {
-                    Text("2X XP Weekend Active", fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
-                }
-            }
+            Text("THREE-STEP LANGUAGE SPRINT", color = AlertRed, fontWeight = FontWeight.Black, fontSize = 16.sp)
+            Text(
+                "$completedPromptCount/${prompts.size} matched",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
         }
 
         Box(
@@ -642,10 +1179,10 @@ fun WeeklyBossBattlesComponent(viewModel: UserProgressViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("BOSS: Friday Patient #821", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("AUTHORED FICTIONAL LANGUAGE SCENE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         val minute = timerSeconds / 60
                         val second = timerSeconds % 60
-                        val timeString = String.format("%02d:%02d", minute, second)
+                        val timeString = String.format(Locale.ROOT, "%02d:%02d", minute, second)
                         Text(
                             "⏰ $timeString", 
                             color = if (timerSeconds < 30) AlertRed else NeonCyan, 
@@ -655,131 +1192,135 @@ fun WeeklyBossBattlesComponent(viewModel: UserProgressViewModel) {
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        "CASE LOG: A 62-year-old male arrives clutching his chest, projecting pain radiating to his left shoulder. He feels extreme epigastric nausea. He has a historic record of hypertension but claims this pain feels entirely like a 'ripping' sensation down his back rather than simple indigestion.",
+                        "Practice clear, calm English around a fictional chest-pain scene. This is a language prompt only—not a diagnostic, triage, or emergency-care simulator.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         lineHeight = 18.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LinearProgressIndicator(
+                        progress = { completedPromptCount.toFloat() / prompts.size },
+                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+                        color = NeonCyan,
+                        trackColor = MaterialTheme.colorScheme.surface
                     )
                 }
             }
         }
 
-        // Secret Unlockable Patient Modifiers (Idea 53)
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
             border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("SECRET UNLOCKABLE MODIFIERS", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Text("Inject extreme behavioral modifiers to boost victory XP by 1.5x!", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(bottom = 12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .border(1.dp, if(isModifierAnxious) NeonCyan else Color.Transparent, RoundedCornerShape(8.dp))
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isModifierAnxious,
-                            enabled = !battleActive,
-                            onCheckedChange = {
-                                isModifierAnxious = it
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            },
-                            colors = CheckboxDefaults.colors(checkedColor = NeonCyan)
-                        )
-                        Text("Anxious", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp)
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .weight(1.5f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .border(1.dp, if(isModifierIntoxicated) NeonCyan else Color.Transparent, RoundedCornerShape(8.dp))
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isModifierIntoxicated,
-                            enabled = !battleActive,
-                            onCheckedChange = {
-                                isModifierIntoxicated = it
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            },
-                            colors = CheckboxDefaults.colors(checkedColor = NeonCyan)
-                        )
-                        Text("Intoxicated Status", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp)
-                    }
-                }
+                Text("WHAT MAKES THIS COUNT", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(
+                    "Match all three authored language prompts in one round. Only then is one idempotent practice completion sent to your learning ledger; retries cannot mint duplicate XP.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
             }
         }
 
         if (battleActive) {
+            val prompt = prompts[currentPromptIndex]
+            Text(
+                "STEP ${currentPromptIndex + 1} · ${prompt.title.uppercase(Locale.ROOT)}",
+                color = NeonCyan,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+            Text(
+                prompt.prompt,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
             OutlinedTextField(
-                value = inputDiagnosis,
-                onValueChange = { inputDiagnosis = it },
-                label = { Text("What is the Hidden Emergency Diagnosis?") },
-                placeholder = { Text("e.g. Aortic Dissection", fontSize = 11.sp) },
+                value = inputAnswer,
+                onValueChange = { inputAnswer = it },
+                label = { Text("Your authored language answer") },
+                placeholder = { Text("Type the reference phrase…", fontSize = 11.sp) },
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = AlertRed, unfocusedBorderColor = Color.Gray),
-                textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AlertRed,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
             )
 
             Button(
                 onClick = {
-                    battleActive = false
-                    val cleanDiag = inputDiagnosis.lowercase().trim()
-                    if (cleanDiag.contains("aortic dissection") || cleanDiag.contains("dissection")) {
-                        var rewarded = if (isWeekend) 300 else 150
-                        if (isModifierAnxious) rewarded = (rewarded * 1.5).toInt()
-                        if (isModifierIntoxicated) rewarded = (rewarded * 1.5).toInt()
-                        viewModel.addPoints(rewarded)
-                        battleStatus = "VICTORY! True Diagnosis Verified: AORTIC DISSECTION (Ripping pain down back is the tell-tale clue!). You saved the patient under time limits. XP gained: $rewarded!"
+                    focusManager.clearFocus()
+                    val prompt = prompts[currentPromptIndex]
+                    val matchesReference = matchesScenarioLanguageSprintPrompt(inputAnswer, prompt)
+                    if (matchesReference) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val nextCount = currentPromptIndex + 1
+                        completedPromptCount = nextCount
+                        if (nextCount == prompts.size) {
+                            battleActive = false
+                            completedSuccessfully = true
+                            battleStatus = "Sprint complete. All three references matched; saving one verified language-practice completion to your ledger."
+                            showConfetti = true
+                            viewModel.recordPracticeSession(
+                                subjectType = "scenario_language_sprint",
+                                subjectId = "fictional_chest_pain_language_v1",
+                                occurrenceKey = practiceSessionKey,
+                                completedItemCount = prompts.size
+                            )
+                        } else {
+                            currentPromptIndex += 1
+                            inputAnswer = ""
+                            battleStatus = "Reference matched. Step ${currentPromptIndex + 1} of ${prompts.size} is ready."
+                        }
                     } else {
-                        battleStatus = "DEFEAT! Incorrect diagnosis. The patient suffered a lethal ruptured Aorta. Re-evaluate clinical markers!"
+                        completedSuccessfully = false
+                        battleStatus = "Reference cue: ${prompt.cue}"
                     }
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 modifier = Modifier.fillMaxWidth().height(50.dp)
             ) {
-                Text("SUBMIT CLINICAL DIAGNOSIS", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("CHECK THIS STEP", color = MaterialTheme.colorScheme.onError, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         } else {
             Button(
                 onClick = {
                     battleActive = true
-                    timerSeconds = 180
+                    timerSeconds = 150
                     battleStatus = ""
-                    inputDiagnosis = ""
+                    inputAnswer = ""
+                    currentPromptIndex = 0
+                    completedPromptCount = 0
+                    completedSuccessfully = false
+                    practiceSessionKey = UUID.randomUUID().toString()
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = AlertRed.copy(alpha = 0.8f)),
-                border = BorderStroke(2.dp, AlertRed),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.error),
                 modifier = Modifier.fillMaxWidth().height(50.dp)
             ) {
-                Text("ENGAGE BOSS BATTLE NOW", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                Text(
+                    if (completedSuccessfully) "REPLAY — NO EXTRA XP" else "OPEN LANGUAGE CHALLENGE",
+                    color = MaterialTheme.colorScheme.onError,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp
+                )
             }
         }
 
         if (battleStatus.isNotEmpty()) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = if (battleStatus.contains("VICTORY")) SurgicalGreen.copy(alpha=0.1f) else AlertRed.copy(alpha=0.1f)),
-                border = BorderStroke(2.dp, if (battleStatus.contains("VICTORY")) SurgicalGreen else AlertRed),
+                colors = CardDefaults.cardColors(containerColor = if (completedSuccessfully) SurgicalGreen.copy(alpha=0.1f) else AlertRed.copy(alpha=0.1f)),
+                border = BorderStroke(2.dp, if (completedSuccessfully) SurgicalGreen else AlertRed),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = battleStatus,
-                    color = if (battleStatus.contains("VICTORY")) SurgicalGreen else AlertRed,
+                    color = if (completedSuccessfully) SurgicalGreen else AlertRed,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -798,6 +1339,7 @@ fun Match3VocabComponent(viewModel: UserProgressViewModel) {
     var matchScore by remember { mutableIntStateOf(0) }
     var selectedId1 by remember { mutableStateOf<Int?>(null) }
     var selectedId2 by remember { mutableStateOf<Int?>(null) }
+    var practiceSessionKey by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     val haptic = LocalHapticFeedback.current
 
     // Flashcard components paired!
@@ -826,7 +1368,6 @@ fun Match3VocabComponent(viewModel: UserProgressViewModel) {
                     flashcardsMaster.remove(tile1)
                     flashcardsMaster.remove(tile2)
                     matchScore += 50
-                    viewModel.addPoints(25)
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 } else {
                     delay(500)
@@ -834,6 +1375,17 @@ fun Match3VocabComponent(viewModel: UserProgressViewModel) {
             }
             selectedId1 = null
             selectedId2 = null
+        }
+    }
+
+    LaunchedEffect(flashcardsMaster.size, practiceSessionKey) {
+        if (flashcardsMaster.isEmpty()) {
+            viewModel.recordPracticeSession(
+                subjectType = "flashcard_match",
+                subjectId = "dyspnea|cephalgia|syncope|myalgia",
+                occurrenceKey = practiceSessionKey,
+                completedItemCount = 4
+            )
         }
     }
 
@@ -848,10 +1400,10 @@ fun Match3VocabComponent(viewModel: UserProgressViewModel) {
         ) {
             Column {
                 Text("FLASHCARD MATCH-3 PUZZLE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("Align clinical Latin medical terms with laying descriptions to match & clear!", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                Text("Align medical-English terms with their plain-language descriptions to clear the board.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
             Badge(containerColor = SurgicalGreen, contentColor = Color.Black) {
-                Text("$matchScore Pts", fontWeight = FontWeight.Bold, modifier = Modifier.padding(6.dp))
+                Text("Board: $matchScore", fontWeight = FontWeight.Bold, modifier = Modifier.padding(6.dp))
             }
         }
 
@@ -864,10 +1416,11 @@ fun Match3VocabComponent(viewModel: UserProgressViewModel) {
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("BOARD CLEARED! Perfect Vocab Alignment.", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("BOARD CLEARED! Vocabulary pairs aligned.", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(onClick = {
                         matchScore = 0
+                        practiceSessionKey = UUID.randomUUID().toString()
                         flashcardsMaster.addAll(
                             listOf(
                                 MatchTile(1, "Dyspnea", "Shortness of Breath", false),
@@ -937,21 +1490,88 @@ fun Match3VocabComponent(viewModel: UserProgressViewModel) {
 data class MatchTile(val id: Int, val term: String, val matchedTerm: String, val matched: Boolean)
 
 // --------------------------------------------------------------------------------------
-// TAB 5: AUDIO ESCAPE ROOM (Idea 50)
+// TAB 5: AUTHORED TRANSCRIPT ESCAPE ROOM
 // --------------------------------------------------------------------------------------
-@Composable
-fun AudioEscapeRoomComponent(viewModel: UserProgressViewModel) {
-    var step by remember { mutableIntStateOf(1) }
-    var soundPlaying by remember { mutableStateOf(false) }
-    var rawEstimate by remember { mutableStateOf("") }
-    var verdictFeedback by remember { mutableStateOf("") }
-    val haptic = LocalHapticFeedback.current
+internal data class TranscriptEscapeClue(
+    val title: String,
+    val transcript: String,
+    val question: String,
+    val acceptedAnswers: List<String>,
+    val cue: String
+)
 
-    LaunchedEffect(soundPlaying) {
-        if (soundPlaying) {
-            delay(3000)
-            soundPlaying = false
-        }
+internal val transcriptEscapeClues = listOf(
+    TranscriptEscapeClue(
+        title = "Unlock the sound word",
+        transcript = "A fictional caller describes a high-pitched whistle while breathing out.",
+        question = "What vocabulary term describes that whistling sound?",
+        acceptedAnswers = listOf("wheeze", "wheezing"),
+        cue = "The reference word begins with 'wheez'."
+    ),
+    TranscriptEscapeClue(
+        title = "Unlock the plain-language phrase",
+        transcript = "A speaker says: 'I am struggling to get a full breath.'",
+        question = "Type the plain-language phrase for this symptom.",
+        acceptedAnswers = listOf("shortness of breath", "breathlessness"),
+        cue = "The phrase begins with 'shortness'."
+    ),
+    TranscriptEscapeClue(
+        title = "Unlock the calm signpost",
+        transcript = "In this fictional exchange, the speaker says: 'I'll ask one more question, then explain what happens next.'",
+        question = "Type the first calm signpost from the transcript.",
+        acceptedAnswers = listOf("i'll ask one more question", "i will ask one more question"),
+        cue = "Start with 'I' and include 'one more question'."
+    )
+)
+
+internal fun matchesTranscriptEscapeAnswer(answer: String, clue: TranscriptEscapeClue): Boolean {
+    val normalizedAnswer = answer.lowercase(Locale.ROOT).trim()
+    return normalizedAnswer.isNotBlank() && clue.acceptedAnswers.any { acceptedAnswer ->
+        normalizedAnswer.contains(acceptedAnswer)
+    }
+}
+
+@Composable
+fun TranscriptEscapeComponent(viewModel: UserProgressViewModel) {
+    val clues = transcriptEscapeClues
+    var transcriptCueVisible by rememberSaveable { mutableStateOf(false) }
+    var rawEstimate by rememberSaveable { mutableStateOf("") }
+    var currentClueIndex by rememberSaveable { mutableIntStateOf(0) }
+    var clearedClueCount by rememberSaveable { mutableIntStateOf(0) }
+    var practiceSessionKey by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+    var verdictFeedback by remember { mutableStateOf("") }
+    var completedSuccessfully by rememberSaveable { mutableStateOf(false) }
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
+    val haptic = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
+    val currentClue = clues[currentClueIndex]
+    val barA: Float
+    val barB: Float
+    val barC: Float
+    if (reduceMotion) {
+        barA = 28f
+        barB = 28f
+        barC = 28f
+    } else {
+        val clueMeter = rememberInfiniteTransition(label = "clueMeter")
+        barA = clueMeter.animateFloat(
+            initialValue = 14f,
+            targetValue = 44f,
+            animationSpec = infiniteRepeatable(tween(520, easing = LinearEasing), RepeatMode.Reverse),
+            label = "clueMeterA"
+        ).value
+        barB = clueMeter.animateFloat(
+            initialValue = 38f,
+            targetValue = 16f,
+            animationSpec = infiniteRepeatable(tween(650, easing = LinearEasing), RepeatMode.Reverse),
+            label = "clueMeterB"
+        ).value
+        barC = clueMeter.animateFloat(
+            initialValue = 18f,
+            targetValue = 54f,
+            animationSpec = infiniteRepeatable(tween(430, easing = LinearEasing), RepeatMode.Reverse),
+            label = "clueMeterC"
+        ).value
     }
 
     Column(
@@ -960,8 +1580,15 @@ fun AudioEscapeRoomComponent(viewModel: UserProgressViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("AUDIO ESCAPE CLINICAL ROOM", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        Text("Analyze the room's auditory clues (ambient telemetry beat frequency & siren records) and dictate your solutions to escape secure ward doors.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("TRANSCRIPT ESCAPE ROOM", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text("$clearedClueCount/${clues.size} unlocked", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+        Text("Unlock three written language clues in one run. No audio playback, audio analysis, or clinical assessment is connected.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
 
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
@@ -972,107 +1599,121 @@ fun AudioEscapeRoomComponent(viewModel: UserProgressViewModel) {
                 modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    "AUDIO MODULE PLAYING: Vital Monitors & Siren",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
+                Text("CLUE VAULT", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text("STEP ${currentClueIndex + 1}: ${currentClue.title.uppercase(Locale.ROOT)}", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 Spacer(modifier = Modifier.height(10.dp))
-
-                // Beautiful custom pulse waveform animation
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
+                    modifier = Modifier.fillMaxWidth().height(60.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val scale1 = rememberInfiniteTransition().animateFloat(
-                        initialValue = 10f, targetValue = 50f,
-                        animationSpec = infiniteRepeatable(tween(500, easing = LinearEasing), RepeatMode.Reverse), label = "osc1"
-                    )
-                    val scale2 = rememberInfiniteTransition().animateFloat(
-                        initialValue = 40f, targetValue = 10f,
-                        animationSpec = infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Reverse), label = "osc2"
-                    )
-                    val scale3 = rememberInfiniteTransition().animateFloat(
-                        initialValue = 15f, targetValue = 60f,
-                        animationSpec = infiniteRepeatable(tween(400, easing = LinearEasing), RepeatMode.Reverse), label = "osc3"
-                    )
-
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Box(modifier = Modifier.width(6.dp).height(if (soundPlaying) scale1.value.dp else 12.dp).background(NeonCyan))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Box(modifier = Modifier.width(6.dp).height(if (soundPlaying) scale2.value.dp else 22.dp).background(SurgicalGreen))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Box(modifier = Modifier.width(6.dp).height(if (soundPlaying) scale3.value.dp else 8.dp).background(Color.Yellow))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Box(modifier = Modifier.width(6.dp).height(if (soundPlaying) scale1.value.dp else 16.dp).background(AlertRed))
+                    listOf(barA, barB, barC, barA).forEachIndexed { index, height ->
+                        if (index > 0) Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(8.dp)
+                                .height(if (transcriptCueVisible) height.dp else (12 + index * 8).dp)
+                                .background(listOf(NeonCyan, SurgicalGreen, Color.Yellow, AlertRed)[index], RoundedCornerShape(99.dp))
+                        )
+                    }
                 }
-
                 Spacer(modifier = Modifier.height(12.dp))
-
                 Button(
                     onClick = {
-                        soundPlaying = true
+                        transcriptCueVisible = !transcriptCueVisible
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = if (soundPlaying) AlertRed else NeonCyan)
+                    colors = ButtonDefaults.buttonColors(containerColor = if (transcriptCueVisible) AlertRed else NeonCyan)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(if (soundPlaying) Icons.Default.VolumeUp else Icons.Default.PlayArrow, contentDescription = "Play", tint = Color.Black)
+                        Icon(Icons.Default.Info, contentDescription = "Transcript clue", tint = Color.Black)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (soundPlaying) "LISTENING CLUES..." else "PLAY AUDIO DISPATCH LOG", color = Color.Black)
+                        Text(if (transcriptCueVisible) "HIDE WRITTEN CLUE" else "REVEAL WRITTEN CLUE", color = Color.Black)
                     }
                 }
             }
         }
 
-        Text("AMBULANCE DISPATCH DIALOGUE INTERCEPT:", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-        Text(
-            "\"We hold a 35-year-old female presenting severe respiratory distress. Airway is patent but she sounds... *loud whistling tone on auscultation* ...breathing is extremely fast.\"",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 11.sp,
-            style = TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
-        )
+        if (transcriptCueVisible) {
+            Text("AUTHORED TRANSCRIPT:", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(
+                "\"${currentClue.transcript}\"",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                style = TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+            )
+        }
 
         OutlinedTextField(
             value = rawEstimate,
             onValueChange = { rawEstimate = it },
-            label = { Text("What term describes high-pitched whistling during expiration?") },
+            label = { Text(currentClue.question) },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = SurgicalGreen),
-            textStyle = TextStyle(color = Color.White, fontSize = 13.sp)
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp)
         )
 
         Button(
             onClick = {
-                val clean = rawEstimate.lowercase().trim()
-                if (clean.contains("wheeze") || clean.contains("wheezing") || clean.contains("stridor")) {
-                    verdictFeedback = "DOOR UNLOCKED! Proper term identified (Wheezing / Stridor). You gained emergency clinic clearance. +50 XP!"
-                    viewModel.addPoints(50)
+                focusManager.clearFocus()
+                if (matchesTranscriptEscapeAnswer(rawEstimate, currentClue)) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    val nextCount = currentClueIndex + 1
+                    clearedClueCount = nextCount
+                    if (nextCount == clues.size) {
+                        completedSuccessfully = true
+                        verdictFeedback = "Vault opened. All three written cues matched; saving one verified language-practice completion to your ledger."
+                        viewModel.recordPracticeSession(
+                            subjectType = "authored_transcript_escape",
+                            subjectId = "respiratory_language_cues_v1",
+                            occurrenceKey = practiceSessionKey,
+                            completedItemCount = clues.size
+                        )
+                    } else {
+                        currentClueIndex += 1
+                        rawEstimate = ""
+                        transcriptCueVisible = false
+                        verdictFeedback = "Clue unlocked. Step ${currentClueIndex + 1} of ${clues.size} is ready."
+                    }
                 } else {
-                    verdictFeedback = "INCORRECT AUDIO DECODING. Listen closely! The high-pitched whistling during asthma/COPD on auscultation relates directly to Wheezing."
+                    completedSuccessfully = false
+                    verdictFeedback = "Reference cue: ${currentClue.cue}"
                 }
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             },
             colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen),
-            enabled = rawEstimate.isNotBlank()
+            enabled = rawEstimate.isNotBlank() && !completedSuccessfully
         ) {
-            Text("DICTATE CLINICAL DIAGNOSIS", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("CHECK THIS CLUE", color = Color.Black, fontWeight = FontWeight.Bold)
+        }
+
+        if (completedSuccessfully) {
+            OutlinedButton(
+                onClick = {
+                    transcriptCueVisible = false
+                    rawEstimate = ""
+                    currentClueIndex = 0
+                    clearedClueCount = 0
+                    practiceSessionKey = UUID.randomUUID().toString()
+                    verdictFeedback = ""
+                    completedSuccessfully = false
+                },
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, SurgicalGreen)
+            ) {
+                Text("REPLAY — NO EXTRA XP", color = SurgicalGreen, fontWeight = FontWeight.Bold)
+            }
         }
 
         if (verdictFeedback.isNotEmpty()) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                border = BorderStroke(1.dp, if (verdictFeedback.contains("UNLOCKED")) SurgicalGreen else AlertRed),
+                colors = CardDefaults.cardColors(containerColor = if (completedSuccessfully) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant),
+                border = BorderStroke(1.dp, if (completedSuccessfully) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = verdictFeedback,
                     modifier = Modifier.padding(14.dp),
-                    color = Color.White,
+                    color = if (completedSuccessfully) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
                 )
@@ -1082,33 +1723,48 @@ fun AudioEscapeRoomComponent(viewModel: UserProgressViewModel) {
 }
 
 // --------------------------------------------------------------------------------------
-// TAB 6: ROLEPLAY REPLAYS WITH FLOATING AI SUMMARY (Idea 54)
+// TAB 6: DURABLE LEARNING ACTIVITY LOG
 // --------------------------------------------------------------------------------------
 @Composable
 fun CaseReplaysComponent(viewModel: UserProgressViewModel) {
-    val replays by viewModel.replays.collectAsState()
-    var selectedReplay by remember { mutableStateOf<Replay?>(null) }
+    val activities by viewModel.recentLearningActivity.collectAsState()
+    var selectedActivityId by remember { mutableStateOf<String?>(null) }
     val haptic = LocalHapticFeedback.current
+    val selectedActivity = activities.firstOrNull { it.id == selectedActivityId }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+        .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("SAVED CLINICAL REPLAYS", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        Text("Replay past verbal audits & AI roleplays with floating evaluative commentaries.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        Text("RECENT STUDY LOG", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        Text("Only committed learning events appear here. This build does not fabricate audio recordings, AI critiques, or clinical evaluations.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
 
-        replays.forEach { replay ->
+        if (activities.isEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Finish a review or a full practice session to create your first ledger-backed entry.",
+                    modifier = Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        activities.forEach { activity ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        selectedReplay = replay
+                        selectedActivityId = activity.id
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
-                border = if (selectedReplay?.title == replay.title) BorderStroke(1.5.dp, NeonCyan) else null
+                border = if (selectedActivityId == activity.id) BorderStroke(1.5.dp, NeonCyan) else null
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(
@@ -1116,16 +1772,27 @@ fun CaseReplaysComponent(viewModel: UserProgressViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(replay.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text(replay.date, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                        Text(activity.title, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(
+                            if (activity.xpAwarded > 0L) "+${activity.xpAwarded} XP" else "No XP",
+                            color = if (activity.xpAwarded > 0L) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Interactive Audio/SBAR records logged.", color = NeonCyan, fontSize = 11.sp)
+                    Text(activity.detail, color = NeonCyan, fontSize = 11.sp)
                 }
             }
         }
 
-        if (selectedReplay != null) {
+        if (selectedActivity != null) {
+            val occurredAtLabel = remember(selectedActivity.occurredAtEpochMillis) {
+                java.text.DateFormat.getDateTimeInstance(
+                    java.text.DateFormat.MEDIUM,
+                    java.text.DateFormat.SHORT,
+                    Locale.getDefault()
+                ).format(java.util.Date(selectedActivity.occurredAtEpochMillis))
+            }
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
                 border = BorderStroke(1.dp, SurgicalGreen),
@@ -1137,14 +1804,14 @@ fun CaseReplaysComponent(viewModel: UserProgressViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("AI CRITIQUE AUDIT OVERLAY", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        IconButton(onClick = { selectedReplay = null }) {
+                        Text("LEDGER ENTRY", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        IconButton(onClick = { selectedActivityId = null }) {
                             Icon(Icons.Default.Close, contentDescription = "Close", tint = AlertRed)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = selectedReplay!!.commentary,
+                        text = "Recorded $occurredAtLabel. ${selectedActivity.detail}",
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 12.sp,
                         lineHeight = 20.sp

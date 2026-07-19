@@ -16,8 +16,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.*
@@ -188,7 +188,7 @@ private fun WordsTab(
         if (entries.isEmpty()) {
             if (totalCount == 0) {
                 EmptyState(
-                    icon = Icons.Rounded.MenuBook,
+                    icon = Icons.AutoMirrored.Rounded.MenuBook,
                     title = "Brewing the lexicon…",
                     message = "First launch only — the full dictionary is being poured into the app."
                 )

@@ -3,18 +3,31 @@ package com.cinnamon.app.ui.util
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.sin
 
 object SoundSynthesizer {
     private const val SAMPLE_RATE = 22050
+    private const val TAG = "SoundSynthesizer"
+    @Volatile
+    private var effectsEnabled = true
+
+    fun setEffectsEnabled(enabled: Boolean) {
+        effectsEnabled = enabled
+    }
 
     /**
      * Synthesizes and plays a short frequency sweeps representing UI pop, click, or success swoosh sounds.
      * This runs asynchronously on Dispatchers.Default to ensure the main thread never blocks.
      */
-    suspend fun playSynthesizedSound(soundType: SoundType) = withContext(Dispatchers.Default) {
+    suspend fun playSynthesizedSound(soundType: SoundType) {
+        if (!effectsEnabled) return
+        withContext(Dispatchers.Default) {
+        if (!effectsEnabled) return@withContext
+        var audioTrack: AudioTrack? = null
         try {
             val durationMs = soundType.durationMs
             val numSamples = (SAMPLE_RATE * (durationMs / 1000.0)).toInt()
@@ -63,7 +76,7 @@ object SoundSynthesizer {
             }
 
             // Initialize and play using AudioTrack builder with modern AudioAttributes
-            val audioTrack = AudioTrack.Builder()
+            val createdTrack = AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
@@ -80,16 +93,28 @@ object SoundSynthesizer {
                 .setBufferSizeInBytes(generatedSnd.size)
                 .setTransferMode(AudioTrack.MODE_STATIC)
                 .build()
+            audioTrack = createdTrack
 
-            audioTrack.write(generatedSnd, 0, generatedSnd.size)
-            audioTrack.play()
+            createdTrack.write(generatedSnd, 0, generatedSnd.size)
+            createdTrack.play()
             
-            // Release after play duration to prevent any memory leaks
+            // Playback is intentionally short; cleanup is guaranteed in finally
+            // even when a screen leaves composition or its coroutine is cancelled.
             kotlinx.coroutines.delay(durationMs)
-            audioTrack.stop()
-            audioTrack.release()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            // Audio errors are non-fatal. Log only a stable diagnostic category so
+            // device and content details do not leak into production logcat.
+            Log.w(TAG, "Unable to play synthesized sound (${error.javaClass.simpleName})")
+        } finally {
+            audioTrack?.let { track ->
+                runCatching {
+                    if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.stop()
+                }
+                runCatching { track.release() }
+            }
+        }
         }
     }
 

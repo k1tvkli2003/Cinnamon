@@ -1,38 +1,37 @@
 package com.cinnamon.app
 
 import android.app.Application
-import android.util.Log
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
-import com.cinnamon.app.core.tts.TtsSpeaker
-import com.cinnamon.app.data.seed.LexiconSeeder
+import com.cinnamon.app.data.startup.AppStartupCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 class CinnamonApp : Application(), ImageLoaderFactory {
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val startupLaunchRequested = AtomicBoolean(false)
 
     override fun onCreate() {
         super.onCreate()
+    }
 
-        Thread.setDefaultUncaughtExceptionHandler { thread, exception ->
-            Log.e("CinnamonApp", "FATAL CRASH on thread ${thread.name}", exception)
-        }
-
-        TtsSpeaker.init(this)
-
-        // Brew the lexicon: seed Room from the bundled JSON dataset on first launch.
+    /**
+     * Starts the expensive, retryable data contract from an application-owned
+     * scope that outlives an Activity recreation. MainActivity triggers this
+     * after its truthful loading frame has been submitted so catalog parsing
+     * cannot starve time-to-first-draw. [AtomicBoolean] prevents duplicate work
+     * when an Activity is recreated.
+     */
+    fun launchStartupPreparation() {
+        if (!startupLaunchRequested.compareAndSet(false, true)) return
         applicationScope.launch {
-            try {
-                LexiconSeeder.seedIfNeeded(this@CinnamonApp)
-            } catch (e: Exception) {
-                Log.e("CinnamonApp", "Lexicon seeding failed", e)
-            }
+            AppStartupCoordinator.prepare(this@CinnamonApp)
         }
     }
 

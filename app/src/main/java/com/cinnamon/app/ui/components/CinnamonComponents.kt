@@ -2,7 +2,6 @@ package com.cinnamon.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,8 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -119,7 +121,13 @@ fun FilterPill(
     val container = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val content = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
-        modifier = modifier.clip(CircleShape).clickable(onClick = onClick),
+        modifier = modifier
+            .clip(CircleShape)
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                onClick = onClick
+            ),
         shape = CircleShape,
         color = container
     ) {
@@ -140,9 +148,10 @@ fun SpeakButton(
     modifier: Modifier = Modifier,
     tint: Color = MaterialTheme.colorScheme.primary
 ) {
-    IconButton(onClick = { TtsSpeaker.speak(text) }, modifier = modifier) {
+    val context = LocalContext.current
+    IconButton(onClick = { TtsSpeaker.speak(context, text) }, modifier = modifier) {
         Icon(
-            imageVector = Icons.Rounded.VolumeUp,
+            imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
             contentDescription = "Pronounce",
             tint = tint
         )

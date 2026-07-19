@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.animateFloatAsState
+import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 
 // Shared motion vocabulary — one spring language across the app.
 object Springs {
@@ -40,8 +41,9 @@ object Springs {
  */
 fun Modifier.pressScale(interactionSource: MutableInteractionSource): Modifier = composed {
     val pressed by interactionSource.collectIsPressedAsState()
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
+        targetValue = if (pressed && !reduceMotion) 0.97f else 1f,
         animationSpec = Springs.standard(),
         label = "pressScale"
     )

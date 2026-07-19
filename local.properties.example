@@ -1,0 +1,2 @@
+# Public endpoint configuration only. Never put provider API keys in Android files.
+AI_GATEWAY_BASE_URL=https://gateway.example.com/

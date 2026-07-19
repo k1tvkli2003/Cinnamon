@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "cinnamon.lexicon.core",
+  "datasetVersion": "2026.07.17",
+  "provenance": {
+    "origin": "project-bundled-curated",
+    "reviewStatus": "editorial-review-required-before-release"
+  },
+  "files": [
+    {
+      "name": "abbreviations.json",
+      "collection": "abbreviations",
+      "count": 95,
+      "sha256": "fdf3fe10ceb76d08433562b127999fd3171e060f61fbc73ac99fc3e782a0d374"
+    },
+    {
+      "name": "clinical_1.json",
+      "collection": "entries",
+      "count": 71,
+      "sha256": "55b193da28494839e689dd16ffd3fa6aa70861f636946f48057eb81d8704f1f2"
+    },
+    {
+      "name": "clinical_2.json",
+      "collection": "entries",
+      "count": 55,
+      "sha256": "a6aeef3e960745da5f0927b8639a0e44cd7814861adede3113a779e0c7e39a8b"
+    },
+    {
+      "name": "confusables.json",
+      "collection": "confusables",
+      "count": 45,
+      "sha256": "d6aa0c5cd7b77dd7cfd0d319a465aefa73e4692cd82bb2ea8287b9335cd1ccda"
+    },
+    {
+      "name": "general.json",
+      "collection": "entries",
+      "count": 117,
+      "sha256": "2abb0b5a6d5c1aeff8f18ab14a7ae3d2e07d62dab4814c38e4172f0d2d4b5be0"
+    },
+    {
+      "name": "morphemes.json",
+      "collection": "morphemes",
+      "count": 160,
+      "sha256": "060d377bb5d65af3c5661f236d0ba43ca6208a62632fae697c1bff438bb62bf5"
+    },
+    {
+      "name": "phrases.json",
+      "collection": "phrases",
+      "count": 78,
+      "sha256": "044ca4cdae0a190cfbb0b17c8c49b1a017f23b0e7db61e1efc947594ab77877c"
+    },
+    {
+      "name": "sentences.json",
+      "collection": "sentences",
+      "count": 80,
+      "sha256": "374fe97b8ac3fcc1dc9ae88ec94e3473cf04ba1cd0596deacbe9ad5b5b6d3990"
+    }
+  ]
+}

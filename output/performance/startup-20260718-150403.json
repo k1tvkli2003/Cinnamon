@@ -1,0 +1,103 @@
+{
+  "metadata": {
+    "package": "com.cinnamon.app",
+    "activity": "com.cinnamon.app/.MainActivity",
+    "device_serial": "emulator-5554",
+    "build_mode": "debug",
+    "scenario": "process-cold existing app data",
+    "ready_timeout_seconds": 20,
+    "created_at": "2026-07-18T15:04:03.0483629+03:30"
+  },
+  "summary": {
+    "runs_requested": 5,
+    "runs_with_trace": 5,
+    "am_total_time_p50_ms": 1150,
+    "am_total_time_p95_ms": 1193,
+    "prepare_p50_ms": 245,
+    "prepare_p95_ms": 358,
+    "overlap_p50_ms": 119,
+    "overlap_p95_ms": 141
+  },
+  "runs": [
+    {
+      "run": 1,
+      "started_at": "2026-07-18T15:03:55.5868244+03:30",
+      "scenario": "process-cold-existing-data",
+      "am_this_time_ms": null,
+      "am_total_time_ms": 1193,
+      "catalog_ms": 264,
+      "progress_snapshot_ms": 1,
+      "progress_import_ms": 106,
+      "progress_pipeline_ms": 107,
+      "lexicon_seed_ms": 3,
+      "prepare_ms": 266,
+      "independent_stage_sum_ms": 374,
+      "independent_overlap_ms": 108,
+      "trace_ready": true
+    },
+    {
+      "run": 2,
+      "started_at": "2026-07-18T15:03:57.3578813+03:30",
+      "scenario": "process-cold-existing-data",
+      "am_this_time_ms": null,
+      "am_total_time_ms": 1134,
+      "catalog_ms": 187,
+      "progress_snapshot_ms": 1,
+      "progress_import_ms": 120,
+      "progress_pipeline_ms": 121,
+      "lexicon_seed_ms": 1,
+      "prepare_ms": 190,
+      "independent_stage_sum_ms": 309,
+      "independent_overlap_ms": 119,
+      "trace_ready": true
+    },
+    {
+      "run": 3,
+      "started_at": "2026-07-18T15:03:59.0732776+03:30",
+      "scenario": "process-cold-existing-data",
+      "am_this_time_ms": null,
+      "am_total_time_ms": 1120,
+      "catalog_ms": 230,
+      "progress_snapshot_ms": 13,
+      "progress_import_ms": 132,
+      "progress_pipeline_ms": 145,
+      "lexicon_seed_ms": 4,
+      "prepare_ms": 238,
+      "independent_stage_sum_ms": 379,
+      "independent_overlap_ms": 141,
+      "trace_ready": true
+    },
+    {
+      "run": 4,
+      "started_at": "2026-07-18T15:04:00.8753875+03:30",
+      "scenario": "process-cold-existing-data",
+      "am_this_time_ms": null,
+      "am_total_time_ms": 1150,
+      "catalog_ms": 243,
+      "progress_snapshot_ms": 2,
+      "progress_import_ms": 130,
+      "progress_pipeline_ms": 132,
+      "lexicon_seed_ms": 4,
+      "prepare_ms": 245,
+      "independent_stage_sum_ms": 379,
+      "independent_overlap_ms": 134,
+      "trace_ready": true
+    },
+    {
+      "run": 5,
+      "started_at": "2026-07-18T15:04:02.9737512+03:30",
+      "scenario": "process-cold-existing-data",
+      "am_this_time_ms": null,
+      "am_total_time_ms": 1170,
+      "catalog_ms": 322,
+      "progress_snapshot_ms": 19,
+      "progress_import_ms": 100,
+      "progress_pipeline_ms": 119,
+      "lexicon_seed_ms": 2,
+      "prepare_ms": 358,
+      "independent_stage_sum_ms": 443,
+      "independent_overlap_ms": 85,
+      "trace_ready": true
+    }
+  ]
+}

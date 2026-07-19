@@ -95,8 +95,12 @@ fun ReviewSessionScreen(
                             ReviewCard(
                                 entry = card,
                                 revealed = state.revealed,
+                                submitting = state.submitting,
+                                submissionError = state.submissionError,
                                 onReveal = { viewModel.reveal() },
                                 onGrade = { viewModel.grade(it) },
+                                onRetry = { viewModel.retryGrade() },
+                                onRefreshQueue = { viewModel.startSession() },
                                 onOpenEntry = { onOpenEntry(card.id) },
                                 modifier = Modifier.weight(1f)
                             )
@@ -112,8 +116,12 @@ fun ReviewSessionScreen(
 private fun ReviewCard(
     entry: LexiconEntry,
     revealed: Boolean,
+    submitting: Boolean,
+    submissionError: com.cinnamon.app.viewmodel.ReviewSubmissionError?,
     onReveal: () -> Unit,
     onGrade: (Int) -> Unit,
+    onRetry: () -> Unit,
+    onRefreshQueue: () -> Unit,
     onOpenEntry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -122,7 +130,7 @@ private fun ReviewCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clickable(enabled = !revealed) { onReveal() },
+                .clickable(enabled = !revealed && !submitting) { onReveal() },
             shape = RoundedCornerShape(26.dp),
             color = MaterialTheme.colorScheme.surface,
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
@@ -166,7 +174,7 @@ private fun ReviewCard(
                             )
                         } else {
                             Spacer(Modifier.height(20.dp))
-                            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                             Spacer(Modifier.height(20.dp))
                             Text(
                                 entry.definition,
@@ -196,6 +204,7 @@ private fun ReviewCard(
         if (!revealed) {
             Button(
                 onClick = onReveal,
+                enabled = !submitting,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(15.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -206,29 +215,90 @@ private fun ReviewCard(
                 Text("Flip", fontWeight = FontWeight.Bold)
             }
         } else {
+            if (submissionError != null) {
+                ReviewSubmissionNotice(
+                    error = submissionError,
+                    onRetry = onRetry,
+                    onRefreshQueue = onRefreshQueue
+                )
+                Spacer(Modifier.height(12.dp))
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GradeButton("Again", MaterialTheme.colorScheme.error, Modifier.weight(1f)) { onGrade(1) }
-                GradeButton("Hard", HoneyGold, Modifier.weight(1f)) { onGrade(3) }
-                GradeButton("Good", MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) { onGrade(4) }
-                GradeButton("Easy", SuccessMint, Modifier.weight(1f)) { onGrade(5) }
+                GradeButton("Again", MaterialTheme.colorScheme.error, Modifier.weight(1f), enabled = !submitting) { onGrade(1) }
+                GradeButton("Hard", HoneyGold, Modifier.weight(1f), enabled = !submitting) { onGrade(3) }
+                GradeButton("Good", MaterialTheme.colorScheme.secondary, Modifier.weight(1f), enabled = !submitting) { onGrade(4) }
+                GradeButton("Easy", SuccessMint, Modifier.weight(1f), enabled = !submitting) { onGrade(5) }
+            }
+            if (submitting) {
+                Spacer(Modifier.height(12.dp))
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
         }
     }
 }
 
 @Composable
-private fun GradeButton(label: String, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun ReviewSubmissionNotice(
+    error: com.cinnamon.app.viewmodel.ReviewSubmissionError,
+    onRetry: () -> Unit,
+    onRefreshQueue: () -> Unit
+) {
+    val isStale = error == com.cinnamon.app.viewmodel.ReviewSubmissionError.CARD_CHANGED
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(15.dp),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.56f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    if (isStale) "This card changed in another review session." else "Your answer has not been saved yet.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    if (isStale) "Refresh the queue before grading again." else "Retry uses the same logical answer, so it cannot award XP twice.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.84f)
+                )
+            }
+            TextButton(onClick = if (isStale) onRefreshQueue else onRetry) {
+                Text(if (isStale) "Refresh" else "Retry")
+            }
+        }
+    }
+}
+
+@Composable
+private fun GradeButton(
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
     Surface(
         modifier = modifier
             .height(52.dp)
             .clip(RoundedCornerShape(15.dp))
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(15.dp),
-        color = color.copy(alpha = 0.16f),
+        color = color.copy(alpha = if (enabled) 0.16f else 0.06f),
         border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.5f))
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.labelLarge, color = color, fontWeight = FontWeight.Bold)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                color = color.copy(alpha = if (enabled) 1f else 0.45f),
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

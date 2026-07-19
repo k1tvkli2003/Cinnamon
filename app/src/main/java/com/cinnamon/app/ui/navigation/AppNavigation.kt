@@ -5,14 +5,16 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material3.Icon
@@ -21,10 +23,16 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -35,8 +43,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.cinnamon.app.data.ai.Prompts
+import com.cinnamon.app.data.ai.AiConversationMode
+import com.cinnamon.app.data.startup.AppStartupCoordinator
+import com.cinnamon.app.data.startup.AppStartupState
 import com.cinnamon.app.ui.screens.chat.RoleplayChatScreen
+import com.cinnamon.app.ui.screens.chat.RoleplayPracticeMode
+import com.cinnamon.app.ui.components.RewardPresentationHost
 import com.cinnamon.app.ui.screens.fluency.NativeFluencyPlaygroundScreen
 import com.cinnamon.app.ui.screens.games.GamificationHubScreen
 import com.cinnamon.app.ui.screens.games.SentenceUnscrambleGame
@@ -46,6 +58,7 @@ import com.cinnamon.app.ui.screens.lexicon.EntryDetailScreen
 import com.cinnamon.app.ui.screens.lexicon.LexiconScreen
 import com.cinnamon.app.ui.screens.medical.ClinicalSimLabsScreen
 import com.cinnamon.app.ui.screens.medical.ScenarioSelectionScreen
+import com.cinnamon.app.ui.screens.medical.PatientScenarioCatalog
 import com.cinnamon.app.ui.screens.practice.ClozeClinicGame
 import com.cinnamon.app.ui.screens.practice.PracticeScreen
 import com.cinnamon.app.ui.screens.practice.ReviewSessionScreen
@@ -62,7 +75,7 @@ private data class TabItem(
 
 private val tabs = listOf(
     TabItem("home", "Home", Icons.Rounded.Home, Icons.Outlined.Home),
-    TabItem("lexicon", "Lexicon", Icons.Rounded.MenuBook, Icons.Outlined.MenuBook),
+    TabItem("lexicon", "Lexicon", Icons.AutoMirrored.Rounded.MenuBook, Icons.AutoMirrored.Outlined.MenuBook),
     TabItem("practice", "Practice", Icons.Rounded.School, Icons.Outlined.School),
     TabItem("profile", "Profile", Icons.Rounded.Person, Icons.Outlined.Person)
 )
@@ -72,10 +85,32 @@ fun AppNavigation(progressViewModel: UserProgressViewModel = viewModel()) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val startupState by AppStartupCoordinator.state.collectAsState()
+    val startupReady = startupState == AppStartupState.Ready
+    val pendingRewardPresentation = if (startupReady) {
+        progressViewModel.pendingRewardPresentation.collectAsState().value
+    } else {
+        null
+    }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    val isMainTab = tabs.any { it.route == currentRoute }
+    val isMainTab = startupReady && tabs.any { it.route == currentRoute }
+
+    LaunchedEffect(progressViewModel) {
+        progressViewModel.progressErrorEvents.collect { event ->
+            val result = snackbarHostState.showSnackbar(
+                message = event.message,
+                actionLabel = if (event.retryable) "Retry" else null,
+                duration = SnackbarDuration.Long
+            )
+            if (event.retryable && result == SnackbarResult.ActionPerformed) {
+                progressViewModel.retryLastPracticeSession()
+            }
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             if (isMainTab) {
                 NavigationBar(
@@ -120,10 +155,11 @@ fun AppNavigation(progressViewModel: UserProgressViewModel = viewModel()) {
             }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = "home",
-            modifier = Modifier.padding(innerPadding),
+        Box(modifier = Modifier.fillMaxSize()) {
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.padding(innerPadding),
             enterTransition = { scaleIn(initialScale = 0.94f, animationSpec = tween(280)) + fadeIn(tween(280)) },
             exitTransition = { fadeOut(tween(180)) },
             popEnterTransition = { scaleIn(initialScale = 1.04f, animationSpec = tween(280)) + fadeIn(tween(280)) },
@@ -189,7 +225,12 @@ fun AppNavigation(progressViewModel: UserProgressViewModel = viewModel()) {
                 SentenceUnscrambleGame(onBack = { navController.popBackStack() }, progressViewModel = progressViewModel)
             }
             composable("gamification_hub") {
-                GamificationHubScreen(onBack = { navController.popBackStack() }, progressViewModel = progressViewModel)
+                GamificationHubScreen(
+                    onBack = { navController.popBackStack() },
+                    progressViewModel = progressViewModel,
+                    onStartReview = { navController.navigate("review") },
+                    onOpenPractice = { navController.navigate("practice") }
+                )
             }
 
             // ── AI clinical-English modules ──
@@ -207,37 +248,44 @@ fun AppNavigation(progressViewModel: UserProgressViewModel = viewModel()) {
             composable("scenario_select") {
                 ScenarioSelectionScreen(
                     onBack = { navController.popBackStack() },
-                    onScenarioSelected = { scenario, mood ->
-                        navController.navigate("patient_chat/${scenario.replace(" ", "_")}/${mood.replace(" ", "_")}")
+                    onScenarioSelected = { scenario ->
+                        navController.navigate("patient_chat/${scenario.id}")
                     }
                 )
             }
             composable("make_it_native") {
-                val aiViewModel: AiViewModel = viewModel()
-                LaunchedEffect(Unit) {
-                    aiViewModel.initSystemPrompt(Prompts.MAKE_IT_NATIVE_SYSTEM)
-                }
-                RoleplayChatScreen(
-                    title = "Make It Native",
-                    viewModel = aiViewModel,
+                NativeFluencyPlaygroundScreen(
                     onBack = { navController.popBackStack() },
-                    accentColor = MaterialTheme.colorScheme.secondary,
-                    progressViewModel = progressViewModel
+                    progressViewModel = progressViewModel,
+                    initialTab = "Tone Slider"
                 )
             }
-            composable("patient_chat/{scenario}/{mood}") { backStackEntry ->
-                val scenario = backStackEntry.arguments?.getString("scenario")?.replace("_", " ") ?: "General checkup"
-                val mood = backStackEntry.arguments?.getString("mood")?.replace("_", " ") ?: "Neutral"
+            composable("patient_chat/{scenarioId}") { backStackEntry ->
+                val scenarioId = backStackEntry.arguments?.getString("scenarioId").orEmpty()
+                val scenario = PatientScenarioCatalog.findById(scenarioId) ?: PatientScenarioCatalog.fallback
                 val aiViewModel: AiViewModel = viewModel()
-                LaunchedEffect(scenario, mood) {
-                    aiViewModel.initSystemPrompt(Prompts.getStandardizedPatientPrompt(scenario, mood))
+                LaunchedEffect(scenario.id) {
+                    aiViewModel.configureSession(
+                        mode = AiConversationMode.StandardizedPatient,
+                        scenarioId = scenario.id
+                    )
                 }
                 RoleplayChatScreen(
-                    title = "Case: $scenario",
+                    title = "Case: ${scenario.title}",
                     viewModel = aiViewModel,
                     onBack = { navController.popBackStack() },
-                    accentColor = MaterialTheme.colorScheme.primary,
-                    progressViewModel = progressViewModel
+                    practiceMode = RoleplayPracticeMode.StandardizedPatient,
+                    accentColor = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+            pendingRewardPresentation?.let { receipt ->
+                RewardPresentationHost(
+                    receipt = receipt,
+                    onDismiss = { progressViewModel.acknowledgeRewardPresentation(receipt.receiptId) },
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 )
             }
         }

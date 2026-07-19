@@ -13,7 +13,7 @@ It is not a beginner app. Nothing in it is basic.
 - **Mix-ups** — the confusable pairs that change a chart note (palpation vs palpitation, ileum vs ilium, dysphagia vs dysphasia…).
 - **Spaced repetition** — every word is an SM-2 flashcard; the app schedules reviews so vocabulary actually sticks.
 - **Word games** — Cloze Clinic (fill the blank in real sentences), Word Match, and Sentence Unscramble, all drawing from the same lexicon.
-- **AI practice** — standardized-patient roleplay, clinical sim labs (SBAR, SPIKES, morning report), and a "Make It Native" rewriter, powered by an OpenAI-compatible endpoint.
+- **Guided practice** — standardized-patient roleplay, clinical sim labs (SBAR, SPIKES, morning report), and a "Make It Native" rewriter. Live coaching is available only through a product-owned, authenticated gateway; otherwise these routes stay in honest on-device guided-practice mode.
 
 ## Design
 
@@ -24,7 +24,7 @@ Cinnamon wears a warm spice palette — toasted dark by default, with a warm-cre
 **Prerequisites:** [Android Studio](https://developer.android.com/studio)
 
 1. Open the project in Android Studio and let it sync.
-2. (Optional, for AI features) create a `.env` file in the project root and set `AVALAI_API_KEY` to an OpenAI-compatible key (see `.env.example`). Without a key, the AI screens run in a built-in demo mode.
+2. (Optional, for live coaching) configure a non-secret `AI_GATEWAY_BASE_URL` Gradle property in `local.properties` or pass it with `-PAI_GATEWAY_BASE_URL=https://your-gateway.example/`. The Android app never accepts provider API keys. Gateway credentials belong only in the gateway's secret manager.
 3. Run on an emulator or device. The full lexicon seeds into a local Room database on first launch.
 
 The dictionary data lives as plain JSON under `app/src/main/assets/lexicon/` and is easy to extend.

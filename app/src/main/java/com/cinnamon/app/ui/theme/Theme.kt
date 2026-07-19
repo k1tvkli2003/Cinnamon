@@ -60,13 +60,15 @@ private val CreamScheme = lightColorScheme(
     surface = SoftLinen,
     onSurface = WarmInk,
     surfaceVariant = Oatmeal,
-    onSurfaceVariant = MochaHint,
+    // Small helper and status text is used densely on Oatmeal cards; WarmInk
+    // keeps ordinary-size text above the AA contrast floor.
+    onSurfaceVariant = WarmInk,
     outline = LinenOutline,
     outlineVariant = LinenOutline,
     error = ClayError,
     onError = OnCinnamonBark,
     errorContainer = ClayErrorContainer,
-    onErrorContainer = ClayError
+    onErrorContainer = WarmInk
 )
 
 private val MidnightScheme = darkColorScheme(

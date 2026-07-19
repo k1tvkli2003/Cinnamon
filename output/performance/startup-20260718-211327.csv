@@ -1,0 +1,6 @@
+"run","started_at","scenario","am_this_time_ms","am_total_time_ms","catalog_ms","progress_snapshot_ms","progress_import_ms","progress_pipeline_ms","lexicon_seed_ms","catalog_reconciliation_ms","prepare_ms","independent_stage_sum_ms","independent_overlap_ms","trace_ready"
+"1","2026-07-18T21:12:49.1448876+03:30","process-cold-existing-data",,"5675","2044","597","195","792","9299","264","10914","12399","1485","True"
+"2","2026-07-18T21:12:58.9087962+03:30","process-cold-existing-data",,"6245","1592","174","0","174","28","130","1856","1924","68","True"
+"3","2026-07-18T21:13:08.9277369+03:30","process-cold-existing-data",,"6757","2069","288","0","288","4","64","2148","2425","277","True"
+"4","2026-07-18T21:13:17.8216576+03:30","process-cold-existing-data",,"6064","1452","133","0","133","16","78","1619","1679","60","True"
+"5","2026-07-18T21:13:27.2035202+03:30","process-cold-existing-data",,"6231","1726","280","0","280","13","115","1894","2134","240","True"

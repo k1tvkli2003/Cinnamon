@@ -9,19 +9,21 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,7 +40,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,17 +53,24 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cinnamon.app.data.ai.ChatMessage
+import com.cinnamon.app.data.local.AppDatabase
+import com.cinnamon.app.data.local.Flashcard
 
 
 
 
 
 import com.cinnamon.app.viewmodel.AiViewModel
+import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 import com.cinnamon.app.ui.theme.*
-import com.cinnamon.app.viewmodel.UserProgressViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.sin
+
+enum class RoleplayPracticeMode {
+    NativeCoach,
+    StandardizedPatient
+}
 
 @Composable
 fun TypewriterText(
@@ -65,15 +79,20 @@ fun TypewriterText(
     color: Color = Color.Unspecified,
     style: androidx.compose.ui.text.TextStyle = LocalTextStyle.current
 ) {
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
     var displayedText by remember { mutableStateOf("") }
     
-    LaunchedEffect(text) {
+    LaunchedEffect(text, reduceMotion) {
+        if (reduceMotion) {
+            displayedText = text
+            return@LaunchedEffect
+        }
         displayedText = ""
-        // Simulate Server-Sent Events network streaming via token-by-token typewriter effect
+        // Keep the response legible while it appears; this is a local visual effect.
         val chunks = text.split(" ")
         for (i in chunks.indices) {
             displayedText += chunks[i] + " "
-            delay((10..40).random().toLong()) // Randomize network jitter feeling
+            delay(20)
         }
         displayedText = text
     }
@@ -92,14 +111,15 @@ fun RoleplayChatScreen(
     title: String,
     viewModel: AiViewModel,
     onBack: () -> Unit,
-    accentColor: Color = NeonCyan,
-    progressViewModel: UserProgressViewModel
+    practiceMode: RoleplayPracticeMode,
+    accentColor: Color = NeonCyan
 ) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     var currentInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
 
     // Make it Native Extras
     var toneValue by remember { mutableFloatStateOf(1f) } // 0 = Slang, 1 = Casual, 2 = Formal, 3 = Academic
@@ -110,28 +130,21 @@ fun RoleplayChatScreen(
         else -> "Academic & High-Linguistic"
     }
 
-    // Interactive Vitals
-    var heartRate by remember { mutableIntStateOf(115) }
-    var bpSys by remember { mutableIntStateOf(138) }
-    var bpDia by remember { mutableIntStateOf(88) }
-    var oxygenSat by remember { mutableIntStateOf(94) }
-    var empathyScore by remember { mutableFloatStateOf(0.65f) }
-
     // Audio Visualizer states
     var isRecording by remember { mutableStateOf(false) }
 
-    // ElevenLabs neural speech speed and emotional parameters (Steps 92, 99)
+    // Local visual practice parameters. They do not imply a live speech provider.
     var speechSpeed by remember { mutableStateOf(1.0f) }
     var showSpeedMenu by remember { mutableStateOf(false) }
     var emotionalPreset by remember { mutableStateOf("Panicked/Dyspneic") }
-    var showElevenLabsParams by remember { mutableStateOf(true) }
+    var showVoicePracticeControls by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
-    // SOAP auto-grader state
+    // Scenario-note reference state. This app does not grade clinical performance.
     var showSoapDialog by remember { mutableStateOf(false) }
 
     // Dynamic state modifiers
-    val isMedical = accentColor == SurgicalGreen
+    val isMedical = practiceMode == RoleplayPracticeMode.StandardizedPatient
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -147,16 +160,9 @@ fun RoleplayChatScreen(
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
-            // Dynamically evaluate vitals improvements or worsening on speech exchange
-            if (isMedical) {
+            // A small local acknowledgement, not an evaluation of the learner or patient.
+            if (isMedical && messages.size > 2) {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                if (messages.size > 2) {
-                    heartRate = (heartRate - 5).coerceAtLeast(78)
-                    bpSys = (bpSys - 4).coerceAtLeast(118)
-                    bpDia = (bpDia - 2).coerceAtLeast(76)
-                    oxygenSat = (oxygenSat + 1).coerceAtMost(99)
-                    empathyScore = (empathyScore + 0.08f).coerceAtMost(1.0f)
-                }
             }
         }
     }
@@ -171,7 +177,7 @@ fun RoleplayChatScreen(
                         if (isMedical) {
                             Text("Standardized Patient Simulation", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         } else {
-                            Text("C2 Nuance Engine Mode", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Nuance practice mode", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 },
@@ -193,6 +199,9 @@ fun RoleplayChatScreen(
                             listOf(0.5f, 0.75f, 1.0f, 1.25f).forEach { speed ->
                                 DropdownMenuItem(
                                     text = { Text("${speed}x", color = if (speechSpeed == speed) NeonCyan else Color.White) },
+                                    modifier = Modifier.semantics {
+                                        selected = speechSpeed == speed
+                                    },
                                     onClick = { 
                                         speechSpeed = speed
                                         showSpeedMenu = false
@@ -203,7 +212,7 @@ fun RoleplayChatScreen(
                     }
                     if (isMedical) {
                         IconButton(onClick = { showSoapDialog = true }) {
-                            Icon(Icons.Default.Assignment, contentDescription = "SOAP grading", tint = SurgicalGreen)
+                            Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Scenario note reference", tint = SurgicalGreen)
                         }
                     }
                 },
@@ -247,11 +256,11 @@ fun RoleplayChatScreen(
                     }
                 }
 
-                // Voice Recording waveform simulator
+                // A local visual rehearsal aid; this does not record or transcribe audio.
                 AnimatedVisibility(
                     visible = isRecording,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
+                    enter = if (reduceMotion) EnterTransition.None else expandVertically() + fadeIn(),
+                    exit = if (reduceMotion) ExitTransition.None else shrinkVertically() + fadeOut()
                 ) {
                     Box(
                         modifier = Modifier
@@ -265,7 +274,7 @@ fun RoleplayChatScreen(
                     ) {
                         VoiceWaveformCanvas(accentColor = accentColor)
                         Text(
-                            "Analyzing Pitch & Rhythm...",
+                            "Voice practice preview (microphone not connected)",
                             style = MaterialTheme.typography.bodySmall,
                             color = accentColor,
                             modifier = Modifier.padding(top = 40.dp)
@@ -282,41 +291,55 @@ fun RoleplayChatScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // 1. Microphone/Voice Input clickable icon
-                    val micPulseTransition = rememberInfiniteTransition(label = "micPulse")
-                    val micPulseScale by micPulseTransition.animateFloat(
-                        initialValue = 1f,
-                        targetValue = 1.25f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(700, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "micPulseScale"
-                    )
+                    val micPulseScale = if (reduceMotion) {
+                        1f
+                    } else {
+                        val micPulseTransition = rememberInfiniteTransition(label = "micPulse")
+                        micPulseTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.25f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(700, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "micPulseScale"
+                        ).value
+                    }
 
                     Box(
                         modifier = Modifier
-                            .padding(start = 6.dp)
-                            .size(42.dp)
-                            .graphicsLayer {
-                                if (isRecording) {
-                                    scaleX = micPulseScale
-                                    scaleY = micPulseScale
+                            .padding(start = 3.dp)
+                            .size(48.dp)
+                            .toggleable(
+                                value = isRecording,
+                                role = Role.Switch,
+                                onValueChange = { recording ->
+                                    isRecording = recording
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 }
-                            }
-                            .clip(CircleShape)
-                            .background(if (isRecording) AlertRed.copy(alpha = 0.28f) else Color.Transparent)
-                            .clickable {
-                                isRecording = !isRecording
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            },
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Mic,
-                            contentDescription = "Voice Input",
-                            tint = if (isRecording) AlertRed else accentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .graphicsLayer {
+                                    if (isRecording) {
+                                        scaleX = micPulseScale
+                                        scaleY = micPulseScale
+                                    }
+                                }
+                                .clip(CircleShape)
+                                .background(if (isRecording) AlertRed.copy(alpha = 0.28f) else Color.Transparent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Mic,
+                                contentDescription = "Voice practice preview",
+                                tint = if (isRecording) AlertRed else accentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
                     // 2. Continuous borderless Text Field
@@ -326,7 +349,7 @@ fun RoleplayChatScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
-                        placeholder = { Text(if (isRecording) "Listening..." else "Type message clinically...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 14.sp) },
+                        placeholder = { Text(if (isRecording) "Voice practice preview" else "Type a practice message...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 14.sp) },
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
@@ -345,15 +368,9 @@ fun RoleplayChatScreen(
                     // 3. Send button perfectly nested
                     Box(
                         modifier = Modifier
-                            .padding(end = 6.dp)
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(if (isInputValid) accentColor else Color.Transparent)
+                            .padding(end = 3.dp)
+                            .size(48.dp)
                             .clickable(enabled = isInputValid) {
-                                val inputLower = currentInput.lowercase()
-                                if (inputLower.contains("exacerbate")) {
-                                    progressViewModel.triggerWordUse("exacerbate")
-                                }
                                 val fullMsg = if (!isMedical) {
                                     "[$toneLabel] $currentInput"
                                 } else {
@@ -364,15 +381,23 @@ fun RoleplayChatScreen(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        } else {
-                            Icon(
-                                Icons.Default.Send,
-                                contentDescription = "Send",
-                                tint = if (isInputValid) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(18.dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(if (isInputValid) accentColor else Color.Transparent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "Send",
+                                    tint = if (isInputValid) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -385,18 +410,15 @@ fun RoleplayChatScreen(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // Live Patient Vitals HUD
+            // Fictional scene cues, deliberately separated from clinical monitoring or scoring.
             if (isMedical) {
-                MedicalVitalsHud(
-                    heartRate = heartRate,
-                    bpSys = bpSys,
-                    bpDia = bpDia,
-                    oxygenSat = oxygenSat,
-                    empathyScore = empathyScore
+                RoleplayCuePanel(
+                    emotionalPreset = emotionalPreset,
+                    messageCount = messages.size
                 )
             }
 
-            // ELEVENLABS NEURAL EMOTION & SPEED CONTROLLER (Steps 92, 99)
+            // Local voice-practice settings; no live synthesis service is connected.
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
                 shape = RoundedCornerShape(0.dp),
@@ -405,16 +427,23 @@ fun RoleplayChatScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { 
-                            showElevenLabsParams = !showElevenLabsParams 
-                            scope.launch { com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.CLICK) }
-                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clickable {
+                                showVoicePracticeControls = !showVoicePracticeControls
+                                scope.launch {
+                                    com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(
+                                        com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.CLICK
+                                    )
+                                }
+                            },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "⚡ ElevenLabs Emotive Neural Engine", 
+                                "Voice practice controls",
                                 style = MaterialTheme.typography.bodyMedium, 
                                 fontWeight = FontWeight.Bold,
                                 color = accentColor
@@ -426,7 +455,7 @@ fun RoleplayChatScreen(
                                 modifier = Modifier.padding(2.dp)
                             ) {
                                 Text(
-                                    text = "Active: $emotionalPreset @ ${speechSpeed}x", 
+                                    text = "Visual practice: $emotionalPreset @ ${speechSpeed}x",
                                     fontSize = 9.sp, 
                                     fontWeight = FontWeight.Bold, 
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
@@ -435,20 +464,26 @@ fun RoleplayChatScreen(
                             }
                         }
                         Text(
-                            if (showElevenLabsParams) "Collapse ▲" else "Adjust Tune ▼", 
+                            if (showVoicePracticeControls) "Collapse ▲" else "Practice settings ▼",
                             style = MaterialTheme.typography.bodySmall, 
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    AnimatedVisibility(visible = showElevenLabsParams) {
+                    AnimatedVisibility(
+                        visible = showVoicePracticeControls,
+                        enter = if (reduceMotion) EnterTransition.None else fadeIn() + expandVertically(),
+                        exit = if (reduceMotion) ExitTransition.None else fadeOut() + shrinkVertically()
+                    ) {
                         Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             // Preset Row
-                            Text("Standardized Patient Vocal Preset:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Practice scenario:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             
                             val presetsList = listOf("Calm Clinical", "Panicked/Dyspneic", "Hysterical Crying", "Severe Gasping")
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectableGroup(),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 presetsList.forEach { preset ->
@@ -456,19 +491,24 @@ fun RoleplayChatScreen(
                                     Surface(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .clickable {
-                                                emotionalPreset = preset
-                                                scope.launch {
-                                                    // Trigger special custom frequency sweeping sounds depending on preset emotion
-                                                    val soundType = when (preset) {
-                                                        "Calm Clinical" -> com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.CLICK
-                                                        "Panicked/Dyspneic" -> com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.SWOOSH
-                                                        "Hysterical Crying" -> com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.POP
-                                                        else -> com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.SUCCESS
+                                            .heightIn(min = 48.dp)
+                                            .selectable(
+                                                selected = isSelected,
+                                                role = Role.RadioButton,
+                                                onClick = {
+                                                    emotionalPreset = preset
+                                                    scope.launch {
+                                                        // Trigger special custom frequency sweeping sounds depending on preset emotion
+                                                        val soundType = when (preset) {
+                                                            "Calm Clinical" -> com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.CLICK
+                                                            "Panicked/Dyspneic" -> com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.SWOOSH
+                                                            "Hysterical Crying" -> com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.POP
+                                                            else -> com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.SUCCESS
+                                                        }
+                                                        com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(soundType)
                                                     }
-                                                    com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(soundType)
                                                 }
-                                            },
+                                            ),
                                         shape = RoundedCornerShape(8.dp),
                                         color = if (isSelected) accentColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface,
                                         border = BorderStroke(1.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
@@ -486,10 +526,12 @@ fun RoleplayChatScreen(
                             }
 
                             // Speed Toggles
-                            Text("Adaptive Speech Synthesis Rate:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Practice pacing:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             val speedLevels = listOf(0.5f, 0.75f, 1.0f, 1.25f)
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectableGroup(),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 speedLevels.forEach { speed ->
@@ -497,12 +539,17 @@ fun RoleplayChatScreen(
                                     Surface(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .clickable {
-                                                speechSpeed = speed
-                                                scope.launch {
-                                                    com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.POP)
+                                            .heightIn(min = 48.dp)
+                                            .selectable(
+                                                selected = isSelected,
+                                                role = Role.RadioButton,
+                                                onClick = {
+                                                    speechSpeed = speed
+                                                    scope.launch {
+                                                        com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.POP)
+                                                    }
                                                 }
-                                            },
+                                            ),
                                         shape = RoundedCornerShape(8.dp),
                                         color = if (isSelected) accentColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface,
                                         border = BorderStroke(1.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
@@ -535,11 +582,11 @@ fun RoleplayChatScreen(
                 val displayMessages = messages.filter { it.role != "system" }
                 if (displayMessages.isEmpty() && !isLoading) {
                     item {
-                        EmptyChatState(accentColor = accentColor)
+                        EmptyChatState(accentColor = accentColor, isMedical = isMedical)
                     }
                 }
                 items(displayMessages) { msg ->
-                    ChatBubble(msg, accentColor, progressViewModel)
+                    ChatBubble(msg, accentColor)
                 }
                 if (isLoading) {
                     item {
@@ -550,13 +597,13 @@ fun RoleplayChatScreen(
         }
     }
 
-    // SOAP Note Grading Dialog
+    // Reference scaffold — never a clinical record or automatic grading result.
     if (showSoapDialog) {
         AlertDialog(
             onDismissRequest = { showSoapDialog = false },
             title = {
                 Text(
-                    "Clinical Record (SOAP Note)",
+                    "Scenario note reference",
                     color = SurgicalGreen,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleLarge
@@ -565,7 +612,7 @@ fun RoleplayChatScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Review clinical formulation derived from patient interview:",
+                        "A study scaffold for the fictional scene. It is not a medical record, and it is not derived from or grading your replies.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -579,19 +626,19 @@ fun RoleplayChatScreen(
                         LazyColumn {
                             item {
                                 Text(
-                                    "SUBJECTIVE: Patient arrived complaining of chest pressure described as crushing, running down left arm. Pain evaluated 8/10 on pain scale.",
+                                    "SCENE CUE: The fictional patient is worried and describes chest pressure. Keep the exchange focused on clear English practice.",
                                     color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "OBJECTIVE: HR $heartRate bpm. BP $bpSys/$bpDia mmHg. O2 Saturation $oxygenSat%. Patient exhibits sweating and mild shortness of breath.",
+                                    "LANGUAGE FOCUS: acknowledge the concern, signpost your next question, and choose one plain-language explanation.",
                                     color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "CLINICAL ENGLISH ACCURACY PROFILE:\n- Terminology: Excellent use of 'Myocardial Infarction', 'Ischemic symptoms', and 'differential formulation'.\n- Bedside Empathy: ${(empathyScore * 100).toInt()}% rating.",
+                                    "SELF-CHECK: Read your last reply. Did it sound clear, kind, and specific? This screen leaves that judgment with you; no empathy or clinical score is calculated.",
                                     color = SurgicalGreen,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Bold
@@ -606,7 +653,7 @@ fun RoleplayChatScreen(
                     onClick = { showSoapDialog = false },
                     colors = ButtonDefaults.buttonColors(containerColor = SurgicalGreen)
                 ) {
-                    Text("Approve Record", color = MaterialTheme.colorScheme.onSecondary)
+                    Text("Close reference", color = MaterialTheme.colorScheme.onSecondary)
                 }
             }
         )
@@ -614,122 +661,7 @@ fun RoleplayChatScreen(
 }
 
 @Composable
-fun LiveEcgTicker(accentColor: Color, heartRate: Int, modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "ecg")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ecgPhase"
-    )
-
-    Canvas(modifier = modifier.fillMaxWidth().height(48.dp)) {
-        val width = size.width
-        val height = size.height
-        val midY = height / 2f
-        val path = Path()
-
-        path.moveTo(0f, midY)
-
-        for (x in 0..width.toInt() step 6) {
-            val relativeX = x / width
-            // Map relativeX and phase to show moving sweeps
-            val pointPhase = (relativeX - phase + 1f) % 1f
-            val value = when {
-                pointPhase in 0.15f..0.21f -> {
-                    // P wave
-                    val progress = (pointPhase - 0.15f) / 0.06f
-                    sin(progress * Math.PI.toFloat()) * 4f
-                }
-                pointPhase in 0.23f..0.25f -> {
-                    // Q dip
-                    val progress = (pointPhase - 0.23f) / 0.02f
-                    -progress * 4f
-                }
-                pointPhase in 0.25f..0.28f -> {
-                    // R peak
-                    val progress = (pointPhase - 0.25f) / 0.03f
-                    if (progress < 0.5f) {
-                        -4f + (progress / 0.5f) * 18f
-                    } else {
-                        14f - ((progress - 0.5f) / 0.5f) * 18f
-                    }
-                }
-                pointPhase in 0.28f..0.30f -> {
-                    // S dip
-                    val progress = (pointPhase - 0.28f) / 0.02f
-                    -4f + (1f - progress) * 4f
-                }
-                pointPhase in 0.35f..0.43f -> {
-                    // T wave
-                    val progress = (pointPhase - 0.35f) / 0.08f
-                    sin(progress * Math.PI.toFloat()) * 7f
-                }
-                else -> 0f
-            }
-
-            path.lineTo(x.toFloat(), midY - value)
-        }
-
-        // Draw background subtle clinical grid lines
-        val strokeWidth = 0.5.dp.toPx()
-        for (gridX in 0..width.toInt() step 30) {
-            drawLine(
-                color = accentColor.copy(alpha = 0.06f),
-                start = Offset(gridX.toFloat(), 0f),
-                end = Offset(gridX.toFloat(), height),
-                strokeWidth = strokeWidth
-            )
-        }
-        for (gridY in 0..height.toInt() step 15) {
-            drawLine(
-                color = accentColor.copy(alpha = 0.06f),
-                start = Offset(0f, gridY.toFloat()),
-                end = Offset(width, gridY.toFloat()),
-                strokeWidth = strokeWidth
-            )
-        }
-
-        drawPath(
-            path = path,
-            color = accentColor,
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
-        )
-    }
-}
-
-@Composable
-fun MedicalVitalsHud(
-    heartRate: Int,
-    bpSys: Int,
-    bpDia: Int,
-    oxygenSat: Int,
-    empathyScore: Float
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val heartProgressPulse by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "heartBeat"
-    )
-
-    val pulseGlowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(400, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseGlow"
-    )
-
+fun RoleplayCuePanel(emotionalPreset: String, messageCount: Int) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -738,118 +670,70 @@ fun MedicalVitalsHud(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         ),
         shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, SurgicalGreen.copy(alpha = 0.15f)),
+        border = BorderStroke(1.dp, SurgicalGreen.copy(alpha = 0.18f)),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "PATIENT MONITOR HUB SYSTEM", 
-                    style = MaterialTheme.typography.titleSmall.copy(letterSpacing = 1.sp), 
-                    fontWeight = FontWeight.Bold, 
-                    color = SurgicalGreen
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Favorite, 
-                        contentDescription = "Active pulse", 
-                        tint = AlertRed, 
-                        modifier = Modifier
-                            .graphicsLayer {
-                                scaleX = heartProgressPulse
-                                scaleY = heartProgressPulse
-                            }
-                            .size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "LIVE", 
-                        style = MaterialTheme.typography.bodySmall, 
-                        color = AlertRed.copy(alpha = pulseGlowAlpha), 
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "ROLEPLAY SCENE CUES",
+                style = MaterialTheme.typography.titleSmall.copy(letterSpacing = 1.sp),
+                fontWeight = FontWeight.Bold,
+                color = SurgicalGreen
+            )
+            Text(
+                "Fictional prompt · not a live patient monitor or clinical assessment",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SceneCuePill("Scene: $emotionalPreset")
+                SceneCuePill("Turns: $messageCount")
             }
-            Spacer(modifier = Modifier.height(14.dp))
-            
-            // Integrated horizontal live ECG ticker sweep
-            LiveEcgTicker(accentColor = SurgicalGreen, heartRate = heartRate, modifier = Modifier.fillMaxWidth())
-
-            Spacer(modifier = Modifier.height(14.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                VitalMetric(label = "HEART RATE", value = "$heartRate bpm", alert = heartRate > 100)
-                VitalMetric(label = "BLOOD PRESSURE", value = "$bpSys/$bpDia", alert = bpSys > 130)
-                VitalMetric(label = "O2 SATURATION", value = "$oxygenSat%", alert = oxygenSat < 95)
-            }
-            Spacer(modifier = Modifier.height(14.dp))
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Interactive Empathy Score", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${(empathyScore * 100).toInt()}%", style = VitalsNumericStyle, color = SurgicalGreen)
-                }
-                
-                // Slim, phosphoresce glowing progress indicator
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .height(6.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(fraction = empathyScore)
-                            .fillMaxHeight()
-                            .background(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(SurgicalGreen.copy(alpha = 0.5f), SurgicalGreen)
-                                )
-                            )
-                            .graphicsLayer {
-                                alpha = pulseGlowAlpha * 0.4f + 0.6f
-                            }
-                    )
-                }
-            }
+            Text(
+                "Self-check: acknowledge the concern, ask one clear follow-up, then signpost what comes next.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
 
 @Composable
-fun VitalMetric(label: String, value: String, alert: Boolean) {
-    Column(horizontalAlignment = Alignment.Start) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun SceneCuePill(label: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = SurgicalGreen.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, SurgicalGreen.copy(alpha = 0.28f))
+    ) {
         Text(
-            value,
-            style = VitalsNumericStyle, // Beautiful monospace clinical display
-            color = if (alert) AlertRed else MaterialTheme.colorScheme.onSurface
+            label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = SurgicalGreen
         )
     }
 }
 
 @Composable
 fun VoiceWaveformCanvas(accentColor: Color) {
-    val transition = rememberInfiniteTransition(label = "wave")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 2f * Math.PI.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "phase"
-    )
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
+    val phase = if (reduceMotion) {
+        0f
+    } else {
+        val transition = rememberInfiniteTransition(label = "wave")
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 2f * Math.PI.toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(1200, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "phase"
+        ).value
+    }
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val width = size.width
@@ -876,13 +760,17 @@ fun VoiceWaveformCanvas(accentColor: Color) {
 @Composable
 fun ChatBubble(
     message: ChatMessage,
-    accentColor: Color,
-    progressViewModel: UserProgressViewModel
+    accentColor: Color
 ) {
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
     val isUser = message.role == "user"
+    val context = LocalContext.current
+    val flashcards = remember { AppDatabase.getDatabase(context).flashcardDao() }
+    val scope = rememberCoroutineScope()
     var showOptions by remember { mutableStateOf(false) }
     var translationText by remember { mutableStateOf("") }
     var toastMessage by remember { mutableStateOf("") }
+    var cardSaved by remember { mutableStateOf(false) }
 
     // Advanced Clinical Translator pairs (Idea 3, Idea 65)
     val jargonMap = mapOf(
@@ -1022,8 +910,8 @@ fun ChatBubble(
             // Interactive Gestures / Tap Reveal Actions (Idea 65)
             AnimatedVisibility(
                 visible = showOptions,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+                enter = if (reduceMotion) EnterTransition.None else expandVertically() + fadeIn(),
+                exit = if (reduceMotion) ExitTransition.None else shrinkVertically() + fadeOut()
             ) {
                 Row(
                     modifier = Modifier
@@ -1045,11 +933,33 @@ fun ChatBubble(
                     }
                     TextButton(
                         onClick = {
-                            progressViewModel.addPoints(50)
-                            toastMessage = "Saved to Flashcards! (+50 XP)"
-                        }
+                            scope.launch {
+                                runCatching {
+                                    flashcards.insertFlashcard(
+                                        Flashcard(
+                                            frontText = message.content,
+                                            backText = translationText.ifBlank {
+                                                "Revisit this phrase and explain it in your own words."
+                                            },
+                                            category = if (isUser) "Roleplay" else "Clinical roleplay"
+                                        )
+                                    )
+                                }.onSuccess {
+                                    cardSaved = true
+                                    toastMessage = "Saved to your flashcards."
+                                }.onFailure {
+                                    toastMessage = "Couldn’t save this card. Please try again."
+                                }
+                            }
+                        },
+                        enabled = !cardSaved
                     ) {
-                        Text("⭐ Add Card", fontSize = 11.sp, color = SurgicalGreen, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (cardSaved) "✓ Saved" else "⭐ Add Card",
+                            fontSize = 11.sp,
+                            color = SurgicalGreen,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -1087,22 +997,22 @@ fun ChatBubble(
                 Spacer(modifier = Modifier.height(4.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.15f)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, AlertRed.copy(alpha = 0.4f))
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
                 ) {
                     Row(
                         modifier = Modifier.padding(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Info, contentDescription = "Tip", tint = AlertRed, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.Info, contentDescription = "Tip", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Column {
                             caughtJargons.forEach { (jargon, layman) ->
                                 Text(
                                     text = "Jargon Detected: '${jargon.replaceFirstChar { it.uppercase() }}'. Prefer layman term: '$layman'.",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -1115,7 +1025,14 @@ fun ChatBubble(
 }
 
 @Composable
-fun EmptyChatState(accentColor: Color) {
+fun EmptyChatState(accentColor: Color, isMedical: Boolean) {
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
+    val title = if (isMedical) "FICTIONAL SCENE READY" else "NUANCE WORKSPACE READY"
+    val description = if (isMedical) {
+        "Start a fictional language exchange. This app offers authored practice cues, not a live monitor, clinical score, or patient outcome."
+    } else {
+        "Type a phrase to explore tone and wording. This practice space does not record voice analysis or assign a fluency score."
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1126,16 +1043,20 @@ fun EmptyChatState(accentColor: Color) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            val transition = rememberInfiniteTransition(label = "pulse")
-            val scale by transition.animateFloat(
-                initialValue = 0.9f,
-                targetValue = 1.1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "scale"
-            )
+            val scale = if (reduceMotion) {
+                1f
+            } else {
+                val transition = rememberInfiniteTransition(label = "pulse")
+                transition.animateFloat(
+                    initialValue = 0.9f,
+                    targetValue = 1.1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "scale"
+                ).value
+            }
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -1146,7 +1067,7 @@ fun EmptyChatState(accentColor: Color) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Favorite,
-                    contentDescription = "Pulsing EKG Heart",
+                    contentDescription = "Practice workspace",
                     tint = accentColor,
                     modifier = Modifier
                         .size(40.dp)
@@ -1154,13 +1075,13 @@ fun EmptyChatState(accentColor: Color) {
                 )
             }
             Text(
-                "CONNECTED TO PATIENT WARD",
+                title,
                 color = accentColor,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                "Speak or type to begin. Your bedside manner, vocabulary choice, and emotional support will dynamically modify the patient's vitals real-time.",
+                description,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
@@ -1172,16 +1093,21 @@ fun EmptyChatState(accentColor: Color) {
 
 @Composable
 fun TypingIndicatorBubble(accentColor: Color) {
-    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
+    val alpha = if (reduceMotion) {
+        0.55f
+    } else {
+        val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+        infiniteTransition.animateFloat(
+            initialValue = 0.2f,
+            targetValue = 0.7f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(800, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "alpha"
+        ).value
+    }
 
     Row(
         modifier = Modifier
@@ -1190,7 +1116,7 @@ fun TypingIndicatorBubble(accentColor: Color) {
         horizontalArrangement = Arrangement.Start
     ) {
         Column {
-            Text("Attending is typing...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, bottom = 4.dp))
+            Text("Practice partner is typing...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, bottom = 4.dp))
             Box(
                 modifier = Modifier
                     .width(200.dp)
@@ -1211,22 +1137,27 @@ fun TypingIndicatorBubble(accentColor: Color) {
 
 @Composable
 fun BouncingDot(delay: Int, color: Color) {
-    val transition = rememberInfiniteTransition(label = "bouncing_dot")
-    val offset by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = -8f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                durationMillis = 600
-                0.0f at 0
-                -8.0f at 200
-                0.0f at 400
-            },
-            repeatMode = RepeatMode.Restart,
-            initialStartOffset = StartOffset(offsetMillis = delay)
-        ),
-        label = "offset"
-    )
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
+    val offset = if (reduceMotion) {
+        0f
+    } else {
+        val transition = rememberInfiniteTransition(label = "bouncing_dot")
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = -8f,
+            animationSpec = infiniteRepeatable(
+                animation = keyframes {
+                    durationMillis = 600
+                    0.0f at 0
+                    -8.0f at 200
+                    0.0f at 400
+                },
+                repeatMode = RepeatMode.Restart,
+                initialStartOffset = StartOffset(offsetMillis = delay)
+            ),
+            label = "offset"
+        ).value
+    }
 
     Box(
         modifier = Modifier

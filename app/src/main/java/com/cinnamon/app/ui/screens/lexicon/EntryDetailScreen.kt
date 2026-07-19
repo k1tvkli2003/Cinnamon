@@ -278,7 +278,7 @@ fun EntryDetailScreen(
                                 Text(r.term, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                                 LevelBadge(r.level)
                             }
-                            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                         }
                     }
                 }

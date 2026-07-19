@@ -3,6 +3,43 @@ package com.cinnamon.app.data.seed
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
+data class DatasetManifest(
+    val schemaVersion: Int,
+    val datasetId: String,
+    val datasetVersion: String,
+    val provenance: DatasetProvenance,
+    val files: List<DatasetFileSpec>
+)
+
+@JsonClass(generateAdapter = true)
+data class DatasetProvenance(
+    val origin: String,
+    val reviewStatus: String
+)
+
+@JsonClass(generateAdapter = true)
+data class DatasetFileSpec(
+    val name: String,
+    val collection: String,
+    val count: Int,
+    val sha256: String
+)
+
+internal fun DatasetManifest.requireAcceptedProvenance() {
+    require(provenance.origin == "project-bundled-curated") {
+        "Unexpected lexicon provenance origin ${provenance.origin}"
+    }
+    require(
+        provenance.reviewStatus in setOf(
+            "editorial-review-required-before-release",
+            "editorial-approved"
+        )
+    ) {
+        "Unsupported lexicon review status ${provenance.reviewStatus}"
+    }
+}
+
+@JsonClass(generateAdapter = true)
 data class EntryFile(val entries: List<EntryDto>)
 
 @JsonClass(generateAdapter = true)

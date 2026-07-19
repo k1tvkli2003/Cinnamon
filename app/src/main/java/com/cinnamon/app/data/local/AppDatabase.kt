@@ -13,15 +13,26 @@ import androidx.room.RoomDatabase
         PhraseEntry::class,
         Confusable::class,
         PracticeSentence::class,
-        Flashcard::class
+        Flashcard::class,
+        GamificationEventEntity::class,
+        RewardTransactionEntity::class,
+        RewardSummaryEntity::class,
+        RewardBalanceEntity::class,
+        QuestInstanceEntity::class,
+        JourneyInstanceEntity::class,
+        JourneyStageProgressEntity::class,
+        CampaignRouteChoiceEntity::class,
+        AchievementUnlockEntity::class,
+        RewardPresentationReceiptEntity::class
     ],
-    version = 1,
-    exportSchema = false
+    version = 4,
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun lexiconDao(): LexiconDao
     abstract fun learnDao(): LearnDao
     abstract fun flashcardDao(): FlashcardDao
+    abstract fun gamificationDao(): GamificationDao
 
     companion object {
         @Volatile
@@ -33,7 +44,13 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "cinnamon.db"
-                ).build()
+                )
+                    .addMigrations(
+                        AppDatabaseMigrations.MIGRATION_1_2,
+                        AppDatabaseMigrations.MIGRATION_2_3,
+                        AppDatabaseMigrations.MIGRATION_3_4
+                    )
+                    .build()
                 INSTANCE = instance
                 instance
             }

@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "storageVersion": 1,
+  "catalogVersion": "1.0.0",
+  "criterionContractVersion": 1,
+  "manifest": {
+    "seedId": "cinnamon.gamification.catalog",
+    "sourceAsset": "gamification/catalog-v1.json",
+    "version": "1.0.0",
+    "migrationNotes": [
+      "Initial additive catalog; no legacy title-based achievement is migrated automatically.",
+      "Runtime progress must be keyed by stable definition ID and rule version.",
+      "Retired IDs remain reserved forever and may map to a replacement in a later catalog."
+    ],
+    "defaultLocale": "en",
+    "localizationAssets": ["gamification/copy-en-v1.json"],
+    "localizationKeys": [
+      "rarity.common.accessibility", "rarity.notable.accessibility", "rarity.rare.accessibility", "rarity.exceptional.accessibility",
+      "reward.xp.10.explanation", "reward.xp.20.explanation", "reward.xp.30.explanation", "reward.xp.40.explanation", "reward.xp.50.explanation", "reward.xp.75.explanation", "reward.xp.100.explanation",
+      "reward.marker.durable_reviewer.explanation", "reward.marker.correction_craft.explanation", "reward.marker.content_explorer.explanation", "reward.marker.steady_rhythm.explanation", "reward.marker.context_builder.explanation", "reward.marker.confusable_clarity.explanation", "reward.marker.reflective_learner.explanation", "reward.marker.root_connector.explanation",
+      "level.learning.orientation.title", "level.learning.orientation.description", "level.learning.foundation.title", "level.learning.foundation.description", "level.learning.application.title", "level.learning.application.description", "level.learning.integration.title", "level.learning.integration.description", "level.learning.durable.title", "level.learning.durable.description", "level.learning.breadth.title", "level.learning.breadth.description",
+      "achievement.mastery.durable_memory.title", "achievement.mastery.durable_memory.description", "achievement.correction.repair_loop.title", "achievement.correction.repair_loop.description", "achievement.consistency.weekly_rhythm.title", "achievement.consistency.weekly_rhythm.description", "achievement.exploration.content_breadth.title", "achievement.exploration.content_breadth.description", "achievement.review.queue_resolved.title", "achievement.review.queue_resolved.description", "achievement.mastery.confusable_precision.title", "achievement.mastery.confusable_precision.description", "achievement.application.context_builder.title", "achievement.application.context_builder.description", "achievement.challenge.delayed_recall.title", "achievement.challenge.delayed_recall.description", "achievement.comeback.gentle_return.title", "achievement.comeback.gentle_return.description", "achievement.reflection.calibrated_confidence.title", "achievement.reflection.calibrated_confidence.description", "achievement.collection.learned_not_saved.title", "achievement.collection.learned_not_saved.description", "achievement.exploration.etymology_trail.title", "achievement.exploration.etymology_trail.description",
+      "achievement.progress.unique_items", "achievement.progress.unique_repairs", "achievement.progress.rhythm_weeks", "achievement.progress.content_kinds", "achievement.progress.queue_days", "achievement.progress.confusable_pairs", "achievement.progress.context_items", "achievement.progress.delayed_items", "achievement.progress.comeback", "achievement.progress.calibrated_sessions", "achievement.progress.reviewed_saved_items", "achievement.progress.morpheme_families",
+      "quest.daily.due_review.title", "quest.daily.due_review.reason", "quest.daily.repair_one.title", "quest.daily.repair_one.reason", "quest.daily.context_use.title", "quest.daily.context_use.reason", "quest.daily.confusable_pair.title", "quest.daily.confusable_pair.reason", "quest.weekly.rhythm_three_days.title", "quest.weekly.rhythm_three_days.reason", "quest.weekly.durable_mastery.title", "quest.weekly.durable_mastery.reason", "quest.weekly.mixed_practice.title", "quest.weekly.mixed_practice.reason", "quest.weekly.queue_relief.title", "quest.weekly.queue_relief.reason", "quest.weekend.focused_review.title", "quest.weekend.focused_review.reason", "quest.comeback.restart_small.title", "quest.comeback.restart_small.reason", "quest.monthly.correction_craft.title", "quest.monthly.correction_craft.reason", "quest.monthly.durable_growth.title", "quest.monthly.durable_growth.reason"
+    ],
+    "artRequirements": [
+      "Badge art is semantic-only until a visual direction is approved; IDs must not encode palette, mascot, or protected-brand styling.",
+      "Every badge needs a non-color state indicator and a readable accessibility label.",
+      "Secret achievement art must reveal delight without concealing required product progress."
+    ],
+    "testRequirements": [
+      "Reject duplicate or retired IDs.",
+      "Reject XP and unverified outcomes as criteria.",
+      "Verify thresholds, reward references, expiry boundaries, replacement rules, and localization coverage."
+    ],
+    "retiredIds": []
+  },
+  "rarities": [
+    {"id":"common","accessibilityLabelKey":"rarity.common.accessibility","distributionExpectation":"A reachable first proof of a valuable learning behavior.","treatmentRequirement":"Clear silhouette and plain locked, in-progress, and earned states."},
+    {"id":"notable","accessibilityLabelKey":"rarity.notable.accessibility","distributionExpectation":"Requires repeated quality across several sessions or weeks.","treatmentRequirement":"One additional semantic detail beyond common; meaning cannot rely on color."},
+    {"id":"rare","accessibilityLabelKey":"rarity.rare.accessibility","distributionExpectation":"Represents durable mastery or sustained repair work over time.","treatmentRequirement":"Reserved frame treatment with text rarity label and reduced-motion reveal."},
+    {"id":"exceptional","accessibilityLabelKey":"rarity.exceptional.accessibility","distributionExpectation":"An optional, uncommon identity milestone; never required for access.","treatmentRequirement":"Distinct semantic composition, explicit rarity label, static fallback, and no flashing."}
+  ],
+  "rewards": [
+    {"id":"reward.xp.10","version":"1.0.0","type":"xp","amount":10,"explanationKey":"reward.xp.10.explanation","sourceRule":"idempotent_catalog_source_only","claimBehavior":"automatic","economyNotes":"Small feedback amount; never a criterion or spend requirement.","maxGrantsPerSource":1},
+    {"id":"reward.xp.20","version":"1.0.0","type":"xp","amount":20,"explanationKey":"reward.xp.20.explanation","sourceRule":"idempotent_catalog_source_only","claimBehavior":"automatic","economyNotes":"Bounded feedback for a meaningful short goal.","maxGrantsPerSource":1},
+    {"id":"reward.xp.30","version":"1.0.0","type":"xp","amount":30,"explanationKey":"reward.xp.30.explanation","sourceRule":"idempotent_catalog_source_only","claimBehavior":"automatic","economyNotes":"Bounded feedback for a weekly learning goal.","maxGrantsPerSource":1},
+    {"id":"reward.xp.40","version":"1.0.0","type":"xp","amount":40,"explanationKey":"reward.xp.40.explanation","sourceRule":"idempotent_catalog_source_only","claimBehavior":"automatic","economyNotes":"Bounded feedback for a demanding repair or exploration goal.","maxGrantsPerSource":1},
+    {"id":"reward.xp.50","version":"1.0.0","type":"xp","amount":50,"explanationKey":"reward.xp.50.explanation","sourceRule":"idempotent_catalog_source_only","claimBehavior":"automatic","economyNotes":"Milestone feedback with no purchasing or access power.","maxGrantsPerSource":1},
+    {"id":"reward.xp.75","version":"1.0.0","type":"xp","amount":75,"explanationKey":"reward.xp.75.explanation","sourceRule":"idempotent_catalog_source_only","claimBehavior":"automatic","economyNotes":"Long-horizon milestone feedback; one grant per source.","maxGrantsPerSource":1},
+    {"id":"reward.xp.100","version":"1.0.0","type":"xp","amount":100,"explanationKey":"reward.xp.100.explanation","sourceRule":"idempotent_catalog_source_only","claimBehavior":"automatic","economyNotes":"Rare mastery feedback; never multiplied by presentation or chance.","maxGrantsPerSource":1},
+    {"id":"reward.marker.durable_reviewer","version":"1.0.0","type":"profile_marker","entitlementId":"marker.durable_reviewer","explanationKey":"reward.marker.durable_reviewer.explanation","sourceRule":"achievement_level_only","claimBehavior":"automatic","economyNotes":"Non-spendable identity marker; carries no access advantage.","maxGrantsPerSource":1},
+    {"id":"reward.marker.correction_craft","version":"1.0.0","type":"profile_marker","entitlementId":"marker.correction_craft","explanationKey":"reward.marker.correction_craft.explanation","sourceRule":"achievement_level_only","claimBehavior":"automatic","economyNotes":"Non-spendable identity marker for repair behavior.","maxGrantsPerSource":1},
+    {"id":"reward.marker.content_explorer","version":"1.0.0","type":"profile_marker","entitlementId":"marker.content_explorer","explanationKey":"reward.marker.content_explorer.explanation","sourceRule":"achievement_level_only","claimBehavior":"automatic","economyNotes":"Non-spendable identity marker for meaningful breadth.","maxGrantsPerSource":1},
+    {"id":"reward.marker.steady_rhythm","version":"1.0.0","type":"profile_marker","entitlementId":"marker.steady_rhythm","explanationKey":"reward.marker.steady_rhythm.explanation","sourceRule":"achievement_level_only","claimBehavior":"automatic","economyNotes":"Non-spendable marker; no streak-loss pressure or penalty.","maxGrantsPerSource":1},
+    {"id":"reward.marker.context_builder","version":"1.0.0","type":"profile_marker","entitlementId":"marker.context_builder","explanationKey":"reward.marker.context_builder.explanation","sourceRule":"achievement_level_only","claimBehavior":"automatic","economyNotes":"Non-spendable marker for applied learning.","maxGrantsPerSource":1},
+    {"id":"reward.marker.confusable_clarity","version":"1.0.0","type":"profile_marker","entitlementId":"marker.confusable_clarity","explanationKey":"reward.marker.confusable_clarity.explanation","sourceRule":"achievement_level_only","claimBehavior":"automatic","economyNotes":"Non-spendable marker for verified distinctions.","maxGrantsPerSource":1},
+    {"id":"reward.marker.reflective_learner","version":"1.0.0","type":"profile_marker","entitlementId":"marker.reflective_learner","explanationKey":"reward.marker.reflective_learner.explanation","sourceRule":"achievement_level_only","claimBehavior":"automatic","economyNotes":"Non-spendable marker for calibrated reflection.","maxGrantsPerSource":1},
+    {"id":"reward.marker.root_connector","version":"1.0.0","type":"profile_marker","entitlementId":"marker.root_connector","explanationKey":"reward.marker.root_connector.explanation","sourceRule":"secret_achievement_only","claimBehavior":"automatic","economyNotes":"Optional secret marker; unlocks no required content.","maxGrantsPerSource":1}
+  ],
+  "presentations": [
+    {"id":"presentation.progress.inline","tier":"micro","motionId":"motion.progress.inline","liveFields":["progress","target"],"requiresMascot":false,"requiresAudio":false,"artRequirement":"No dedicated art; use the approved product progress primitive.","reducedMotionStrategy":"Short value crossfade with no spatial travel.","noMotionStrategy":"Immediate value update and one semantic announcement.","replayPolicy":"never","expiresAfterSeconds":86400,"platformFallback":"Static progress text.","clinicalModePolicy":"allow"},
+    {"id":"presentation.quest.complete","tier":"standard","motionId":"motion.quest.complete","liveFields":["title","progress","reward"],"requiresMascot":false,"requiresAudio":false,"artRequirement":"Semantic quest-complete mark after brand approval.","reducedMotionStrategy":"Static completion state with a short opacity change.","noMotionStrategy":"Immediate claimed-ready state and semantic announcement.","replayPolicy":"never","expiresAfterSeconds":604800,"platformFallback":"Static quest receipt.","clinicalModePolicy":"allow"},
+    {"id":"presentation.achievement.unlock","tier":"milestone","motionId":"motion.achievement.unlock","liveFields":["title","description","rarity","reward"],"requiresMascot":false,"requiresAudio":false,"artRequirement":"Original badge family selected only after brand approval.","reducedMotionStrategy":"Stable badge and receipt with a short crossfade.","noMotionStrategy":"Immediate static receipt and one screen-reader announcement.","replayPolicy":"profile_history_only","expiresAfterSeconds":2592000,"platformFallback":"Static badge receipt with text rarity.","clinicalModePolicy":"defer_until_session_exit"},
+    {"id":"presentation.achievement.level_up","tier":"milestone","motionId":"motion.achievement.level_up","liveFields":["title","tier","progress","reward"],"requiresMascot":false,"requiresAudio":false,"artRequirement":"Original tier treatment selected only after brand approval.","reducedMotionStrategy":"Swap the stable tier state with a short crossfade.","noMotionStrategy":"Immediate tier update and semantic announcement.","replayPolicy":"profile_history_only","expiresAfterSeconds":2592000,"platformFallback":"Static tier receipt.","clinicalModePolicy":"defer_until_session_exit"},
+    {"id":"presentation.comeback.gentle","tier":"milestone","motionId":"motion.comeback.gentle","liveFields":["title","description","reward"],"requiresMascot":false,"requiresAudio":false,"artRequirement":"Calm, shame-free comeback composition after brand approval.","reducedMotionStrategy":"Stable welcome-back receipt with no travel or particles.","noMotionStrategy":"Immediate summary and next-action focus.","replayPolicy":"never","expiresAfterSeconds":604800,"platformFallback":"Static comeback receipt.","clinicalModePolicy":"defer_until_session_exit"}
+  ],
+  "progressionLevels": [
+    {"id":"level.learning.orientation","order":1,"titleKey":"level.learning.orientation.title","descriptionKey":"level.learning.orientation.description","metric":"unique_item_mastered_after_delay","threshold":0,"rewardRefs":[],"presentationId":"presentation.progress.inline"},
+    {"id":"level.learning.foundation","order":2,"titleKey":"level.learning.foundation.title","descriptionKey":"level.learning.foundation.description","metric":"unique_item_mastered_after_delay","threshold":5,"rewardRefs":["reward.xp.10"],"presentationId":"presentation.achievement.level_up"},
+    {"id":"level.learning.application","order":3,"titleKey":"level.learning.application.title","descriptionKey":"level.learning.application.description","metric":"unique_item_mastered_after_delay","threshold":15,"rewardRefs":["reward.xp.20"],"presentationId":"presentation.achievement.level_up"},
+    {"id":"level.learning.integration","order":4,"titleKey":"level.learning.integration.title","descriptionKey":"level.learning.integration.description","metric":"unique_item_mastered_after_delay","threshold":35,"rewardRefs":["reward.xp.30"],"presentationId":"presentation.achievement.level_up"},
+    {"id":"level.learning.durable","order":5,"titleKey":"level.learning.durable.title","descriptionKey":"level.learning.durable.description","metric":"unique_item_mastered_after_delay","threshold":75,"rewardRefs":["reward.xp.50","reward.marker.durable_reviewer"],"presentationId":"presentation.achievement.level_up"},
+    {"id":"level.learning.breadth","order":6,"titleKey":"level.learning.breadth.title","descriptionKey":"level.learning.breadth.description","metric":"unique_item_mastered_after_delay","threshold":150,"rewardRefs":["reward.xp.75"],"presentationId":"presentation.achievement.level_up"}
+  ],
+  "achievements": [
+    {
+      "id":"achievement.mastery.durable_memory","version":"1.0.0","family":"mastery","titleKey":"achievement.mastery.durable_memory.title","descriptionKey":"achievement.mastery.durable_memory.description",
+      "criterion":{"match":"all","clauses":[{"metric":"unique_item_mastered_after_delay","target":10,"aggregation":"count_distinct","distinctBy":"subject_id","minimumDelayHours":24,"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":10,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.unique_items","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":40,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.unique_items","rewardRefs":["reward.xp.50","reward.marker.durable_reviewer"]},
+        {"tier":3,"target":100,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.unique_items","rewardRefs":["reward.xp.100"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.correction.repair_loop","version":"1.0.0","family":"correction","titleKey":"achievement.correction.repair_loop.title","descriptionKey":"achievement.correction.repair_loop.description",
+      "criterion":{"match":"all","clauses":[{"metric":"mistake_repaired","target":5,"aggregation":"count_distinct","distinctBy":"subject_id","filters":[{"field":"repair_link_present","operator":"eq","value":"true"},{"field":"incorrect_attempt_precedes_correction","operator":"eq","value":"true"}],"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":5,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.unique_repairs","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":20,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.unique_repairs","rewardRefs":["reward.xp.50","reward.marker.correction_craft"]},
+        {"tier":3,"target":60,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.unique_repairs","rewardRefs":["reward.xp.100"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.consistency.weekly_rhythm","version":"1.0.0","family":"consistency","titleKey":"achievement.consistency.weekly_rhythm.title","descriptionKey":"achievement.consistency.weekly_rhythm.description",
+      "criterion":{"match":"all","clauses":[{"metric":"active_study_day","target":2,"aggregation":"count_distinct","distinctBy":"week","filters":[{"field":"minimum_active_days_per_week","operator":"gte","value":"3"}],"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":2,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.rhythm_weeks","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":6,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.rhythm_weeks","rewardRefs":["reward.xp.50","reward.marker.steady_rhythm"]},
+        {"tier":3,"target":12,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.rhythm_weeks","rewardRefs":["reward.xp.100"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.exploration.content_breadth","version":"1.0.0","family":"exploration","titleKey":"achievement.exploration.content_breadth.title","descriptionKey":"achievement.exploration.content_breadth.description",
+      "criterion":{"match":"all","clauses":[{"metric":"content_kind_practiced","target":3,"aggregation":"count_distinct","distinctBy":"content_kind","requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":3,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.content_kinds","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":5,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.content_kinds","rewardRefs":["reward.xp.40","reward.marker.content_explorer"]},
+        {"tier":3,"target":7,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.content_kinds","rewardRefs":["reward.xp.75"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.review.queue_resolved","version":"1.0.0","family":"challenge","titleKey":"achievement.review.queue_resolved.title","descriptionKey":"achievement.review.queue_resolved.description",
+      "criterion":{"match":"all","clauses":[{"metric":"review_queue_cleared","target":1,"aggregation":"count_distinct","distinctBy":"day","filters":[{"field":"starting_due_count","operator":"gte","value":"5"}],"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":1,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.queue_days","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":5,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.queue_days","rewardRefs":["reward.xp.50"]},
+        {"tier":3,"target":15,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.queue_days","rewardRefs":["reward.xp.100","reward.marker.durable_reviewer"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.mastery.confusable_precision","version":"1.0.0","family":"mastery","titleKey":"achievement.mastery.confusable_precision.title","descriptionKey":"achievement.mastery.confusable_precision.description",
+      "criterion":{"match":"all","clauses":[{"metric":"confusable_pair_resolved","target":5,"aggregation":"count_distinct","distinctBy":"confusable_pair","minimumDelayHours":24,"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":5,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.confusable_pairs","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":15,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.confusable_pairs","rewardRefs":["reward.xp.50","reward.marker.confusable_clarity"]},
+        {"tier":3,"target":30,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.confusable_pairs","rewardRefs":["reward.xp.100"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.application.context_builder","version":"1.0.0","family":"application","titleKey":"achievement.application.context_builder.title","descriptionKey":"achievement.application.context_builder.description",
+      "criterion":{"match":"all","clauses":[{"metric":"new_item_applied_in_context","target":5,"aggregation":"count_distinct","distinctBy":"subject_id","filters":[{"field":"application_verified","operator":"eq","value":"true"}],"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":5,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.context_items","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":20,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.context_items","rewardRefs":["reward.xp.50","reward.marker.context_builder"]},
+        {"tier":3,"target":50,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.context_items","rewardRefs":["reward.xp.100"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.challenge.delayed_recall","version":"1.0.0","family":"challenge","titleKey":"achievement.challenge.delayed_recall.title","descriptionKey":"achievement.challenge.delayed_recall.description",
+      "criterion":{"match":"all","clauses":[{"metric":"delayed_recall_succeeded","target":3,"aggregation":"count_distinct","distinctBy":"subject_id","minimumDelayHours":72,"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":3,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.delayed_items","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":12,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.delayed_items","rewardRefs":["reward.xp.50"]},
+        {"tier":3,"target":30,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.delayed_items","rewardRefs":["reward.xp.100","reward.marker.durable_reviewer"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.comeback.gentle_return","version":"1.0.0","family":"comeback","titleKey":"achievement.comeback.gentle_return.title","descriptionKey":"achievement.comeback.gentle_return.description",
+      "criterion":{"match":"all","clauses":[{"metric":"comeback_session_completed","target":1,"aggregation":"boolean","distinctBy":"none","filters":[{"field":"absence_days","operator":"gte","value":"7"},{"field":"meaningful_actions","operator":"gte","value":"3"}],"requiresVerifiedOutcome":true}]},
+      "levels":[{"tier":1,"target":1,"rarity":"notable","visualLevel":1,"progressCopyKey":"achievement.progress.comeback","rewardRefs":["reward.xp.30"]}],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.comeback.gentle","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.reflection.calibrated_confidence","version":"1.0.0","family":"reflection","titleKey":"achievement.reflection.calibrated_confidence.title","descriptionKey":"achievement.reflection.calibrated_confidence.description",
+      "criterion":{"match":"all","clauses":[{"metric":"confidence_calibrated","target":5,"aggregation":"count_distinct","distinctBy":"session_id","filters":[{"field":"prediction_recorded_before_outcome","operator":"eq","value":"true"}],"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":5,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.calibrated_sessions","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":20,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.calibrated_sessions","rewardRefs":["reward.xp.50","reward.marker.reflective_learner"]},
+        {"tier":3,"target":50,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.calibrated_sessions","rewardRefs":["reward.xp.100"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.collection.learned_not_saved","version":"1.0.0","family":"collection","titleKey":"achievement.collection.learned_not_saved.title","descriptionKey":"achievement.collection.learned_not_saved.description",
+      "criterion":{"match":"all","clauses":[{"metric":"saved_item_reviewed","target":10,"aggregation":"count_distinct","distinctBy":"subject_id","minimumDelayHours":1,"filters":[{"field":"successful_review_count","operator":"gte","value":"1"}],"requiresVerifiedOutcome":true}]},
+      "levels":[
+        {"tier":1,"target":10,"rarity":"common","visualLevel":1,"progressCopyKey":"achievement.progress.reviewed_saved_items","rewardRefs":["reward.xp.20"]},
+        {"tier":2,"target":50,"rarity":"notable","visualLevel":2,"progressCopyKey":"achievement.progress.reviewed_saved_items","rewardRefs":["reward.xp.50"]},
+        {"tier":3,"target":120,"rarity":"rare","visualLevel":3,"progressCopyKey":"achievement.progress.reviewed_saved_items","rewardRefs":["reward.xp.100","reward.marker.durable_reviewer"]}
+      ],
+      "isSecret":false,"initialDisplayState":"locked","claimBehavior":"automatic","presentationId":"presentation.achievement.level_up","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"achievement.exploration.etymology_trail","version":"1.0.0","family":"exploration","titleKey":"achievement.exploration.etymology_trail.title","descriptionKey":"achievement.exploration.etymology_trail.description",
+      "criterion":{"match":"all","clauses":[{"metric":"morpheme_connection_mastered","target":3,"aggregation":"count_distinct","distinctBy":"morpheme_family","minimumDelayHours":24,"requiresVerifiedOutcome":true}]},
+      "levels":[{"tier":1,"target":3,"rarity":"exceptional","visualLevel":1,"progressCopyKey":"achievement.progress.morpheme_families","rewardRefs":["reward.xp.40","reward.marker.root_connector"]}],
+      "isSecret":true,"initialDisplayState":"hidden","claimBehavior":"automatic","presentationId":"presentation.achievement.unlock","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    }
+  ],
+  "quests": [
+    {
+      "id":"quest.daily.due_review","version":"1.0.0","cadence":"daily","titleKey":"quest.daily.due_review.title","reasonKey":"quest.daily.due_review.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"due_review_completed","target":3,"aggregation":"count_distinct","distinctBy":"subject_id","requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"due_item_count","operator":"gte","value":3}]},
+      "expiry":{"boundary":"local_day_end","graceHours":4,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"replace_if_ineligible","group":"daily_learning","maxReplacements":1},
+      "rewardRefs":["reward.xp.10"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.daily.repair_one","version":"1.0.0","cadence":"daily","titleKey":"quest.daily.repair_one.title","reasonKey":"quest.daily.repair_one.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"mistake_repaired","target":1,"aggregation":"boolean","distinctBy":"none","filters":[{"field":"repair_link_present","operator":"eq","value":"true"}],"requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"repair_candidate_count","operator":"gte","value":1}]},
+      "expiry":{"boundary":"local_day_end","graceHours":4,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"replace_if_ineligible","group":"daily_learning","maxReplacements":1},
+      "rewardRefs":["reward.xp.10"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.daily.context_use","version":"1.0.0","cadence":"daily","titleKey":"quest.daily.context_use.title","reasonKey":"quest.daily.context_use.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"new_item_applied_in_context","target":1,"aggregation":"count_distinct","distinctBy":"subject_id","filters":[{"field":"application_verified","operator":"eq","value":"true"}],"requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"always","operator":"eq","value":1}]},
+      "expiry":{"boundary":"local_day_end","graceHours":4,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"replace_if_ineligible","group":"daily_learning","maxReplacements":1},
+      "rewardRefs":["reward.xp.10"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.daily.confusable_pair","version":"1.0.0","cadence":"daily","titleKey":"quest.daily.confusable_pair.title","reasonKey":"quest.daily.confusable_pair.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"confusable_pair_resolved","target":2,"aggregation":"count_distinct","distinctBy":"confusable_pair","requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"always","operator":"eq","value":1}]},
+      "expiry":{"boundary":"local_day_end","graceHours":4,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"replace_if_ineligible","group":"daily_learning","maxReplacements":1},
+      "rewardRefs":["reward.xp.10"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.weekly.rhythm_three_days","version":"1.0.0","cadence":"weekly","titleKey":"quest.weekly.rhythm_three_days.title","reasonKey":"quest.weekly.rhythm_three_days.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"active_study_day","target":3,"aggregation":"count_distinct","distinctBy":"day","requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"always","operator":"eq","value":1}]},
+      "expiry":{"boundary":"local_week_end","graceHours":6,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"none","maxReplacements":0},
+      "rewardRefs":["reward.xp.30"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.weekly.durable_mastery","version":"1.0.0","cadence":"weekly","titleKey":"quest.weekly.durable_mastery.title","reasonKey":"quest.weekly.durable_mastery.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"unique_item_mastered_after_delay","target":8,"aggregation":"count_distinct","distinctBy":"subject_id","minimumDelayHours":24,"requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"always","operator":"eq","value":1}]},
+      "expiry":{"boundary":"local_week_end","graceHours":6,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"none","maxReplacements":0},
+      "rewardRefs":["reward.xp.30"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.weekly.mixed_practice","version":"1.0.0","cadence":"weekly","titleKey":"quest.weekly.mixed_practice.title","reasonKey":"quest.weekly.mixed_practice.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"content_kind_practiced","target":3,"aggregation":"count_distinct","distinctBy":"content_kind","requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"available_content_kind_count","operator":"gte","value":3}]},
+      "expiry":{"boundary":"local_week_end","graceHours":6,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"replace_if_ineligible","group":"weekly_learning","maxReplacements":1},
+      "rewardRefs":["reward.xp.30"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.weekly.queue_relief","version":"1.0.0","cadence":"weekly","titleKey":"quest.weekly.queue_relief.title","reasonKey":"quest.weekly.queue_relief.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"review_queue_cleared","target":1,"aggregation":"boolean","distinctBy":"none","filters":[{"field":"starting_due_count","operator":"gte","value":"5"}],"requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"due_item_count","operator":"gte","value":5}]},
+      "expiry":{"boundary":"local_week_end","graceHours":6,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"replace_if_ineligible","group":"weekly_learning","maxReplacements":1},
+      "rewardRefs":["reward.xp.30"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.weekend.focused_review","version":"1.0.0","cadence":"weekend","titleKey":"quest.weekend.focused_review.title","reasonKey":"quest.weekend.focused_review.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"due_review_completed","target":8,"aggregation":"count_distinct","distinctBy":"subject_id","requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"due_item_count","operator":"gte","value":8}]},
+      "expiry":{"boundary":"weekend_end","graceHours":4,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"replace_if_ineligible","group":"weekend_learning","maxReplacements":1},
+      "rewardRefs":["reward.xp.30"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.comeback.restart_small","version":"1.0.0","cadence":"comeback","titleKey":"quest.comeback.restart_small.title","reasonKey":"quest.comeback.restart_small.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"comeback_session_completed","target":1,"aggregation":"boolean","distinctBy":"none","filters":[{"field":"meaningful_actions","operator":"gte","value":"3"}],"requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"absence_days","operator":"gte","value":7}]},
+      "expiry":{"boundary":"assigned_window_end","graceHours":24,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"none","maxReplacements":0},
+      "rewardRefs":["reward.xp.20"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.comeback.gentle","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.monthly.correction_craft","version":"1.0.0","cadence":"monthly","titleKey":"quest.monthly.correction_craft.title","reasonKey":"quest.monthly.correction_craft.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"mistake_repaired","target":25,"aggregation":"count_distinct","distinctBy":"subject_id","filters":[{"field":"repair_link_present","operator":"eq","value":"true"}],"requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"always","operator":"eq","value":1}]},
+      "expiry":{"boundary":"local_month_end","graceHours":12,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"none","maxReplacements":0},
+      "rewardRefs":["reward.xp.50"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    },
+    {
+      "id":"quest.monthly.durable_growth","version":"1.0.0","cadence":"monthly","titleKey":"quest.monthly.durable_growth.title","reasonKey":"quest.monthly.durable_growth.reason",
+      "criterion":{"match":"all","clauses":[{"metric":"unique_item_mastered_after_delay","target":30,"aggregation":"count_distinct","distinctBy":"subject_id","minimumDelayHours":72,"requiresVerifiedOutcome":true}]},
+      "eligibility":{"clauses":[{"metric":"always","operator":"eq","value":1}]},
+      "expiry":{"boundary":"local_month_end","graceHours":12,"timezonePolicy":"user_iana_at_assignment"},
+      "replacement":{"mode":"none","maxReplacements":0},
+      "rewardRefs":["reward.xp.50"],"claimBehavior":"manual_once","progressVisibility":"visible","presentationId":"presentation.quest.complete","lifecycle":{"state":"active","introducedVersion":"1.0.0"}
+    }
+  ]
+}

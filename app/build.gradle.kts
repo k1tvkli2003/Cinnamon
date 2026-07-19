@@ -1,10 +1,74 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.TaskAction
+import java.io.File
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
-  alias(libs.plugins.secrets)
 }
+
+fun String.asBuildConfigString(): String = buildString {
+  append('"')
+  for (character in this@asBuildConfigString) {
+    when (character) {
+      '\\' -> append("\\\\")
+      '"' -> append("\\\"")
+      '\n' -> append("\\n")
+      '\r' -> append("\\r")
+      else -> append(character)
+    }
+  }
+  append('"')
+}
+
+/**
+ * A typed task keeps release credential validation compatible with Gradle's
+ * configuration cache. It deliberately accepts only a boolean and keystore
+ * path as task inputs—never a password or key alias.
+ */
+abstract class VerifyReleaseSigningTask : DefaultTask() {
+  @get:Input
+  abstract val signingConfigured: Property<Boolean>
+
+  @get:Input
+  abstract val keystorePath: Property<String>
+
+  @TaskAction
+  fun verify() {
+    check(signingConfigured.get()) {
+      "Release signing requires KEYSTORE_PATH, STORE_PASSWORD, KEY_ALIAS, and KEY_PASSWORD."
+    }
+    check(File(keystorePath.get()).isFile) {
+      "KEYSTORE_PATH does not point to a readable release keystore."
+    }
+  }
+}
+
+val localProperties = Properties().apply {
+  val localPropertiesFile = rootProject.file("local.properties")
+  if (localPropertiesFile.isFile) {
+    localPropertiesFile.inputStream().use(::load)
+  }
+}
+
+val releaseKeystorePath = providers.environmentVariable("KEYSTORE_PATH").orNull
+val releaseStorePassword = providers.environmentVariable("STORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("KEY_PASSWORD").orNull
+val releaseSigningConfigured = listOf(
+  releaseKeystorePath,
+  releaseStorePassword,
+  releaseKeyAlias,
+  releaseKeyPassword
+).all { !it.isNullOrBlank() }
+val releaseKeystorePathForValidation = releaseKeystorePath
+  ?.let { file(it).absolutePath }
+  .orEmpty()
 
 android {
   namespace = "com.cinnamon.app"
@@ -17,22 +81,23 @@ android {
     versionCode = 1
     versionName = "1.0"
 
+    // A gateway URL is public configuration, never a provider credential. Keep it
+    // blank by default so unreleased builds fail closed into offline guided practice.
+    val aiGatewayBaseUrl = providers.gradleProperty("AI_GATEWAY_BASE_URL").orNull
+      ?: localProperties.getProperty("AI_GATEWAY_BASE_URL").orEmpty()
+    buildConfigField("String", "AI_GATEWAY_BASE_URL", aiGatewayBaseUrl.asBuildConfigString())
+
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
-    }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      // Never select a developer-local key as a release fallback. An unconfigured
+      // release is deliberately invalid and release tasks fail before signing.
+      storeFile = file(releaseKeystorePath ?: "__release_keystore_not_configured__")
+      storePassword = releaseStorePassword
+      keyAlias = releaseKeyAlias
+      keyPassword = releaseKeyPassword
     }
   }
 
@@ -45,7 +110,20 @@ android {
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
+      // Use Android Gradle Plugin's standard per-user debug signing config.
+      // It is intentionally separate from the explicit release credential path.
+    }
+    create("benchmark") {
+      // Manual Baseline Profile collection requires a non-debuggable build
+      // without R8 optimization. This variant is never a production fallback:
+      // it is explicitly signed with the per-user debug key and keeps release
+      // signing fail-closed.
+      initWith(getByName("release"))
+      isDebuggable = false
+      isMinifyEnabled = false
+      isShrinkResources = false
+      signingConfig = signingConfigs.getByName("debug")
+      matchingFallbacks += listOf("release")
     }
   }
   compileOptions {
@@ -59,11 +137,24 @@ android {
   testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
-// Configure the Secrets Gradle Plugin to use .env and .env.example files
-// to match the convention used in Web projects.
-secrets {
-  propertiesFileName = ".env"
-  defaultPropertiesFileName = ".env.example"
+val verifyReleaseSigning = tasks.register<VerifyReleaseSigningTask>("verifyReleaseSigning") {
+  group = "verification"
+  description = "Fails release-producing tasks unless explicit signing credentials are configured."
+  signingConfigured.set(releaseSigningConfigured)
+  keystorePath.set(releaseKeystorePathForValidation)
+}
+
+tasks.matching { task ->
+  task.name.startsWith("assembleRelease") ||
+    task.name.startsWith("bundleRelease") ||
+    task.name.startsWith("packageRelease") ||
+    task.name.startsWith("validateSigningRelease")
+}.configureEach {
+  dependsOn(verifyReleaseSigning)
+}
+
+ksp {
+  arg("room.schemaLocation", file("schemas").path)
 }
 
 // Some unused dependencies are commented out below instead of being removed.
@@ -99,6 +190,7 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
+  implementation(libs.androidx.profileinstaller)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   testImplementation(libs.androidx.compose.ui.test.junit4)

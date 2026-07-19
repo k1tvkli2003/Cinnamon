@@ -16,13 +16,19 @@ import androidx.compose.foundation.border
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 import com.cinnamon.app.ui.theme.NeonCyan
 import com.cinnamon.app.ui.theme.AlertRed
 import com.cinnamon.app.ui.theme.SurgicalGreen
 import com.cinnamon.app.viewmodel.UserProgressViewModel
+import java.util.UUID
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -39,24 +45,26 @@ fun SentenceUnscrambleGame(
         "Trend his lactate overnight before escalating toward aggressive resuscitation",
         "Only later did we grasp the full ramifications involved"
     )
-    var sentences by remember { mutableStateOf(fallback) }
+    var sentences by rememberSaveable { mutableStateOf(fallback) }
     LaunchedEffect(Unit) {
         val loaded = repository.learn.randomSentences(12).map { it.text }
         if (loaded.isNotEmpty()) sentences = loaded
     }
 
-    var currentSentenceIndex by remember { mutableIntStateOf(0) }
+    var currentSentenceIndex by rememberSaveable { mutableIntStateOf(0) }
     val currentSentence by remember(currentSentenceIndex, sentences) {
         mutableStateOf(sentences[currentSentenceIndex.coerceIn(0, sentences.lastIndex)].split(" "))
     }
 
-    var availableWords by remember(currentSentenceIndex, sentences) {
+    var availableWords by rememberSaveable(currentSentenceIndex, sentences) {
         mutableStateOf(currentSentence.shuffled())
     }
     
-    var builtSentence by remember { mutableStateOf(listOf<String>()) }
-    var isError by remember { mutableStateOf(false) }
-    var hasErrorEverOccurred by remember { mutableStateOf(false) }
+    var builtSentence by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var isError by rememberSaveable { mutableStateOf(false) }
+    var feedbackMessage by rememberSaveable { mutableStateOf("") }
+    var completed by rememberSaveable { mutableStateOf(false) }
+    val practiceSessionKey = rememberSaveable { UUID.randomUUID().toString() }
 
     Scaffold(
         topBar = {
@@ -71,13 +79,36 @@ fun SentenceUnscrambleGame(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        if (completed) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                ) {
+                    Text(
+                        "Practice Round Complete",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = SurgicalGreen
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "You reviewed ${sentences.size} sentences in this session.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(onClick = onBack) { Text("Finish") }
+                }
+            }
+        } else Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Text("Build the sentence:", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -99,10 +130,11 @@ fun SentenceUnscrambleGame(
                 ) {
                     builtSentence.forEach { word ->
                         WordChip(word = word, isAvailable = false, onClick = {
+                            builtSentence = builtSentence - word
+                            availableWords = availableWords + word
+                            isError = false
+                            feedbackMessage = ""
                             scope.launch {
-                                builtSentence = builtSentence - word
-                                availableWords = availableWords + word
-                                isError = false
                                 com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.POP)
                             }
                         })
@@ -121,10 +153,11 @@ fun SentenceUnscrambleGame(
             ) {
                 availableWords.forEach { word ->
                     WordChip(word = word, isAvailable = true, onClick = {
+                        availableWords = availableWords - word
+                        builtSentence = builtSentence + word
+                        isError = false
+                        feedbackMessage = ""
                         scope.launch {
-                            availableWords = availableWords - word
-                            builtSentence = builtSentence + word
-                            isError = false
                             com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.CLICK)
                         }
                     })
@@ -133,31 +166,49 @@ fun SentenceUnscrambleGame(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            Text(
+                text = when {
+                    feedbackMessage.isNotEmpty() -> feedbackMessage
+                    builtSentence.size < currentSentence.size -> "Place all the words to complete the sentence."
+                    else -> ""
+                },
+                color = if (isError) AlertRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .padding(bottom = 10.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite }
+            )
+
             Button(
                 onClick = {
-                    scope.launch {
-                        if (builtSentence == currentSentence) {
-                            progressViewModel.addPoints(25)
-                            progressViewModel.incrementGeneralCare(0.02f)
-                            progressViewModel.incrementPulmonology(0.015f)
+                    if (builtSentence == currentSentence) {
+                        scope.launch {
                             com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.SUCCESS)
-                            if (currentSentenceIndex < sentences.size - 1) {
-                                currentSentenceIndex++
-                                builtSentence = emptyList()
-                            } else {
-                                if (!hasErrorEverOccurred) {
-                                    progressViewModel.unlockAchievement("Grammar Surgeon")
-                                }
-                                onBack() // Or show a win screen
-                            }
+                        }
+                        if (currentSentenceIndex < sentences.size - 1) {
+                            feedbackMessage = "Correct. Sentence ${currentSentenceIndex + 1} of ${sentences.size} completed."
+                            currentSentenceIndex++
+                            builtSentence = emptyList()
                         } else {
-                            isError = true
-                            hasErrorEverOccurred = true
+                            progressViewModel.recordPracticeSession(
+                                subjectType = "sentence_unscramble",
+                                subjectId = sentences.sorted().joinToString(separator = "|"),
+                                occurrenceKey = practiceSessionKey,
+                                completedItemCount = sentences.size
+                            )
+                            completed = true
+                            feedbackMessage = ""
+                        }
+                    } else {
+                        isError = true
+                        feedbackMessage = "That order is not quite right. Try rearranging the words."
+                        scope.launch {
                             com.cinnamon.app.ui.util.SoundSynthesizer.playSynthesizedSound(com.cinnamon.app.ui.util.SoundSynthesizer.SoundType.SWOOSH)
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
+                enabled = builtSentence.size == currentSentence.size,
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
             ) {
                 Text("Check Answer", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
@@ -168,10 +219,11 @@ fun SentenceUnscrambleGame(
 
 @Composable
 fun WordChip(word: String, isAvailable: Boolean = false, onClick: () -> Unit) {
+    val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
     // Elegant spring reaction when tapped
     var isTapped by remember { mutableStateOf(false) }
     val chipScale by animateFloatAsState(
-        targetValue = if (isTapped) 0.9f else 1f,
+        targetValue = if (isTapped && !reduceMotion) 0.9f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy),
         finishedListener = { isTapped = false },
         label = "chipScale"

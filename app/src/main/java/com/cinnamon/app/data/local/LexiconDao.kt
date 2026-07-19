@@ -55,6 +55,9 @@ interface LexiconDao {
     @Query("SELECT COUNT(*) FROM lexicon WHERE dueAt > 0 AND dueAt <= :now")
     fun dueCount(now: Long): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM lexicon WHERE dueAt > 0 AND dueAt <= :now")
+    suspend fun dueCountOnce(now: Long): Int
+
     @Query("SELECT * FROM lexicon WHERE dueAt > 0 AND dueAt <= :now ORDER BY dueAt ASC LIMIT :limit")
     suspend fun dueEntries(now: Long, limit: Int): List<LexiconEntry>
 

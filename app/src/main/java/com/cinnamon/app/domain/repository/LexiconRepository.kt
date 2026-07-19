@@ -1,8 +1,14 @@
 package com.cinnamon.app.domain.repository
 
 import android.content.Context
+import androidx.room.withTransaction
+import com.cinnamon.app.data.gamification.GamificationRepository
+import com.cinnamon.app.data.gamification.LearningEventCommand
+import com.cinnamon.app.data.gamification.LearningEventSource
+import com.cinnamon.app.data.gamification.RewardableEventType
 import com.cinnamon.app.data.local.AppDatabase
 import com.cinnamon.app.data.local.LexiconEntry
+import com.cinnamon.app.data.local.RewardWriteStatus
 import com.cinnamon.app.data.prefs.ProgressStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -17,17 +23,111 @@ data class ClozeRound(
     val options: List<String>
 )
 
+data class ReviewCommitResult(
+    val entry: LexiconEntry,
+    val xpAwarded: Int,
+    val wasAlreadyCommitted: Boolean
+)
+
+class StaleReviewAttemptException : IllegalStateException(
+    "This review card changed before the attempt could be committed"
+)
+
 class LexiconRepository private constructor(context: Context) {
 
     private val db = AppDatabase.getDatabase(context)
+    private val gamification = GamificationRepository.getInstance(context)
     val lexicon = db.lexiconDao()
     val learn = db.learnDao()
 
     // ── SM-2 spaced repetition ──────────────────────────────────────────────
 
-    /** Grades: 1 = Again, 3 = Hard, 4 = Good, 5 = Easy. */
-    suspend fun grade(entry: LexiconEntry, quality: Int): LexiconEntry {
-        val now = System.currentTimeMillis()
+    /**
+     * Commits the semantic review event, its reward decision, and the SM-2
+     * schedule mutation in one Room transaction. [occurrenceKey] must identify
+     * the logical attempt rather than a network/UI invocation so retries are
+     * idempotent.
+     */
+    suspend fun commitReview(
+        expectedEntry: LexiconEntry,
+        quality: Int,
+        occurrenceKey: String,
+        occurredAtEpochMillis: Long
+    ): ReviewCommitResult {
+        require(quality in setOf(1, 3, 4, 5)) { "Unsupported review quality: $quality" }
+        require(occurrenceKey.isNotBlank()) { "occurrenceKey must not be blank" }
+        require(occurredAtEpochMillis >= 0L) { "occurredAtEpochMillis must not be negative" }
+
+        return db.withTransaction {
+            val current = checkNotNull(lexicon.entryByIdOnce(expectedEntry.id)) {
+                "Review entry ${expectedEntry.id} no longer exists"
+            }
+            // "Again" is a scheduling retry, not a successful recall. It must
+            // not enter the completed-review ledger because that ledger drives
+            // XP, daily quests, streaks, and achievement evidence.
+            val rewardWrite = if (isSuccessfulReviewQuality(quality)) {
+                gamification.record(
+                    LearningEventCommand(
+                        eventType = RewardableEventType.REVIEW_COMPLETED,
+                        subjectType = REVIEW_SUBJECT_TYPE,
+                        subjectId = current.id.toString(),
+                        occurrenceKey = occurrenceKey,
+                        completedItemCount = 1,
+                        source = LearningEventSource.REVIEW,
+                        occurredAtEpochMillis = occurredAtEpochMillis
+                    )
+                )
+            } else {
+                null
+            }
+
+            if (rewardWrite?.status == RewardWriteStatus.DUPLICATE) {
+                return@withTransaction ReviewCommitResult(
+                    entry = current,
+                    xpAwarded = rewardWrite.summary?.xpAwarded?.toSafeInt() ?: 0,
+                    wasAlreadyCommitted = true
+                )
+            }
+
+            if (!current.hasSameReviewScheduleAs(expectedEntry)) {
+                throw StaleReviewAttemptException()
+            }
+
+            val updated = scheduleReview(current, quality, occurredAtEpochMillis)
+            lexicon.update(updated)
+            val masteryWrite = if (
+                isConceptMasteryPromotion(
+                    quality = quality,
+                    previousReps = current.reps,
+                    updatedReps = updated.reps,
+                    updatedIntervalDays = updated.intervalDays
+                )
+            ) {
+                gamification.record(
+                    LearningEventCommand(
+                        eventType = RewardableEventType.CONCEPT_MASTERED,
+                        subjectType = REVIEW_SUBJECT_TYPE,
+                        subjectId = current.id.toString(),
+                        occurrenceKey = "$occurrenceKey:delayed_mastery_v1",
+                        completedItemCount = 1,
+                        source = LearningEventSource.REVIEW,
+                        occurredAtEpochMillis = occurredAtEpochMillis
+                    )
+                )
+            } else {
+                null
+            }
+            ReviewCommitResult(
+                entry = updated,
+                xpAwarded = (rewardWrite?.summary?.xpAwarded ?: 0L)
+                    .plus(masteryWrite?.summary?.xpAwarded ?: 0L)
+                    .toSafeInt(),
+                wasAlreadyCommitted = false
+            )
+        }
+    }
+
+    private fun scheduleReview(entry: LexiconEntry, quality: Int, now: Long): LexiconEntry {
         val updated = if (quality < 3) {
             entry.copy(
                 reps = 0,
@@ -54,7 +154,6 @@ class LexiconRepository private constructor(context: Context) {
                 timesSeen = entry.timesSeen + 1
             )
         }
-        lexicon.update(updated)
         return updated
     }
 
@@ -63,7 +162,7 @@ class LexiconRepository private constructor(context: Context) {
         val due = lexicon.dueEntries(System.currentTimeMillis(), limit)
         val remaining = limit - due.size
         val fresh = if (remaining > 0) lexicon.freshEntries(remaining) else emptyList()
-        return (due + fresh).shuffled()
+        return due.shuffled() + fresh.shuffled()
     }
 
     /** Pull a word into today's queue without touching its learning state. */
@@ -110,6 +209,7 @@ class LexiconRepository private constructor(context: Context) {
     companion object {
         private const val TEN_MINUTES_MS = 10 * 60 * 1000L
         private const val DAY_MS = 86_400_000L
+        private const val REVIEW_SUBJECT_TYPE = "lexicon_entry"
 
         @Volatile
         private var INSTANCE: LexiconRepository? = null
@@ -120,3 +220,35 @@ class LexiconRepository private constructor(context: Context) {
             }
     }
 }
+
+private fun LexiconEntry.hasSameReviewScheduleAs(other: LexiconEntry): Boolean =
+    id == other.id &&
+        reps == other.reps &&
+        timesSeen == other.timesSeen &&
+        dueAt == other.dueAt &&
+        intervalDays.compareTo(other.intervalDays) == 0 &&
+        easeFactor.compareTo(other.easeFactor) == 0
+
+/** Only a successful self-assessed recall is progress evidence. */
+internal fun isSuccessfulReviewQuality(quality: Int): Boolean = quality in setOf(3, 4, 5)
+
+/**
+ * Third successful repetition creates a four-day-or-longer interval under this
+ * SM-2 policy. That is the first point at which a term can truthfully count as
+ * durable, delayed mastery rather than an XP-derived level.
+ */
+internal fun isConceptMasteryPromotion(
+    quality: Int,
+    previousReps: Int,
+    updatedReps: Int,
+    updatedIntervalDays: Float
+): Boolean =
+    isSuccessfulReviewQuality(quality) &&
+        previousReps < MIN_REPS_FOR_DELAYED_MASTERY &&
+        updatedReps >= MIN_REPS_FOR_DELAYED_MASTERY &&
+        updatedIntervalDays >= MIN_DELAYED_MASTERY_INTERVAL_DAYS
+
+private const val MIN_REPS_FOR_DELAYED_MASTERY = 3
+private const val MIN_DELAYED_MASTERY_INTERVAL_DAYS = 4f
+
+private fun Long.toSafeInt(): Int = coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
