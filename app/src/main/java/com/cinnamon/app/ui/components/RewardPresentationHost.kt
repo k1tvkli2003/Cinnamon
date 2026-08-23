@@ -35,7 +35,7 @@ import com.cinnamon.app.data.gamification.PendingRewardPresentation
 /**
  * A durable receipt gets one calm, user-dismissed acknowledgement. The card is
  * intentionally static: product meaning stays available to reduced-motion and
- * screen-reader users, while the ledger remains the single reward authority.
+ * screen-reader users, while the persisted reward record remains authoritative.
  */
 @Composable
 fun RewardPresentationHost(
@@ -108,17 +108,17 @@ internal data class RewardPresentationCopy(
     val dismissLabel: String
 )
 
-/** Copy is deliberately proportional to a verified ledger outcome. */
+/** Copy is deliberately proportional to a completed, persisted outcome. */
 internal fun rewardPresentationCopy(xpAwarded: Long): RewardPresentationCopy =
     if (xpAwarded > 0L) {
         RewardPresentationCopy(
-            title = "Progress recorded",
-            detail = "+$xpAwarded XP added after this verified activity.",
+            title = "Progress saved",
+            detail = "+$xpAwarded XP earned from this completed activity.",
             dismissLabel = "Dismiss reward notice"
         )
     } else {
         RewardPresentationCopy(
-            title = "Practice recorded",
+            title = "Practice saved",
             detail = "Your completed activity is saved.",
             dismissLabel = "Dismiss reward notice"
         )
@@ -126,23 +126,23 @@ internal fun rewardPresentationCopy(xpAwarded: Long): RewardPresentationCopy =
 
 internal fun rewardPresentationCopy(receipt: PendingRewardPresentation): RewardPresentationCopy = when {
     receipt.presentationFamily.startsWith("presentation.journey.") -> RewardPresentationCopy(
-        title = "Journey chapter secured",
-        detail = "+${receipt.xpAwarded} XP added. This chapter is now secured on your saved route.",
-        dismissLabel = "Dismiss journey milestone"
+        title = "Milestone complete",
+        detail = "+${receipt.xpAwarded} XP earned. This Foundation milestone is now complete.",
+        dismissLabel = "Dismiss milestone reward"
     )
     receipt.presentationFamily.startsWith("presentation.quest.") -> RewardPresentationCopy(
-        title = "Quest reward secured",
-        detail = "+${receipt.xpAwarded} XP added to your balance from this completed checkpoint.",
+        title = "Quest complete",
+        detail = "+${receipt.xpAwarded} XP earned from this checkpoint.",
         dismissLabel = "Dismiss quest reward"
     )
     receipt.presentationFamily.startsWith("presentation.achievement.") -> RewardPresentationCopy(
-        title = "Milestone unlocked",
+        title = "Achievement unlocked",
         detail = if (receipt.xpAwarded > 0L) {
-            "+${receipt.xpAwarded} XP awarded from your learning progress. This milestone stays unlocked."
+            "+${receipt.xpAwarded} XP earned. This achievement stays in your collection."
         } else {
-            "Verified learning evidence unlocked a lasting milestone."
+            "Your completed learning activity unlocked this achievement."
         },
-        dismissLabel = "Dismiss milestone notice"
+        dismissLabel = "Dismiss achievement notice"
     )
     else -> rewardPresentationCopy(receipt.xpAwarded)
 }

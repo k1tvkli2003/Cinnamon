@@ -27,6 +27,11 @@ data class StudyDayCurrencyTotal(
     val amount: Long
 )
 
+data class ReviewQueueOpeningEvidence(
+    val eventId: String,
+    val startingDueCount: Int
+)
+
 /** Evidence families that are backed by explicit, immutable ledger queries. */
 enum class CatalogEvidenceMetric {
     DISTINCT_DUE_REVIEWS_TODAY,
@@ -34,7 +39,14 @@ enum class CatalogEvidenceMetric {
     MASTERED_ITEMS_AFTER_DELAY,
     RHYTHM_WEEKS,
     DISTINCT_PRACTICE_CONTENT_KINDS,
-    ACTIVE_STUDY_DAYS
+    ACTIVE_STUDY_DAYS,
+    DISTINCT_REPAIRED_SUBJECTS,
+    DISTINCT_CONFUSABLE_PAIRS,
+    DISTINCT_CONTEXT_APPLICATIONS,
+    DISTINCT_DELAYED_RECALLS,
+    VERIFIED_COMEBACK_SESSIONS,
+    DISTINCT_VERIFIED_SAVED_ITEMS,
+    VERIFIED_REVIEW_QUEUE_CLEAR_DAYS
 }
 
 /** A catalog milestone candidate. It becomes value-bearing only if its unlock row is new. */
@@ -51,6 +63,8 @@ data class CatalogUnlockSettlementCandidate(
 data class CatalogQuestSettlementCandidate(
     val instance: QuestInstanceEntity,
     val metric: CatalogEvidenceMetric,
+    val evidenceStartsAtEpochMillis: Long,
+    val evidenceEndsAtEpochMillis: Long,
     val eligibleForAssignment: Boolean
 )
 
@@ -71,17 +85,25 @@ data class JourneySettlementRequest(
     val instance: JourneyInstanceEntity? = null,
     val stages: List<JourneyStageSettlementCandidate> = emptyList(),
     /** False only for an initialization event that must not consume evidence or grant value. */
-    val settleEvidenceOnThisEvent: Boolean = true
+    val settleEvidenceOnThisEvent: Boolean = true,
+    /** When present, only evidence strictly after this timestamp may advance the plan. */
+    val evidenceAfterEpochMillis: Long? = null
 )
 
-/** A route commitment and its selected Journey are committed with the same auditable event. */
-data class CampaignRouteChoiceRequest(
-    val choice: CampaignRouteChoiceEntity? = null,
-    val prerequisiteJourneyDefinitionId: String? = null,
-    val prerequisiteJourneyDefinitionVersion: Int? = null,
-    val prerequisiteStageDefinitionId: String? = null,
-    val selectedRouteJourney: JourneySettlementRequest = JourneySettlementRequest()
+/** A Learning Focus selection and its milestone plan are committed with one zero-XP event. */
+data class LearningFocusSelectionRequest(
+    val selection: LearningFocusSelectionEntity? = null,
+    val prerequisiteDefinitionId: String? = null,
+    val prerequisiteDefinitionVersion: Int? = null,
+    val prerequisiteMilestoneDefinitionId: String? = null,
+    val selectedFocusProgress: JourneySettlementRequest = JourneySettlementRequest()
 )
+
+/** Typed immutable-selection conflict; callers may map it without parsing SQLite/error strings. */
+class LearningFocusAlreadySelectedException(
+    val existingOptionId: String,
+    val requestedOptionId: String
+) : IllegalStateException("A different Learning Focus option is already selected")
 
 private data class SettledQuestProgress(
     val questInstanceId: String,
@@ -372,6 +394,705 @@ interface GamificationDao {
     )
     suspend fun distinctSubjectIdCountOnce(actorId: String, eventType: String): Int
 
+    /**
+     * Correction evidence is intentionally stricter than an event-type count. A catalog repair
+     * criterion promises a persisted repair link and an earlier incorrect attempt, so both the
+     * immutable metadata and the linked ledger row are revalidated at read time.
+     */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT repair.subjectId) FROM gamification_events AS repair
+        WHERE repair.actorId = :actorId
+          AND repair.eventType = 'mistake_corrected'
+          AND json_extract(repair.metadataJson, '$.repairLinkPresent') = 1
+          AND json_extract(repair.metadataJson, '$.incorrectAttemptPrecedesCorrection') = 1
+          AND json_type(repair.metadataJson, '$.repairOfEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS mistake
+              WHERE mistake.eventId = json_extract(repair.metadataJson, '$.repairOfEventId')
+                AND mistake.actorId = repair.actorId
+                AND mistake.eventType = 'mistake_recorded'
+                AND mistake.subjectType = repair.subjectType
+                AND mistake.subjectId = repair.subjectId
+                AND mistake.occurredAtEpochMillis < repair.occurredAtEpochMillis
+                AND json_extract(mistake.metadataJson, '$.repairCandidate') = 1
+          )
+        """
+    )
+    fun observeDistinctVerifiedRepairSubjectCount(actorId: String): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT repair.subjectId) FROM gamification_events AS repair
+        WHERE repair.actorId = :actorId
+          AND repair.eventType = 'mistake_corrected'
+          AND json_extract(repair.metadataJson, '$.repairLinkPresent') = 1
+          AND json_extract(repair.metadataJson, '$.incorrectAttemptPrecedesCorrection') = 1
+          AND json_type(repair.metadataJson, '$.repairOfEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS mistake
+              WHERE mistake.eventId = json_extract(repair.metadataJson, '$.repairOfEventId')
+                AND mistake.actorId = repair.actorId
+                AND mistake.eventType = 'mistake_recorded'
+                AND mistake.subjectType = repair.subjectType
+                AND mistake.subjectId = repair.subjectId
+                AND mistake.occurredAtEpochMillis < repair.occurredAtEpochMillis
+                AND json_extract(mistake.metadataJson, '$.repairCandidate') = 1
+          )
+        """
+    )
+    suspend fun distinctVerifiedRepairSubjectCountOnce(actorId: String): Int
+
+    @Query(
+        """
+        SELECT mistake.* FROM gamification_events AS mistake
+        WHERE mistake.actorId = :actorId
+          AND mistake.eventType = 'mistake_recorded'
+          AND mistake.subjectType = :subjectType
+          AND mistake.subjectId = :subjectId
+          AND mistake.occurredAtEpochMillis < :beforeEpochMillis
+          AND NOT EXISTS (
+              SELECT 1 FROM gamification_events AS repair
+              WHERE repair.actorId = mistake.actorId
+                AND repair.eventType = 'mistake_corrected'
+                AND repair.subjectType = mistake.subjectType
+                AND repair.subjectId = mistake.subjectId
+                AND repair.occurredAtEpochMillis > mistake.occurredAtEpochMillis
+                AND json_extract(repair.metadataJson, '$.repairOfEventId') = mistake.eventId
+                AND json_extract(repair.metadataJson, '$.repairLinkPresent') = 1
+                AND json_extract(repair.metadataJson, '$.incorrectAttemptPrecedesCorrection') = 1
+          )
+        ORDER BY mistake.occurredAtEpochMillis DESC, mistake.recordedAtEpochMillis DESC
+        LIMIT 1
+        """
+    )
+    suspend fun latestUnrepairedMistakeBeforeOnce(
+        actorId: String,
+        subjectType: String,
+        subjectId: String,
+        beforeEpochMillis: Long
+    ): GamificationEventEntity?
+
+    /**
+     * Assignment-time signal for a repair quest. This deliberately counts only an error that is
+     * still open now; an old error that has already been corrected cannot resurrect a quest.
+     */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT mistake.subjectId) FROM gamification_events AS mistake
+        WHERE mistake.actorId = :actorId
+          AND mistake.eventType = 'mistake_recorded'
+          AND json_extract(mistake.metadataJson, '$.repairCandidate') = 1
+          AND NOT EXISTS (
+              SELECT 1 FROM gamification_events AS repair
+              WHERE repair.actorId = mistake.actorId
+                AND repair.eventType = 'mistake_corrected'
+                AND repair.subjectType = mistake.subjectType
+                AND repair.subjectId = mistake.subjectId
+                AND repair.occurredAtEpochMillis > mistake.occurredAtEpochMillis
+                AND json_extract(repair.metadataJson, '$.repairOfEventId') = mistake.eventId
+                AND json_extract(repair.metadataJson, '$.repairLinkPresent') = 1
+                AND json_extract(repair.metadataJson, '$.incorrectAttemptPrecedesCorrection') = 1
+          )
+        """
+    )
+    suspend fun unrepairedRepairCandidateCountOnce(actorId: String): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT subjectId) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType = :eventType
+          AND eventType != 'legacy_progress_imported'
+          AND occurredAtEpochMillis > :afterEpochMillis
+          AND occurredAtEpochMillis <= :throughEpochMillis
+        """
+    )
+    suspend fun distinctSubjectIdCountAfterOnce(
+        actorId: String,
+        eventType: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT repair.subjectId) FROM gamification_events AS repair
+        WHERE repair.actorId = :actorId
+          AND repair.eventType = 'mistake_corrected'
+          AND repair.occurredAtEpochMillis > :afterEpochMillis
+          AND repair.occurredAtEpochMillis <= :throughEpochMillis
+          AND json_extract(repair.metadataJson, '$.repairLinkPresent') = 1
+          AND json_extract(repair.metadataJson, '$.incorrectAttemptPrecedesCorrection') = 1
+          AND json_type(repair.metadataJson, '$.repairOfEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS mistake
+              WHERE mistake.eventId = json_extract(repair.metadataJson, '$.repairOfEventId')
+                AND mistake.actorId = repair.actorId
+                AND mistake.eventType = 'mistake_recorded'
+                AND mistake.subjectType = repair.subjectType
+                AND mistake.subjectId = repair.subjectId
+                AND mistake.occurredAtEpochMillis < repair.occurredAtEpochMillis
+                AND json_extract(mistake.metadataJson, '$.repairCandidate') = 1
+          )
+        """
+    )
+    suspend fun distinctVerifiedRepairSubjectCountAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT subjectId) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType = :eventType
+          AND eventType != 'legacy_progress_imported'
+          AND occurredAtEpochMillis >= :fromEpochMillis
+          AND occurredAtEpochMillis < :untilEpochMillis
+        """
+    )
+    suspend fun distinctSubjectIdCountInWindowOnce(
+        actorId: String,
+        eventType: String,
+        fromEpochMillis: Long,
+        untilEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT repair.subjectId) FROM gamification_events AS repair
+        WHERE repair.actorId = :actorId
+          AND repair.eventType = 'mistake_corrected'
+          AND repair.occurredAtEpochMillis >= :fromEpochMillis
+          AND repair.occurredAtEpochMillis < :untilEpochMillis
+          AND json_extract(repair.metadataJson, '$.repairLinkPresent') = 1
+          AND json_extract(repair.metadataJson, '$.incorrectAttemptPrecedesCorrection') = 1
+          AND json_type(repair.metadataJson, '$.repairOfEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS mistake
+              WHERE mistake.eventId = json_extract(repair.metadataJson, '$.repairOfEventId')
+                AND mistake.actorId = repair.actorId
+                AND mistake.eventType = 'mistake_recorded'
+                AND mistake.subjectType = repair.subjectType
+                AND mistake.subjectId = repair.subjectId
+                AND mistake.occurredAtEpochMillis < repair.occurredAtEpochMillis
+                AND json_extract(mistake.metadataJson, '$.repairCandidate') = 1
+          )
+        """
+    )
+    suspend fun distinctVerifiedRepairSubjectCountInWindowOnce(
+        actorId: String,
+        fromEpochMillis: Long,
+        untilEpochMillis: Long
+    ): Int
+
+    /**
+     * A Confusable Precision resolution is evidence only when its exact earlier attempt is linked
+     * in the ledger and at least one full day has elapsed. Metadata alone is never trusted.
+     */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT resolution.subjectId) FROM gamification_events AS resolution
+        WHERE resolution.actorId = :actorId
+          AND resolution.eventType = 'confusable_pair_resolved'
+          AND json_extract(resolution.metadataJson, '$.confusableLinkPresent') = 1
+          AND json_extract(resolution.metadataJson, '$.minimumDelayHoursSatisfied') = 1
+          AND json_type(resolution.metadataJson, '$.confusableAttemptEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS attempt
+              WHERE attempt.eventId = json_extract(resolution.metadataJson, '$.confusableAttemptEventId')
+                AND attempt.actorId = resolution.actorId
+                AND attempt.eventType = 'confusable_pair_attempted'
+                AND attempt.subjectType = resolution.subjectType
+                AND attempt.subjectId = resolution.subjectId
+                AND json_extract(attempt.metadataJson, '$.confusableCandidate') = 1
+                AND resolution.occurredAtEpochMillis >= attempt.occurredAtEpochMillis + 86400000
+          )
+        """
+    )
+    fun observeDistinctVerifiedConfusablePairCount(actorId: String): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT resolution.subjectId) FROM gamification_events AS resolution
+        WHERE resolution.actorId = :actorId
+          AND resolution.eventType = 'confusable_pair_resolved'
+          AND resolution.occurredAtEpochMillis > :afterEpochMillis
+          AND resolution.occurredAtEpochMillis <= :throughEpochMillis
+          AND json_extract(resolution.metadataJson, '$.confusableLinkPresent') = 1
+          AND json_extract(resolution.metadataJson, '$.minimumDelayHoursSatisfied') = 1
+          AND json_type(resolution.metadataJson, '$.confusableAttemptEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS attempt
+              WHERE attempt.eventId = json_extract(resolution.metadataJson, '$.confusableAttemptEventId')
+                AND attempt.actorId = resolution.actorId
+                AND attempt.eventType = 'confusable_pair_attempted'
+                AND attempt.subjectType = resolution.subjectType
+                AND attempt.subjectId = resolution.subjectId
+                AND json_extract(attempt.metadataJson, '$.confusableCandidate') = 1
+                AND resolution.occurredAtEpochMillis >= attempt.occurredAtEpochMillis + 86400000
+          )
+        """
+    )
+    suspend fun distinctVerifiedConfusablePairCountAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT resolution.subjectId) FROM gamification_events AS resolution
+        WHERE resolution.actorId = :actorId
+          AND resolution.eventType = 'confusable_pair_resolved'
+          AND resolution.occurredAtEpochMillis >= :fromEpochMillis
+          AND resolution.occurredAtEpochMillis < :untilEpochMillis
+          AND json_extract(resolution.metadataJson, '$.confusableLinkPresent') = 1
+          AND json_extract(resolution.metadataJson, '$.minimumDelayHoursSatisfied') = 1
+          AND json_type(resolution.metadataJson, '$.confusableAttemptEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS attempt
+              WHERE attempt.eventId = json_extract(resolution.metadataJson, '$.confusableAttemptEventId')
+                AND attempt.actorId = resolution.actorId
+                AND attempt.eventType = 'confusable_pair_attempted'
+                AND attempt.subjectType = resolution.subjectType
+                AND attempt.subjectId = resolution.subjectId
+                AND json_extract(attempt.metadataJson, '$.confusableCandidate') = 1
+                AND resolution.occurredAtEpochMillis >= attempt.occurredAtEpochMillis + 86400000
+          )
+        """
+    )
+    suspend fun distinctVerifiedConfusablePairCountInWindowOnce(
+        actorId: String,
+        fromEpochMillis: Long,
+        untilEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT attempt.* FROM gamification_events AS attempt
+        WHERE attempt.actorId = :actorId
+          AND attempt.eventType = 'confusable_pair_attempted'
+          AND attempt.subjectType = :subjectType
+          AND attempt.subjectId = :subjectId
+          AND attempt.occurredAtEpochMillis < :beforeEpochMillis
+          AND json_extract(attempt.metadataJson, '$.confusableCandidate') = 1
+          AND NOT EXISTS (
+              SELECT 1 FROM gamification_events AS resolution
+              WHERE resolution.actorId = attempt.actorId
+                AND resolution.eventType = 'confusable_pair_resolved'
+                AND resolution.subjectType = attempt.subjectType
+                AND resolution.subjectId = attempt.subjectId
+                AND json_extract(resolution.metadataJson, '$.confusableAttemptEventId') = attempt.eventId
+                AND json_extract(resolution.metadataJson, '$.confusableLinkPresent') = 1
+                AND json_extract(resolution.metadataJson, '$.minimumDelayHoursSatisfied') = 1
+                AND resolution.occurredAtEpochMillis >= attempt.occurredAtEpochMillis + 86400000
+          )
+        ORDER BY attempt.occurredAtEpochMillis DESC, attempt.recordedAtEpochMillis DESC
+        LIMIT 1
+        """
+    )
+    suspend fun latestUnresolvedConfusableAttemptBeforeOnce(
+        actorId: String,
+        subjectType: String,
+        subjectId: String,
+        beforeEpochMillis: Long
+    ): GamificationEventEntity?
+
+    /** Context evidence is reconstructed from the protected event type plus immutable verifier flag. */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT subjectId) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType = 'context_application_verified'
+          AND subjectType = 'lexicon_entry'
+          AND json_extract(metadataJson, '$.applicationVerified') = 1
+        """
+    )
+    fun observeDistinctVerifiedContextApplicationCount(actorId: String): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT subjectId) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType = 'context_application_verified'
+          AND subjectType = 'lexicon_entry'
+          AND occurredAtEpochMillis > :afterEpochMillis
+          AND occurredAtEpochMillis <= :throughEpochMillis
+          AND json_extract(metadataJson, '$.applicationVerified') = 1
+        """
+    )
+    suspend fun distinctVerifiedContextApplicationCountAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT subjectId) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType = 'context_application_verified'
+          AND subjectType = 'lexicon_entry'
+          AND occurredAtEpochMillis >= :fromEpochMillis
+          AND occurredAtEpochMillis < :untilEpochMillis
+          AND json_extract(metadataJson, '$.applicationVerified') = 1
+        """
+    )
+    suspend fun distinctVerifiedContextApplicationCountInWindowOnce(
+        actorId: String,
+        fromEpochMillis: Long,
+        untilEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT event.* FROM gamification_events AS event
+        WHERE event.actorId = :actorId
+          AND event.eventType = 'review_completed'
+          AND event.subjectType = :subjectType
+          AND event.subjectId = :subjectId
+          AND event.occurredAtEpochMillis < :beforeEpochMillis
+        ORDER BY event.occurredAtEpochMillis DESC, event.recordedAtEpochMillis DESC
+        LIMIT 1
+        """
+    )
+    suspend fun latestSuccessfulReviewBeforeOnce(
+        actorId: String,
+        subjectType: String,
+        subjectId: String,
+        beforeEpochMillis: Long
+    ): GamificationEventEntity?
+
+    /** The last durable learner action before a candidate return session. */
+    @Query(
+        """
+        SELECT event.* FROM gamification_events AS event
+        WHERE event.actorId = :actorId
+          AND event.eventType IN (
+              'review_completed',
+              'practice_session_completed',
+              'concept_mastered',
+              'mistake_corrected',
+              'confusable_pair_resolved',
+              'context_application_verified',
+              'delayed_recall_succeeded'
+          )
+          AND event.occurredAtEpochMillis < :beforeEpochMillis
+        ORDER BY event.occurredAtEpochMillis DESC, event.recordedAtEpochMillis DESC
+        LIMIT 1
+        """
+    )
+    suspend fun latestMeaningfulActivityBeforeOnce(
+        actorId: String,
+        beforeEpochMillis: Long
+    ): GamificationEventEntity?
+
+    @Query(
+        """
+        SELECT event.* FROM gamification_events AS event
+        WHERE event.actorId = :actorId
+          AND event.eventType = 'bookmark_saved'
+          AND event.subjectType = :subjectType
+          AND event.subjectId = :subjectId
+          AND event.occurredAtEpochMillis < :beforeEpochMillis
+        ORDER BY event.occurredAtEpochMillis DESC, event.recordedAtEpochMillis DESC
+        LIMIT 1
+        """
+    )
+    suspend fun latestBookmarkSavedBeforeOnce(
+        actorId: String,
+        subjectType: String,
+        subjectId: String,
+        beforeEpochMillis: Long
+    ): GamificationEventEntity?
+
+    /** A delayed recall must cite the exact prior successful review, not merely share a subject. */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT recall.subjectId) FROM gamification_events AS recall
+        WHERE recall.actorId = :actorId
+          AND recall.eventType = 'delayed_recall_succeeded'
+          AND recall.subjectType = 'lexicon_entry'
+          AND json_extract(recall.metadataJson, '$.delayedRecallLinkPresent') = 1
+          AND json_extract(recall.metadataJson, '$.minimumDelayHoursSatisfied') = 1
+          AND json_type(recall.metadataJson, '$.priorReviewEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS review
+              WHERE review.eventId = json_extract(recall.metadataJson, '$.priorReviewEventId')
+                AND review.actorId = recall.actorId
+                AND review.eventType = 'review_completed'
+                AND review.subjectType = recall.subjectType
+                AND review.subjectId = recall.subjectId
+                AND recall.occurredAtEpochMillis >= review.occurredAtEpochMillis + 259200000
+          )
+        """
+    )
+    fun observeDistinctVerifiedDelayedRecallCount(actorId: String): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT recall.subjectId) FROM gamification_events AS recall
+        WHERE recall.actorId = :actorId
+          AND recall.eventType = 'delayed_recall_succeeded'
+          AND recall.subjectType = 'lexicon_entry'
+          AND recall.occurredAtEpochMillis > :afterEpochMillis
+          AND recall.occurredAtEpochMillis <= :throughEpochMillis
+          AND json_extract(recall.metadataJson, '$.delayedRecallLinkPresent') = 1
+          AND json_extract(recall.metadataJson, '$.minimumDelayHoursSatisfied') = 1
+          AND json_type(recall.metadataJson, '$.priorReviewEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS review
+              WHERE review.eventId = json_extract(recall.metadataJson, '$.priorReviewEventId')
+                AND review.actorId = recall.actorId
+                AND review.eventType = 'review_completed'
+                AND review.subjectType = recall.subjectType
+                AND review.subjectId = recall.subjectId
+                AND recall.occurredAtEpochMillis >= review.occurredAtEpochMillis + 259200000
+          )
+        """
+    )
+    suspend fun distinctVerifiedDelayedRecallCountAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    /** A comeback is valid only when it cites a real learner action at least seven days earlier. */
+    @Query(
+        """
+        SELECT COUNT(*) FROM gamification_events AS comeback
+        WHERE comeback.actorId = :actorId
+          AND comeback.eventType = 'comeback_session_completed'
+          AND json_extract(comeback.metadataJson, '$.comebackLinkPresent') = 1
+          AND json_extract(comeback.metadataJson, '$.minimumAbsenceDaysSatisfied') = 1
+          AND json_extract(comeback.metadataJson, '$.meaningfulActionCount') >= 3
+          AND json_type(comeback.metadataJson, '$.priorActivityEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS prior
+              WHERE prior.eventId = json_extract(comeback.metadataJson, '$.priorActivityEventId')
+                AND prior.actorId = comeback.actorId
+                AND prior.eventType IN (
+                    'review_completed',
+                    'practice_session_completed',
+                    'concept_mastered',
+                    'mistake_corrected',
+                    'confusable_pair_resolved',
+                    'context_application_verified',
+                    'delayed_recall_succeeded'
+                )
+                AND comeback.occurredAtEpochMillis >= prior.occurredAtEpochMillis + 604800000
+          )
+        """
+    )
+    fun observeVerifiedComebackSessionCount(actorId: String): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM gamification_events AS comeback
+        WHERE comeback.actorId = :actorId
+          AND comeback.eventType = 'comeback_session_completed'
+          AND comeback.occurredAtEpochMillis > :afterEpochMillis
+          AND comeback.occurredAtEpochMillis <= :throughEpochMillis
+          AND json_extract(comeback.metadataJson, '$.comebackLinkPresent') = 1
+          AND json_extract(comeback.metadataJson, '$.minimumAbsenceDaysSatisfied') = 1
+          AND json_extract(comeback.metadataJson, '$.meaningfulActionCount') >= 3
+          AND json_type(comeback.metadataJson, '$.priorActivityEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS prior
+              WHERE prior.eventId = json_extract(comeback.metadataJson, '$.priorActivityEventId')
+                AND prior.actorId = comeback.actorId
+                AND prior.eventType IN (
+                    'review_completed',
+                    'practice_session_completed',
+                    'concept_mastered',
+                    'mistake_corrected',
+                    'confusable_pair_resolved',
+                    'context_application_verified',
+                    'delayed_recall_succeeded'
+                )
+                AND comeback.occurredAtEpochMillis >= prior.occurredAtEpochMillis + 604800000
+          )
+        """
+    )
+    suspend fun verifiedComebackSessionCountAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    /** A saved-item review must cite the earlier bookmark and survive the full one-hour delay. */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT review.subjectId) FROM gamification_events AS review
+        WHERE review.actorId = :actorId
+          AND review.eventType = 'saved_item_reviewed'
+          AND review.subjectType = 'lexicon_entry'
+          AND json_extract(review.metadataJson, '$.savedItemLinkPresent') = 1
+          AND json_extract(review.metadataJson, '$.minimumDelayHoursSatisfied') = 1
+          AND json_extract(review.metadataJson, '$.successfulReviewCount') >= 1
+          AND json_type(review.metadataJson, '$.bookmarkEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS bookmark
+              WHERE bookmark.eventId = json_extract(review.metadataJson, '$.bookmarkEventId')
+                AND bookmark.actorId = review.actorId
+                AND bookmark.eventType = 'bookmark_saved'
+                AND bookmark.subjectType = review.subjectType
+                AND bookmark.subjectId = review.subjectId
+                AND review.occurredAtEpochMillis >= bookmark.occurredAtEpochMillis + 3600000
+          )
+        """
+    )
+    fun observeDistinctVerifiedSavedItemCount(actorId: String): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT review.subjectId) FROM gamification_events AS review
+        WHERE review.actorId = :actorId
+          AND review.eventType = 'saved_item_reviewed'
+          AND review.subjectType = 'lexicon_entry'
+          AND review.occurredAtEpochMillis > :afterEpochMillis
+          AND review.occurredAtEpochMillis <= :throughEpochMillis
+          AND json_extract(review.metadataJson, '$.savedItemLinkPresent') = 1
+          AND json_extract(review.metadataJson, '$.minimumDelayHoursSatisfied') = 1
+          AND json_extract(review.metadataJson, '$.successfulReviewCount') >= 1
+          AND json_type(review.metadataJson, '$.bookmarkEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS bookmark
+              WHERE bookmark.eventId = json_extract(review.metadataJson, '$.bookmarkEventId')
+                AND bookmark.actorId = review.actorId
+                AND bookmark.eventType = 'bookmark_saved'
+                AND bookmark.subjectType = review.subjectType
+                AND bookmark.subjectId = review.subjectId
+                AND review.occurredAtEpochMillis >= bookmark.occurredAtEpochMillis + 3600000
+          )
+        """
+    )
+    suspend fun distinctVerifiedSavedItemCountAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    /**
+     * Returns the one immutable opening snapshot for a local study day. The event ID is stable per
+     * day, while Room revalidates the captured due count instead of accepting UI metadata.
+     */
+    @Query(
+        """
+        SELECT opening.eventId AS eventId,
+               CAST(json_extract(opening.metadataJson, '$.startingDueCount') AS INTEGER) AS startingDueCount
+        FROM gamification_events AS opening
+        WHERE opening.actorId = :actorId
+          AND opening.eventType = 'review_queue_opened'
+          AND opening.subjectType = 'review_queue'
+          AND opening.studyDay = :studyDay
+          AND opening.occurredAtEpochMillis <= :throughEpochMillis
+          AND json_extract(opening.metadataJson, '$.queueOpenVerified') = 1
+          AND json_extract(opening.metadataJson, '$.startingDueCount') >= 5
+        ORDER BY opening.occurredAtEpochMillis ASC, opening.recordedAtEpochMillis ASC
+        LIMIT 1
+        """
+    )
+    suspend fun verifiedReviewQueueOpeningForStudyDayOnce(
+        actorId: String,
+        studyDay: Long,
+        throughEpochMillis: Long
+    ): ReviewQueueOpeningEvidence?
+
+    /** A clear day is valid only when it cites the matching same-day Room-captured opening. */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT cleared.studyDay) FROM gamification_events AS cleared
+        WHERE cleared.actorId = :actorId
+          AND cleared.eventType = 'review_queue_cleared'
+          AND cleared.subjectType = 'review_queue'
+          AND json_extract(cleared.metadataJson, '$.queueClearLinkPresent') = 1
+          AND json_extract(cleared.metadataJson, '$.startingDueCount') >= 5
+          AND json_extract(cleared.metadataJson, '$.finalDueCount') = 0
+          AND json_type(cleared.metadataJson, '$.reviewQueueOpeningEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS opening
+              WHERE opening.eventId = json_extract(cleared.metadataJson, '$.reviewQueueOpeningEventId')
+                AND opening.actorId = cleared.actorId
+                AND opening.eventType = 'review_queue_opened'
+                AND opening.subjectType = cleared.subjectType
+                AND opening.studyDay = cleared.studyDay
+                AND opening.occurredAtEpochMillis <= cleared.occurredAtEpochMillis
+                AND json_extract(opening.metadataJson, '$.queueOpenVerified') = 1
+                AND json_extract(opening.metadataJson, '$.startingDueCount') =
+                    json_extract(cleared.metadataJson, '$.startingDueCount')
+          )
+        """
+    )
+    fun observeVerifiedReviewQueueClearDayCount(actorId: String): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT cleared.studyDay) FROM gamification_events AS cleared
+        WHERE cleared.actorId = :actorId
+          AND cleared.eventType = 'review_queue_cleared'
+          AND cleared.subjectType = 'review_queue'
+          AND cleared.occurredAtEpochMillis > :afterEpochMillis
+          AND cleared.occurredAtEpochMillis <= :throughEpochMillis
+          AND json_extract(cleared.metadataJson, '$.queueClearLinkPresent') = 1
+          AND json_extract(cleared.metadataJson, '$.startingDueCount') >= 5
+          AND json_extract(cleared.metadataJson, '$.finalDueCount') = 0
+          AND json_type(cleared.metadataJson, '$.reviewQueueOpeningEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS opening
+              WHERE opening.eventId = json_extract(cleared.metadataJson, '$.reviewQueueOpeningEventId')
+                AND opening.actorId = cleared.actorId
+                AND opening.eventType = 'review_queue_opened'
+                AND opening.subjectType = cleared.subjectType
+                AND opening.studyDay = cleared.studyDay
+                AND opening.occurredAtEpochMillis <= cleared.occurredAtEpochMillis
+                AND json_extract(opening.metadataJson, '$.queueOpenVerified') = 1
+                AND json_extract(opening.metadataJson, '$.startingDueCount') =
+                    json_extract(cleared.metadataJson, '$.startingDueCount')
+          )
+        """
+    )
+    suspend fun verifiedReviewQueueClearDayCountAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT cleared.studyDay) FROM gamification_events AS cleared
+        WHERE cleared.actorId = :actorId
+          AND cleared.eventType = 'review_queue_cleared'
+          AND cleared.subjectType = 'review_queue'
+          AND cleared.occurredAtEpochMillis >= :fromEpochMillis
+          AND cleared.occurredAtEpochMillis < :untilEpochMillis
+          AND json_extract(cleared.metadataJson, '$.queueClearLinkPresent') = 1
+          AND json_extract(cleared.metadataJson, '$.startingDueCount') >= 5
+          AND json_extract(cleared.metadataJson, '$.finalDueCount') = 0
+          AND json_type(cleared.metadataJson, '$.reviewQueueOpeningEventId') = 'text'
+          AND EXISTS (
+              SELECT 1 FROM gamification_events AS opening
+              WHERE opening.eventId = json_extract(cleared.metadataJson, '$.reviewQueueOpeningEventId')
+                AND opening.actorId = cleared.actorId
+                AND opening.eventType = 'review_queue_opened'
+                AND opening.subjectType = cleared.subjectType
+                AND opening.studyDay = cleared.studyDay
+                AND opening.occurredAtEpochMillis <= cleared.occurredAtEpochMillis
+                AND json_extract(opening.metadataJson, '$.queueOpenVerified') = 1
+                AND json_extract(opening.metadataJson, '$.startingDueCount') =
+                    json_extract(cleared.metadataJson, '$.startingDueCount')
+          )
+        """
+    )
+    suspend fun verifiedReviewQueueClearDayCountInWindowOnce(
+        actorId: String,
+        fromEpochMillis: Long,
+        untilEpochMillis: Long
+    ): Int
+
     @Query(
         """
         SELECT COUNT(*) FROM gamification_events
@@ -412,6 +1133,40 @@ interface GamificationDao {
         SELECT COUNT(DISTINCT subjectType) FROM gamification_events
         WHERE actorId = :actorId
           AND eventType = :eventType
+          AND eventType != 'legacy_progress_imported'
+          AND occurredAtEpochMillis > :afterEpochMillis
+          AND occurredAtEpochMillis <= :throughEpochMillis
+        """
+    )
+    suspend fun distinctSubjectTypeCountAfterOnce(
+        actorId: String,
+        eventType: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT subjectType) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType = :eventType
+          AND eventType != 'legacy_progress_imported'
+          AND occurredAtEpochMillis >= :fromEpochMillis
+          AND occurredAtEpochMillis < :untilEpochMillis
+        """
+    )
+    suspend fun distinctSubjectTypeCountInWindowOnce(
+        actorId: String,
+        eventType: String,
+        fromEpochMillis: Long,
+        untilEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT subjectType) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType = :eventType
           AND studyDay = :studyDay
           AND eventType != 'legacy_progress_imported'
         """
@@ -426,7 +1181,12 @@ interface GamificationDao {
         """
         SELECT COUNT(DISTINCT studyDay) FROM gamification_events
         WHERE actorId = :actorId
-          AND eventType != 'legacy_progress_imported'
+          AND eventType IN (
+              'review_completed',
+              'practice_session_completed',
+              'concept_mastered',
+              'mistake_corrected'
+          )
           AND studyDay > 0
         """
     )
@@ -451,6 +1211,30 @@ interface GamificationDao {
 
     @Query(
         """
+        SELECT DISTINCT studyDay
+        FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType IN (
+              'review_completed',
+              'practice_session_completed',
+              'concept_mastered',
+              'mistake_corrected'
+          )
+          AND occurredAtEpochMillis > :afterEpochMillis
+          AND occurredAtEpochMillis <= :throughEpochMillis
+        ORDER BY studyDay DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun recentStudyDaysAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long,
+        limit: Int
+    ): List<Long>
+
+    @Query(
+        """
         SELECT COUNT(DISTINCT studyDay) FROM gamification_events
         WHERE actorId = :actorId
           AND eventType IN (
@@ -466,6 +1250,48 @@ interface GamificationDao {
 
     @Query(
         """
+        SELECT COUNT(DISTINCT studyDay) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType IN (
+              'review_completed',
+              'practice_session_completed',
+              'concept_mastered',
+              'mistake_corrected'
+          )
+          AND studyDay > 0
+          AND occurredAtEpochMillis > :afterEpochMillis
+          AND occurredAtEpochMillis <= :throughEpochMillis
+        """
+    )
+    suspend fun activeStudyDayCountAfterOnce(
+        actorId: String,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT studyDay) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType IN (
+              'review_completed',
+              'practice_session_completed',
+              'concept_mastered',
+              'mistake_corrected'
+          )
+          AND studyDay > 0
+          AND occurredAtEpochMillis >= :fromEpochMillis
+          AND occurredAtEpochMillis < :untilEpochMillis
+        """
+    )
+    suspend fun activeStudyDayCountInWindowOnce(
+        actorId: String,
+        fromEpochMillis: Long,
+        untilEpochMillis: Long
+    ): Int
+
+    @Query(
+        """
         SELECT events.eventId AS eventId,
                events.eventType AS eventType,
                events.subjectType AS subjectType,
@@ -476,11 +1302,16 @@ interface GamificationDao {
         FROM gamification_events AS events
         LEFT JOIN reward_summaries AS summaries ON summaries.eventId = events.eventId
         WHERE events.actorId = :actorId
-          AND events.eventType NOT IN (
-              'legacy_progress_imported',
-              'catalog_reconciled',
-              'journey_reconciled',
-              'campaign_route_selected'
+           AND events.eventType NOT IN (
+               'legacy_progress_imported',
+               'catalog_reconciled',
+               'journey_reconciled',
+               'mistake_recorded'
+           )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM learning_focus_selections AS focus_selection
+              WHERE focus_selection.sourceEventId = events.eventId
           )
         ORDER BY events.occurredAtEpochMillis DESC, events.eventId DESC
         LIMIT :limit
@@ -555,15 +1386,15 @@ interface GamificationDao {
         catalogSettlement: CatalogSettlementRequest = CatalogSettlementRequest(),
         journeySettlement: JourneySettlementRequest = JourneySettlementRequest(),
         additionalJourneySettlements: List<JourneySettlementRequest> = emptyList(),
-        campaignRouteChoice: CampaignRouteChoiceRequest = CampaignRouteChoiceRequest(),
+        learningFocusSelection: LearningFocusSelectionRequest = LearningFocusSelectionRequest(),
         questClaimInstanceId: String? = null
     ): RewardWriteResult {
         validateRewardCommit(event, transactions, summary, presentationReceipts)
         validateCatalogSettlement(event, catalogSettlement)
-        validateCampaignRouteChoice(event, campaignRouteChoice)
-        if (campaignRouteChoice.choice != null) {
-            require(event.eventType == "campaign_route_selected") {
-                "Campaign route choices require their dedicated event type"
+        validateLearningFocusSelection(event, learningFocusSelection)
+        if (learningFocusSelection.selection != null) {
+            require(event.eventType == "learning_focus_selected") {
+                "Learning Focus selections require their dedicated event type"
             }
             require(
                 transactions.isEmpty() &&
@@ -574,18 +1405,44 @@ interface GamificationDao {
                     journeySettlement.instance == null &&
                     journeySettlement.stages.isEmpty() &&
                     additionalJourneySettlements.isEmpty()
-            ) { "Campaign route choice cannot share an event with rewards or other settlements" }
+            ) { "Learning Focus selection cannot share an event with rewards or other settlements" }
         }
         val journeyRequests = buildList {
             if (journeySettlement.instance != null) add(journeySettlement)
             addAll(additionalJourneySettlements)
-            if (campaignRouteChoice.choice != null) add(campaignRouteChoice.selectedRouteJourney)
+            if (learningFocusSelection.selection != null) {
+                add(learningFocusSelection.selectedFocusProgress)
+            }
         }
         journeyRequests.forEach { request -> validateJourneySettlement(event, request) }
         require(
             journeyRequests.mapNotNull { request -> request.instance?.journeyInstanceId }
                 .distinct().size == journeyRequests.size
         ) { "One event cannot settle the same journey definition twice" }
+
+        learningFocusSelection.selection?.let { requested ->
+            val existing = learningFocusSelectionOnce(
+                actorId = requested.actorId,
+                definitionId = requested.definitionId,
+                definitionVersion = requested.definitionVersion
+            )
+            if (existing != null) {
+                if (
+                    existing.optionId != requested.optionId ||
+                    existing.milestonePlanDefinitionId != requested.milestonePlanDefinitionId
+                ) {
+                    throw LearningFocusAlreadySelectedException(
+                        existingOptionId = existing.optionId,
+                        requestedOptionId = requested.optionId
+                    )
+                }
+                return RewardWriteResult(
+                    status = RewardWriteStatus.DUPLICATE,
+                    canonicalEventId = existing.sourceEventId,
+                    summary = rewardSummaryForEvent(existing.sourceEventId)
+                )
+            }
+        }
 
         val insertedRowId = insertEventIfAbsent(event)
         if (insertedRowId == -1L) {
@@ -615,39 +1472,38 @@ interface GamificationDao {
             ) { "Quest is not in a claimable completed state" }
         }
 
-        campaignRouteChoice.choice?.let { choice ->
-            val prerequisiteJourneyDefinitionId = checkNotNull(
-                campaignRouteChoice.prerequisiteJourneyDefinitionId
+        learningFocusSelection.selection?.let { selection ->
+            val prerequisiteDefinitionId = checkNotNull(
+                learningFocusSelection.prerequisiteDefinitionId
             )
-            val prerequisiteStageDefinitionId = checkNotNull(
-                campaignRouteChoice.prerequisiteStageDefinitionId
+            val prerequisiteMilestoneDefinitionId = checkNotNull(
+                learningFocusSelection.prerequisiteMilestoneDefinitionId
             )
-            val prerequisiteJourneyDefinitionVersion = checkNotNull(
-                campaignRouteChoice.prerequisiteJourneyDefinitionVersion
+            val prerequisiteDefinitionVersion = checkNotNull(
+                learningFocusSelection.prerequisiteDefinitionVersion
             )
             check(
                 isJourneyStageCompletedOnce(
                     actorId = event.actorId,
-                    journeyDefinitionId = prerequisiteJourneyDefinitionId,
-                    journeyDefinitionVersion = prerequisiteJourneyDefinitionVersion,
-                    stageDefinitionId = prerequisiteStageDefinitionId
+                    journeyDefinitionId = prerequisiteDefinitionId,
+                    journeyDefinitionVersion = prerequisiteDefinitionVersion,
+                    stageDefinitionId = prerequisiteMilestoneDefinitionId
                 )
-            ) { "Campaign route choice is still locked by its journey prerequisite" }
+            ) { "Learning Focus is still locked by its prerequisite milestone" }
 
-            val insertedChoice = insertCampaignRouteChoiceIfAbsent(choice)
-            if (insertedChoice == -1L) {
+            val insertedSelection = insertLearningFocusSelectionIfAbsent(selection)
+            if (insertedSelection == -1L) {
                 val existing = checkNotNull(
-                    campaignRouteChoiceOnce(
-                        actorId = choice.actorId,
-                        campaignDefinitionId = choice.campaignDefinitionId,
-                        campaignDefinitionVersion = choice.campaignDefinitionVersion
+                    learningFocusSelectionOnce(
+                        actorId = selection.actorId,
+                        definitionId = selection.definitionId,
+                        definitionVersion = selection.definitionVersion
                     )
-                ) { "Campaign choice conflict was ignored without a canonical row" }
-                check(
-                    existing.choiceId == choice.choiceId &&
-                        existing.routeId == choice.routeId &&
-                        existing.journeyDefinitionId == choice.journeyDefinitionId
-                ) { "Campaign route is already committed to another path" }
+                ) { "Learning Focus conflict was ignored without a canonical row" }
+                throw LearningFocusAlreadySelectedException(
+                    existingOptionId = existing.optionId,
+                    requestedOptionId = selection.optionId
+                )
             }
         }
 
@@ -660,35 +1516,249 @@ interface GamificationDao {
             }
         }
 
-        expireOpenQuests(event.actorId, event.occurredAtEpochMillis)
-        val evidenceCache = mutableMapOf<CatalogEvidenceMetric, Long>()
-        suspend fun evidence(metric: CatalogEvidenceMetric): Long {
-            evidenceCache[metric]?.let { return it }
-            val resolved = when (metric) {
-                CatalogEvidenceMetric.DISTINCT_DUE_REVIEWS_TODAY ->
-                    distinctReviewedSubjectCountForStudyDayOnce(event.actorId, event.studyDay).toLong()
-                CatalogEvidenceMetric.DISTINCT_REVIEWED_ITEMS ->
-                    distinctSubjectIdCountOnce(event.actorId, "review_completed").toLong()
-                CatalogEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY ->
-                    distinctSubjectIdCountOnce(event.actorId, "concept_mastered").toLong()
-                CatalogEvidenceMetric.RHYTHM_WEEKS ->
-                    weeksWithAtLeastThreeStudyDays(recentStudyDaysOnce(event.actorId, 400)).toLong()
-                CatalogEvidenceMetric.DISTINCT_PRACTICE_CONTENT_KINDS ->
-                    distinctSubjectTypeCountOnce(event.actorId, "practice_session_completed").toLong()
-                CatalogEvidenceMetric.ACTIVE_STUDY_DAYS ->
-                    activeStudyDayCountOnce(event.actorId).toLong()
+        expireOpenQuests(
+            actorId = event.actorId,
+            nowEpochMillis = maxOf(event.occurredAtEpochMillis, event.recordedAtEpochMillis)
+        )
+        val evidenceCache = mutableMapOf<Pair<CatalogEvidenceMetric, Long?>, Long>()
+        suspend fun evidence(
+            metric: CatalogEvidenceMetric,
+            afterEpochMillis: Long? = null
+        ): Long {
+            val cacheKey = metric to afterEpochMillis
+            evidenceCache[cacheKey]?.let { return it }
+            val resolved = if (afterEpochMillis == null) {
+                when (metric) {
+                    CatalogEvidenceMetric.DISTINCT_DUE_REVIEWS_TODAY ->
+                        distinctReviewedSubjectCountForStudyDayOnce(
+                            event.actorId,
+                            event.studyDay
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_REVIEWED_ITEMS ->
+                        distinctSubjectIdCountOnce(event.actorId, "review_completed").toLong()
+                    CatalogEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY ->
+                        distinctSubjectIdCountOnce(event.actorId, "concept_mastered").toLong()
+                    CatalogEvidenceMetric.RHYTHM_WEEKS ->
+                        weeksWithAtLeastThreeStudyDays(
+                            recentStudyDaysOnce(event.actorId, 400)
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_PRACTICE_CONTENT_KINDS ->
+                        distinctSubjectTypeCountOnce(
+                            event.actorId,
+                            "practice_session_completed"
+                        ).toLong()
+                    CatalogEvidenceMetric.ACTIVE_STUDY_DAYS ->
+                        activeStudyDayCountOnce(event.actorId).toLong()
+                    CatalogEvidenceMetric.DISTINCT_REPAIRED_SUBJECTS ->
+                        distinctVerifiedRepairSubjectCountOnce(event.actorId).toLong()
+                    CatalogEvidenceMetric.DISTINCT_CONFUSABLE_PAIRS ->
+                        distinctVerifiedConfusablePairCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = -1L,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_CONTEXT_APPLICATIONS ->
+                        distinctVerifiedContextApplicationCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = -1L,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_DELAYED_RECALLS ->
+                        distinctVerifiedDelayedRecallCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = -1L,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.VERIFIED_COMEBACK_SESSIONS ->
+                        verifiedComebackSessionCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = -1L,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_VERIFIED_SAVED_ITEMS ->
+                        distinctVerifiedSavedItemCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = -1L,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.VERIFIED_REVIEW_QUEUE_CLEAR_DAYS ->
+                        verifiedReviewQueueClearDayCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = -1L,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                }
+            } else {
+                when (metric) {
+                    CatalogEvidenceMetric.DISTINCT_DUE_REVIEWS_TODAY ->
+                        distinctReviewedSubjectCountForStudyDayAfterOnce(
+                            actorId = event.actorId,
+                            studyDay = event.studyDay,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_REVIEWED_ITEMS ->
+                        distinctSubjectIdCountAfterOnce(
+                            actorId = event.actorId,
+                            eventType = "review_completed",
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY ->
+                        distinctSubjectIdCountAfterOnce(
+                            actorId = event.actorId,
+                            eventType = "concept_mastered",
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.RHYTHM_WEEKS ->
+                        weeksWithAtLeastThreeStudyDays(
+                            recentStudyDaysAfterOnce(
+                                actorId = event.actorId,
+                                afterEpochMillis = afterEpochMillis,
+                                throughEpochMillis = event.occurredAtEpochMillis,
+                                limit = 400
+                            )
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_PRACTICE_CONTENT_KINDS ->
+                        distinctSubjectTypeCountAfterOnce(
+                            actorId = event.actorId,
+                            eventType = "practice_session_completed",
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.ACTIVE_STUDY_DAYS ->
+                        activeStudyDayCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_REPAIRED_SUBJECTS ->
+                        distinctVerifiedRepairSubjectCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_CONFUSABLE_PAIRS ->
+                        distinctVerifiedConfusablePairCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_CONTEXT_APPLICATIONS ->
+                        distinctVerifiedContextApplicationCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_DELAYED_RECALLS ->
+                        distinctVerifiedDelayedRecallCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.VERIFIED_COMEBACK_SESSIONS ->
+                        verifiedComebackSessionCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.DISTINCT_VERIFIED_SAVED_ITEMS ->
+                        distinctVerifiedSavedItemCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                    CatalogEvidenceMetric.VERIFIED_REVIEW_QUEUE_CLEAR_DAYS ->
+                        verifiedReviewQueueClearDayCountAfterOnce(
+                            actorId = event.actorId,
+                            afterEpochMillis = afterEpochMillis,
+                            throughEpochMillis = event.occurredAtEpochMillis
+                        ).toLong()
+                }
             }
-            evidenceCache[metric] = resolved
+            evidenceCache[cacheKey] = resolved
             return resolved
         }
 
         val settledQuestProgress = mutableListOf<SettledQuestProgress>()
+        val questEvidenceCache = mutableMapOf<Triple<CatalogEvidenceMetric, Long, Long>, Long>()
+        suspend fun questEvidence(candidate: CatalogQuestSettlementCandidate): Long {
+            val cacheKey = Triple(
+                candidate.metric,
+                candidate.evidenceStartsAtEpochMillis,
+                candidate.evidenceEndsAtEpochMillis
+            )
+            questEvidenceCache[cacheKey]?.let { return it }
+            val resolved = when (candidate.metric) {
+                CatalogEvidenceMetric.DISTINCT_DUE_REVIEWS_TODAY,
+                CatalogEvidenceMetric.DISTINCT_REVIEWED_ITEMS -> distinctSubjectIdCountInWindowOnce(
+                    actorId = event.actorId,
+                    eventType = "review_completed",
+                    fromEpochMillis = candidate.evidenceStartsAtEpochMillis,
+                    untilEpochMillis = candidate.evidenceEndsAtEpochMillis
+                ).toLong()
+                CatalogEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY -> distinctSubjectIdCountInWindowOnce(
+                    actorId = event.actorId,
+                    eventType = "concept_mastered",
+                    fromEpochMillis = candidate.evidenceStartsAtEpochMillis,
+                    untilEpochMillis = candidate.evidenceEndsAtEpochMillis
+                ).toLong()
+                CatalogEvidenceMetric.DISTINCT_PRACTICE_CONTENT_KINDS ->
+                    distinctSubjectTypeCountInWindowOnce(
+                        actorId = event.actorId,
+                        eventType = "practice_session_completed",
+                        fromEpochMillis = candidate.evidenceStartsAtEpochMillis,
+                        untilEpochMillis = candidate.evidenceEndsAtEpochMillis
+                    ).toLong()
+                CatalogEvidenceMetric.ACTIVE_STUDY_DAYS -> activeStudyDayCountInWindowOnce(
+                    actorId = event.actorId,
+                    fromEpochMillis = candidate.evidenceStartsAtEpochMillis,
+                    untilEpochMillis = candidate.evidenceEndsAtEpochMillis
+                ).toLong()
+                CatalogEvidenceMetric.DISTINCT_REPAIRED_SUBJECTS -> distinctVerifiedRepairSubjectCountInWindowOnce(
+                    actorId = event.actorId,
+                    fromEpochMillis = candidate.evidenceStartsAtEpochMillis,
+                    untilEpochMillis = candidate.evidenceEndsAtEpochMillis
+                ).toLong()
+                CatalogEvidenceMetric.DISTINCT_CONFUSABLE_PAIRS -> distinctVerifiedConfusablePairCountInWindowOnce(
+                    actorId = event.actorId,
+                    fromEpochMillis = candidate.evidenceStartsAtEpochMillis,
+                    untilEpochMillis = candidate.evidenceEndsAtEpochMillis
+                ).toLong()
+                CatalogEvidenceMetric.DISTINCT_CONTEXT_APPLICATIONS -> distinctVerifiedContextApplicationCountInWindowOnce(
+                    actorId = event.actorId,
+                    fromEpochMillis = candidate.evidenceStartsAtEpochMillis,
+                    untilEpochMillis = candidate.evidenceEndsAtEpochMillis
+                ).toLong()
+                CatalogEvidenceMetric.DISTINCT_DELAYED_RECALLS -> error(
+                    "DISTINCT_DELAYED_RECALLS is not a windowed quest evidence contract"
+                )
+                CatalogEvidenceMetric.VERIFIED_COMEBACK_SESSIONS -> error(
+                    "VERIFIED_COMEBACK_SESSIONS is not a windowed quest evidence contract"
+                )
+                CatalogEvidenceMetric.DISTINCT_VERIFIED_SAVED_ITEMS -> error(
+                    "DISTINCT_VERIFIED_SAVED_ITEMS is not a windowed quest evidence contract"
+                )
+                CatalogEvidenceMetric.VERIFIED_REVIEW_QUEUE_CLEAR_DAYS ->
+                    verifiedReviewQueueClearDayCountInWindowOnce(
+                        actorId = event.actorId,
+                        fromEpochMillis = candidate.evidenceStartsAtEpochMillis,
+                        untilEpochMillis = candidate.evidenceEndsAtEpochMillis
+                    ).toLong()
+                CatalogEvidenceMetric.RHYTHM_WEEKS -> error(
+                    "RHYTHM_WEEKS is not a windowed quest evidence contract"
+                )
+            }
+            questEvidenceCache[cacheKey] = resolved
+            return resolved
+        }
         catalogSettlement.quests.forEach { candidate ->
             if (candidate.eligibleForAssignment) {
                 insertQuestInstances(listOf(candidate.instance))
             }
             val before = questInstanceById(candidate.instance.questInstanceId) ?: return@forEach
-            val progress = evidence(candidate.metric).coerceAtMost(before.target)
+            val progress = questEvidence(candidate).coerceAtMost(before.target)
             setQuestProgressAtLeast(
                 questInstanceId = before.questInstanceId,
                 actorId = event.actorId,
@@ -754,7 +1824,7 @@ interface GamificationDao {
                 this.settleActiveJourneyStage(
                     event = event,
                     request = request,
-                    evidence = ::evidence
+                    evidence = { metric -> evidence(metric, request.evidenceAfterEpochMillis) }
                 )
             }
         }
@@ -843,32 +1913,51 @@ interface GamificationDao {
     )
     suspend fun distinctReviewedSubjectCountForStudyDayOnce(actorId: String, studyDay: Long): Int
 
+    @Query(
+        """
+        SELECT COUNT(DISTINCT subjectId) FROM gamification_events
+        WHERE actorId = :actorId
+          AND eventType = 'review_completed'
+          AND studyDay = :studyDay
+          AND occurredAtEpochMillis > :afterEpochMillis
+          AND occurredAtEpochMillis <= :throughEpochMillis
+        """
+    )
+    suspend fun distinctReviewedSubjectCountForStudyDayAfterOnce(
+        actorId: String,
+        studyDay: Long,
+        afterEpochMillis: Long,
+        throughEpochMillis: Long
+    ): Int
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertCampaignRouteChoiceIfAbsent(choice: CampaignRouteChoiceEntity): Long
+    suspend fun insertLearningFocusSelectionIfAbsent(
+        selection: LearningFocusSelectionEntity
+    ): Long
 
     @Query(
         """
-        SELECT * FROM campaign_route_choices
+        SELECT * FROM learning_focus_selections
         WHERE actorId = :actorId
-          AND campaignDefinitionId = :campaignDefinitionId
-          AND campaignDefinitionVersion = :campaignDefinitionVersion
+          AND definitionId = :definitionId
+          AND definitionVersion = :definitionVersion
         LIMIT 1
         """
     )
-    suspend fun campaignRouteChoiceOnce(
+    suspend fun learningFocusSelectionOnce(
         actorId: String,
-        campaignDefinitionId: String,
-        campaignDefinitionVersion: Int
-    ): CampaignRouteChoiceEntity?
+        definitionId: String,
+        definitionVersion: Int
+    ): LearningFocusSelectionEntity?
 
     @Query(
         """
-        SELECT * FROM campaign_route_choices
+        SELECT * FROM learning_focus_selections
         WHERE actorId = :actorId
-        ORDER BY chosenAtEpochMillis DESC, choiceId ASC
+        ORDER BY selectedAtEpochMillis DESC, selectionId ASC
         """
     )
-    fun observeCampaignRouteChoices(actorId: String): Flow<List<CampaignRouteChoiceEntity>>
+    fun observeLearningFocusSelections(actorId: String): Flow<List<LearningFocusSelectionEntity>>
 
     @Query(
         """
@@ -900,6 +1989,21 @@ interface GamificationDao {
 
     @Query("SELECT * FROM journey_instances WHERE journeyInstanceId = :journeyInstanceId LIMIT 1")
     suspend fun journeyInstanceById(journeyInstanceId: String): JourneyInstanceEntity?
+
+    @Query(
+        """
+        SELECT * FROM journey_instances
+        WHERE actorId = :actorId
+          AND definitionId = :definitionId
+          AND definitionVersion = :definitionVersion
+        ORDER BY journeyInstanceId ASC
+        """
+    )
+    suspend fun journeyInstancesForDefinitionOnce(
+        actorId: String,
+        definitionId: String,
+        definitionVersion: Int
+    ): List<JourneyInstanceEntity>
 
     @Query(
         """
@@ -1051,6 +2155,15 @@ interface GamificationDao {
         """
     )
     fun observeActiveQuestInstances(actorId: String): Flow<List<QuestInstanceEntity>>
+
+    @Query(
+        """
+        SELECT * FROM quest_instances
+        WHERE actorId = :actorId AND state IN ('available', 'in_progress', 'completed', 'claimed')
+        ORDER BY endsAtEpochMillis ASC, questInstanceId ASC
+        """
+    )
+    suspend fun activeQuestInstancesOnce(actorId: String): List<QuestInstanceEntity>
 
     @Query(
         """
@@ -1428,61 +2541,79 @@ private fun validateCatalogSettlement(
         require(candidate.instance.startsAtEpochMillis < candidate.instance.endsAtEpochMillis) {
             "Quest window must have a positive duration"
         }
+        require(candidate.evidenceStartsAtEpochMillis == candidate.instance.startsAtEpochMillis) {
+            "Quest evidence must begin with its persisted assignment window"
+        }
+        require(candidate.evidenceStartsAtEpochMillis < candidate.evidenceEndsAtEpochMillis) {
+            "Quest evidence window must have a positive duration"
+        }
+        require(candidate.evidenceEndsAtEpochMillis <= candidate.instance.endsAtEpochMillis) {
+            "Quest evidence cannot outlive its claim window"
+        }
     }
 }
 
-private fun validateCampaignRouteChoice(
+private fun validateLearningFocusSelection(
     event: GamificationEventEntity,
-    request: CampaignRouteChoiceRequest
+    request: LearningFocusSelectionRequest
 ) {
-    val choice = request.choice
-    if (choice == null) {
-        require(request.prerequisiteJourneyDefinitionId == null) {
-            "Campaign prerequisite requires a route choice"
+    val selection = request.selection
+    if (selection == null) {
+        require(request.prerequisiteDefinitionId == null) {
+            "Learning Focus prerequisite requires a selection"
         }
-        require(request.prerequisiteStageDefinitionId == null) {
-            "Campaign prerequisite stage requires a route choice"
+        require(request.prerequisiteMilestoneDefinitionId == null) {
+            "Learning Focus prerequisite milestone requires a selection"
         }
-        require(request.prerequisiteJourneyDefinitionVersion == null) {
-            "Campaign prerequisite version requires a route choice"
+        require(request.prerequisiteDefinitionVersion == null) {
+            "Learning Focus prerequisite version requires a selection"
         }
-        require(request.selectedRouteJourney.instance == null && request.selectedRouteJourney.stages.isEmpty()) {
-            "Selected route journey requires a route choice"
+        require(
+            request.selectedFocusProgress.instance == null &&
+                request.selectedFocusProgress.stages.isEmpty()
+        ) {
+            "Learning Focus progress requires a selection"
         }
         return
     }
 
-    require(choice.actorId == event.actorId && choice.sourceEventId == event.eventId) {
-        "Campaign choice must belong to the committed event and actor"
+    require(selection.actorId == event.actorId && selection.sourceEventId == event.eventId) {
+        "Learning Focus selection must belong to the committed event and actor"
     }
     require(
-        choice.choiceId.isNotBlank() &&
-            choice.campaignDefinitionId.isNotBlank() &&
-            choice.campaignDefinitionVersion > 0 &&
-            choice.routeId.isNotBlank() &&
-            choice.journeyDefinitionId.isNotBlank()
-    ) { "Campaign choice identifiers and version must be complete" }
-    require(choice.chosenAtEpochMillis == event.occurredAtEpochMillis) {
-        "Campaign choice timestamp must match its event"
+        selection.selectionId.isNotBlank() &&
+            selection.definitionId.isNotBlank() &&
+            selection.definitionVersion > 0 &&
+            selection.optionId.isNotBlank() &&
+            selection.milestonePlanDefinitionId.isNotBlank()
+    ) { "Learning Focus selection identifiers and version must be complete" }
+    require(selection.selectedAtEpochMillis == event.occurredAtEpochMillis) {
+        "Learning Focus selection timestamp must match its event"
     }
     require(
-        !request.prerequisiteJourneyDefinitionId.isNullOrBlank() &&
-            request.prerequisiteJourneyDefinitionVersion != null &&
-            request.prerequisiteJourneyDefinitionVersion > 0 &&
-            !request.prerequisiteStageDefinitionId.isNullOrBlank()
-    ) { "Campaign choice requires an authored journey prerequisite" }
+        !request.prerequisiteDefinitionId.isNullOrBlank() &&
+            request.prerequisiteDefinitionVersion != null &&
+            request.prerequisiteDefinitionVersion > 0 &&
+            !request.prerequisiteMilestoneDefinitionId.isNullOrBlank()
+    ) { "Learning Focus selection requires an authored prerequisite milestone" }
 
-    val routeJourney = checkNotNull(request.selectedRouteJourney.instance) {
-        "Campaign choice requires its selected route journey"
+    val focusProgress = checkNotNull(request.selectedFocusProgress.instance) {
+        "Learning Focus selection requires its milestone plan"
     }
-    require(routeJourney.actorId == choice.actorId) {
-        "Campaign route journey belongs to another actor"
+    require(focusProgress.actorId == selection.actorId) {
+        "Learning Focus milestone plan belongs to another actor"
     }
-    require(routeJourney.definitionId == choice.journeyDefinitionId) {
-        "Campaign choice and route journey definitions diverged"
+    require(focusProgress.definitionId == selection.milestonePlanDefinitionId) {
+        "Learning Focus selection and milestone plan definitions diverged"
     }
-    require(!request.selectedRouteJourney.settleEvidenceOnThisEvent) {
-        "Campaign route selection may initialize its journey but cannot settle evidence"
+    require(!request.selectedFocusProgress.settleEvidenceOnThisEvent) {
+        "Learning Focus selection may initialize its milestone plan but cannot settle evidence"
+    }
+    require(
+        request.selectedFocusProgress.evidenceAfterEpochMillis ==
+            selection.selectedAtEpochMillis
+    ) {
+        "Learning Focus evidence must be anchored to its selection timestamp"
     }
 }
 
@@ -1490,6 +2621,12 @@ private fun validateJourneySettlement(
     event: GamificationEventEntity,
     request: JourneySettlementRequest
 ) {
+    request.evidenceAfterEpochMillis?.let { anchor ->
+        require(anchor >= 0L) { "Evidence timestamp boundary must not be negative" }
+        require(anchor <= event.occurredAtEpochMillis) {
+            "Evidence timestamp boundary cannot be later than the committed event"
+        }
+    }
     val instance = request.instance
     if (instance == null) {
         require(request.stages.isEmpty()) { "Journey stages require a journey instance" }

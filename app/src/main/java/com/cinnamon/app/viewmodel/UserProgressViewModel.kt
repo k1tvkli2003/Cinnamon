@@ -4,28 +4,35 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.cinnamon.app.data.gamification.GamificationRepository
+import com.cinnamon.app.data.gamification.LegacyLearningFocusWireCompatibility
+import com.cinnamon.app.data.gamification.LegacyFoundationJourneyWireCompatibility
 import com.cinnamon.app.data.gamification.LearningActivity
 import com.cinnamon.app.data.gamification.LearningEventCommand
 import com.cinnamon.app.data.gamification.LearningEventSource
+import com.cinnamon.app.data.gamification.LearningFocusRecordIncompatibleException
+import com.cinnamon.app.data.gamification.LearningFocusSelectionRecord
 import com.cinnamon.app.data.gamification.PendingRewardPresentation
+import com.cinnamon.app.data.gamification.QuestAssignmentContracts
+import com.cinnamon.app.data.gamification.QuestboardProjector
 import com.cinnamon.app.data.gamification.RewardableEventType
 import com.cinnamon.app.data.prefs.ProgressSnapshot
 import com.cinnamon.app.data.prefs.ProgressStore
 import com.cinnamon.app.data.startup.AppStartupCoordinator
 import com.cinnamon.app.data.startup.AppStartupState
-import com.cinnamon.app.data.local.CampaignRouteChoiceEntity
 import com.cinnamon.app.data.local.JourneyInstanceEntity
 import com.cinnamon.app.data.local.JourneyStageProgressEntity
+import com.cinnamon.app.data.local.LearningFocusAlreadySelectedException
 import com.cinnamon.app.domain.gamification.AchievementFamily
 import com.cinnamon.app.domain.gamification.CatalogEvidenceSnapshot
 import com.cinnamon.app.domain.gamification.CatalogProgressProjector
 import com.cinnamon.app.domain.gamification.CatalogProgressionLevelProjection
-import com.cinnamon.app.domain.gamification.CampaignDefinition
-import com.cinnamon.app.domain.gamification.CampaignRouteTone
-import com.cinnamon.app.domain.gamification.FoundationCampaignCatalog
+import com.cinnamon.app.domain.gamification.FoundationLearningFocusCatalog
 import com.cinnamon.app.domain.gamification.FoundationJourneyCatalog
 import com.cinnamon.app.domain.gamification.JourneyDefinition
 import com.cinnamon.app.domain.gamification.JourneyDestination
+import com.cinnamon.app.domain.gamification.JourneyEvidenceMetric
+import com.cinnamon.app.domain.gamification.LearningFocusDefinition
+import com.cinnamon.app.domain.gamification.LearningFocusTone
 import com.cinnamon.app.domain.gamification.RewardType
 import com.cinnamon.app.domain.repository.LexiconRepository
 import com.cinnamon.app.ui.theme.CinnamonThemes
@@ -68,14 +75,13 @@ data class Quest(
     val rewardXp: Int = 0
 )
 
-data class LearningRouteNode(
-    val id: String,
-    val title: String,
-    val description: String,
-    val progress: Int,
-    val target: Int,
-    val reached: Boolean,
-    val evidenceAvailable: Boolean = true
+/** Keeps the six-signal daily board type-safe without relying on Flow's vararg combine overload. */
+private data class DailyQuestInputs(
+    val distinctReviewCount: Int,
+    val dueItemCount: Int,
+    val bundle: com.cinnamon.app.domain.gamification.GamificationCatalogBundle?,
+    val instances: List<com.cinnamon.app.data.local.QuestInstanceEntity>,
+    val resolvedPairs: Int
 )
 
 enum class JourneyStageUiState {
@@ -105,7 +111,7 @@ data class LearningJourneyUiModel(
     val state: String,
     val completedStageCount: Int,
     val totalStageCount: Int,
-    val securedXp: Int,
+    val earnedXp: Int,
     val completionTitle: String,
     val completionDescription: String,
     val stages: List<JourneyStageUiModel>
@@ -123,42 +129,48 @@ sealed interface JourneyUiState {
     data class Unavailable(val message: String) : JourneyUiState
 }
 
-data class CampaignRouteChoiceUiModel(
+data class LearningFocusMetricUiModel(
+    val value: Int,
+    val label: String
+)
+
+data class LearningFocusOptionUiModel(
     val id: String,
     val title: String,
     val tagline: String,
-    val commitmentCopy: String,
+    val metrics: List<LearningFocusMetricUiModel>,
     val totalRewardXp: Int,
-    val tone: CampaignRouteTone
+    val tone: LearningFocusTone
 )
 
-sealed interface CampaignUiState {
-    data object Loading : CampaignUiState
+sealed interface LearningFocusUiState {
+    data object Loading : LearningFocusUiState
     data class Locked(
         val eyebrow: String,
         val title: String,
-        val message: String
-    ) : CampaignUiState
+        val message: String,
+        val progress: Int,
+        val target: Int
+    ) : LearningFocusUiState
     data class Choose(
         val eyebrow: String,
         val title: String,
         val description: String,
-        val routes: List<CampaignRouteChoiceUiModel>,
-        val savingRouteId: String?,
+        val options: List<LearningFocusOptionUiModel>,
+        val savingOptionId: String?,
         val errorMessage: String?
-    ) : CampaignUiState
+    ) : LearningFocusUiState
     data class Ready(
-        val campaignTitle: String,
-        val routeTitle: String,
-        val routeTagline: String,
-        val tone: CampaignRouteTone,
-        val journey: LearningJourneyUiModel
-    ) : CampaignUiState
-    data class Unavailable(val message: String) : CampaignUiState
+        val focusTitle: String,
+        val focusTagline: String,
+        val tone: LearningFocusTone,
+        val milestonePlan: LearningJourneyUiModel
+    ) : LearningFocusUiState
+    data class Unavailable(val message: String) : LearningFocusUiState
 }
 
-internal data class CampaignChoiceActionState(
-    val savingRouteId: String? = null,
+internal data class LearningFocusSelectionActionState(
+    val savingOptionId: String? = null,
     val errorMessage: String? = null
 )
 
@@ -176,8 +188,8 @@ data class ProgressErrorEvent(
 )
 
 /**
- * Learner progress read model. XP and activity are derived from the immutable Room
- * ledger; DataStore keeps presentation preferences and a one-time legacy balance.
+ * Learner progress read model. XP and activity are derived from immutable Room events;
+ * DataStore keeps presentation preferences and a one-time legacy balance.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserProgressViewModel(application: Application) : AndroidViewModel(application) {
@@ -190,13 +202,13 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
         .stateIn(viewModelScope, SharingStarted.Eagerly, ProgressStore.localEpochDay())
     private val _progressErrorEvents = MutableSharedFlow<ProgressErrorEvent>(extraBufferCapacity = 1)
     val progressErrorEvents = _progressErrorEvents.asSharedFlow()
-    private val campaignChoiceAction = MutableStateFlow(CampaignChoiceActionState())
+    private val learningFocusSelectionAction = MutableStateFlow(LearningFocusSelectionActionState())
     private var failedPracticeCommand: LearningEventCommand? = null
 
     private val snapshot: StateFlow<ProgressSnapshot> = store.snapshot
         .stateIn(viewModelScope, SharingStarted.Eagerly, ProgressSnapshot())
 
-    // ── Ledger-derived learning core ─────────────────────────────────────────
+    // ── Persisted learning core ──────────────────────────────────────────────
     val points: StateFlow<Int> by lazy {
         gamification.xpBalance.map { it.toUiXp() }
             .stateIn(viewModelScope, screenSharing, 0)
@@ -326,13 +338,6 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    val selectedFocus: StateFlow<String> = snapshot.map { it.learningFocus }
-        .stateIn(viewModelScope, screenSharing, "None")
-
-    fun selectLearningFocus(focus: String) {
-        viewModelScope.launch { store.setLearningFocus(focus) }
-    }
-
     /**
      * Records one completed, verifiable practice session. UI must supply a
      * stable [occurrenceKey] for the logical session; tapping a button is not
@@ -345,7 +350,7 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
         completedItemCount: Int
     ) {
         // A finished screen alone is not learning evidence. Every current game
-        // must contribute at least three verified items before it can write a
+        // must contribute at least three completed items before it can write a
         // completed-practice event, affect a quest, or request XP.
         if (completedItemCount < MIN_MEANINGFUL_PRACTICE_ITEMS) return
         persistPracticeSession(
@@ -360,6 +365,31 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
         )
     }
 
+    /** The game may report a correct first-choice, but the repository owns delayed validation. */
+    fun recordConfusablePairSuccess(confusablePairId: String, occurrenceKey: String) {
+        viewModelScope.launch {
+            runCatching {
+                gamification.recordConfusablePairSuccess(
+                    confusablePairId = confusablePairId,
+                    occurrenceKey = occurrenceKey,
+                    occurredAtEpochMillis = System.currentTimeMillis()
+                )
+            }
+        }
+    }
+
+    /** The answer surface supplies only its verified entry ID; ledger authority remains private. */
+    fun recordVerifiedContextApplication(lexiconEntryId: Long, occurrenceKey: String) {
+        viewModelScope.launch {
+            runCatching {
+                gamification.recordVerifiedContextApplication(
+                    lexiconEntryId = lexiconEntryId,
+                    occurrenceKey = occurrenceKey
+                )
+            }
+        }
+    }
+
     fun retryLastPracticeSession() {
         failedPracticeCommand?.let(::persistPracticeSession)
     }
@@ -367,7 +397,7 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
     private fun persistPracticeSession(command: LearningEventCommand) {
         viewModelScope.launch {
             runCatching {
-                gamification.record(command)
+                gamification.recordPracticeSessionWithComeback(command)
             }.onSuccess {
                 if (failedPracticeCommand == command) failedPracticeCommand = null
             }.onFailure {
@@ -390,7 +420,8 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
 
     /**
      * Visible daily checkpoints are read-only projections of persisted actions.
-     * They never change because a checkbox was tapped and they carry no manual reward.
+     * They never change because a checkbox was tapped. Completed unclaimed assignments remain
+     * visible even after their evidence window closes.
      */
     val dailyQuests: StateFlow<List<Quest>> by lazy {
         currentStudyDay.flatMapLatest { studyDay ->
@@ -398,23 +429,49 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
                 gamification.distinctReviewedSubjectCountForStudyDay(studyDay),
                 dueNow,
                 AppStartupCoordinator.catalogBundle,
-                gamification.activeQuestInstances
-            ) { distinctReviewCount, dueItemCount, bundle, instances ->
+                gamification.activeQuestInstances,
+                gamification.resolvedConfusablePairCount
+            ) { distinctReviewCount, dueItemCount, bundle, instances, resolvedPairs ->
+                DailyQuestInputs(
+                    distinctReviewCount = distinctReviewCount,
+                    dueItemCount = dueItemCount,
+                    bundle = bundle,
+                    instances = instances,
+                    resolvedPairs = resolvedPairs
+                )
+            }.combine(gamification.verifiedContextApplicationCount) { inputs, contextApplications ->
+                val (distinctReviewCount, dueItemCount, bundle, instances, resolvedPairs) = inputs
                 if (bundle == null) return@combine emptyList()
-                val currentInstances = instances.filter { instance ->
-                    ProgressStore.localEpochDay(instance.startsAtEpochMillis) == studyDay
-                }.associateBy { it.definitionId }
-                CatalogProgressProjector.projectEligibleDailyQuests(
+                val now = System.currentTimeMillis()
+                val currentInstances = instances.asSequence()
+                    .filter { instance -> instance.cadence == "daily" }
+                    .mapNotNull { instance ->
+                        val criteria = QuestAssignmentContracts.decodeCriteria(instance.criteriaJson)
+                            ?: return@mapNotNull null
+                        instance.takeIf {
+                            now >= criteria.evidenceStartsAtEpochMillis &&
+                                now < criteria.evidenceEndsAtEpochMillis
+                        }
+                    }
+                    .groupBy { instance -> instance.definitionId }
+                    .mapValues { (_, matching) -> matching.maxBy { instance -> instance.startsAtEpochMillis } }
+                val current = CatalogProgressProjector.projectEligibleDailyQuests(
                     bundle = bundle,
                     evidence = CatalogEvidenceSnapshot(
                         distinctDueReviewsToday = distinctReviewCount,
-                        dueItemCountNow = dueItemCount
+                        dueItemCountNow = dueItemCount,
+                        resolvedConfusablePairs = resolvedPairs,
+                        verifiedContextApplications = contextApplications
                     )
                 ).map { quest ->
                     val persisted = currentInstances[quest.id]
                     val definition = bundle.catalog.quests.first { it.id == quest.id }
                     val rewardsById = bundle.catalog.rewards.associateBy { it.id }
-                    val rewardXp = definition.rewardRefs.sumOf { rewardId ->
+                    val persistedClaim = persisted?.let(QuestAssignmentContracts::resolveClaim)
+                    val rewardXp = persistedClaim?.xpAmount
+                            ?.coerceAtMost(Int.MAX_VALUE.toLong())
+                            ?.toInt()
+                        ?: definition.rewardRefs.sumOf { rewardId ->
                         rewardsById[rewardId]
                             ?.takeIf { reward -> reward.type == RewardType.XP }
                             ?.amount
@@ -430,32 +487,112 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
                             quest.thresholdReached,
                         detail = quest.reason,
                         instanceId = persisted?.questInstanceId,
-                        claimable = persisted?.state == "completed",
+                        claimable = persisted?.state == "completed" && persistedClaim != null,
                         claimed = persisted?.state == "claimed",
                         rewardXp = rewardXp
                     )
                 }
+                val currentInstanceIds = current.mapNotNull { quest -> quest.instanceId }.toSet()
+                val currentWindowInstanceIds = currentInstances.values
+                    .map { instance -> instance.questInstanceId }
+                    .toSet()
+                val outstandingOrCurrent = QuestboardProjector.projectAssignedDailyQuests(
+                    bundle = bundle,
+                    instances = instances,
+                    nowEpochMillis = now
+                ).asSequence()
+                    .filter { quest ->
+                        quest.instanceId !in currentInstanceIds &&
+                            (quest.claimable || quest.instanceId in currentWindowInstanceIds)
+                    }
+                    .sortedBy { quest -> if (quest.instanceId in currentWindowInstanceIds) 0 else 1 }
+                    .map { quest ->
+                        Quest(
+                            id = quest.instanceId,
+                            title = quest.title,
+                            progress = quest.progress,
+                            target = quest.target,
+                            completed = quest.completed,
+                            detail = quest.reason,
+                            instanceId = quest.instanceId,
+                            claimable = quest.claimable,
+                            claimed = quest.claimed,
+                            rewardXp = quest.rewardXp
+                        )
+                    }
+                    .toList()
+                current + outstandingOrCurrent
             }
         }.stateIn(viewModelScope, screenSharing, emptyList())
+    }
+
+    /** Assigned weekly quests use persisted windows and rewards; UI projection has no grant authority. */
+    val weeklyQuests: StateFlow<List<Quest>> by lazy {
+        combine(
+            AppStartupCoordinator.catalogBundle,
+            gamification.activeQuestInstances
+        ) { bundle, instances ->
+            if (bundle == null) return@combine emptyList()
+            QuestboardProjector.projectAssignedWeeklyQuests(
+                bundle = bundle,
+                instances = instances,
+                nowEpochMillis = System.currentTimeMillis()
+            ).map { quest ->
+                Quest(
+                    id = quest.definitionId,
+                    title = quest.title,
+                    progress = quest.progress,
+                    target = quest.target,
+                    completed = quest.completed,
+                    detail = quest.reason,
+                    instanceId = quest.instanceId,
+                    claimable = quest.claimable,
+                    claimed = quest.claimed,
+                    rewardXp = quest.rewardXp
+                )
+            }
+        }.stateIn(viewModelScope, screenSharing, emptyList())
+    }
+
+    private val catalogAchievementEvidence: StateFlow<CatalogEvidenceSnapshot> by lazy {
+        combine(
+            rhythmWeeks,
+            gamification.distinctPracticeContentTypeCount,
+            gamification.masteredConceptCount,
+            gamification.repairedSubjectCount,
+            gamification.resolvedConfusablePairCount
+        ) { completedRhythmWeeks, contentKinds, masteredConcepts, repairedItems, resolvedPairs ->
+            CatalogEvidenceSnapshot(
+                masteredItemsAfterDelay = masteredConcepts,
+                rhythmWeeks = completedRhythmWeeks,
+                distinctPracticeContentKinds = contentKinds,
+                repairedItems = repairedItems,
+                resolvedConfusablePairs = resolvedPairs
+            )
+        }.combine(gamification.verifiedContextApplicationCount) { evidence, contextApplications ->
+            evidence.copy(verifiedContextApplications = contextApplications)
+        }.combine(gamification.delayedRecallCount) { evidence, delayedRecalls ->
+            evidence.copy(verifiedDelayedRecalls = delayedRecalls)
+        }.combine(gamification.verifiedComebackSessionCount) { evidence, comebackSessions ->
+            evidence.copy(verifiedComebackSessions = comebackSessions)
+        }.combine(gamification.verifiedSavedItemCount) { evidence, savedItems ->
+            evidence.copy(verifiedSavedItems = savedItems)
+        }.combine(gamification.verifiedReviewQueueClearDayCount) { evidence, clearDays ->
+            evidence.copy(verifiedReviewQueueClearDays = clearDays)
+        }.stateIn(viewModelScope, screenSharing, CatalogEvidenceSnapshot())
     }
 
     /** Catalog labels with evidence-backed progress; no unsupported criterion is unlocked. */
     val achievements: StateFlow<List<Achievement>> by lazy {
         combine(
-            rhythmWeeks,
-            gamification.distinctPracticeContentTypeCount,
-            gamification.masteredConceptCount,
+            catalogAchievementEvidence,
             AppStartupCoordinator.catalogBundle,
             gamification.achievementUnlocks
-        ) { completedRhythmWeeks, contentKinds, masteredConcepts, bundle, unlocks ->
+        ) { evidence, bundle, unlocks ->
             if (bundle == null) return@combine emptyList()
             CatalogProgressProjector.projectAchievements(
                 bundle = bundle,
-                evidence = CatalogEvidenceSnapshot(
-                    masteredItemsAfterDelay = masteredConcepts,
-                    rhythmWeeks = completedRhythmWeeks,
-                    distinctPracticeContentKinds = contentKinds
-                )
+                evidence = evidence
             ).map { achievement ->
                 Achievement(
                     id = achievement.id,
@@ -472,25 +609,9 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
         }.stateIn(viewModelScope, screenSharing, emptyList())
     }
 
-    val learningRoute: StateFlow<List<LearningRouteNode>> by lazy {
-        catalogProgressionLevels.map { levels ->
-            levels.map { level ->
-                LearningRouteNode(
-                    id = level.id,
-                    title = level.title,
-                    description = level.description,
-                    progress = level.progress,
-                    target = level.target,
-                    reached = level.thresholdReached
-                )
-            }
-        }.stateIn(viewModelScope, screenSharing, emptyList())
-    }
-
     /**
-     * A Room-backed multi-session campaign. The projection never manufactures a stage when its
-     * persistence row is absent; an inconsistent migration therefore becomes a visible recovery
-     * state instead of optimistic progress.
+     * Room-backed Foundation progress. Missing persisted rows become a visible recovery state;
+     * the projection never manufactures optimistic milestone progress.
      */
     val learningJourney: StateFlow<JourneyUiState> by lazy {
         combine(
@@ -505,26 +626,26 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
         }.stateIn(viewModelScope, screenSharing, JourneyUiState.Loading)
     }
 
-    /** One immutable route choice plus the selected route's persisted Journey projection. */
-    val campaignRoute: StateFlow<CampaignUiState> by lazy {
+    /** One immutable Learning Focus plus the selected milestone plan's persisted projection. */
+    val learningFocus: StateFlow<LearningFocusUiState> by lazy {
         combine(
-            gamification.campaignRouteChoices,
+            gamification.learningFocusSelections,
             gamification.journeyInstances,
             gamification.journeyStages,
             AppStartupCoordinator.state,
-            campaignChoiceAction
-        ) { choices, instances, stages, startupState, actionState ->
+            learningFocusSelectionAction
+        ) { selections, instances, stages, startupState, actionState ->
             when {
-                startupState != AppStartupState.Ready -> CampaignUiState.Loading
-                else -> projectCampaignRoute(
-                    definition = FoundationCampaignCatalog.definition,
-                    choices = choices,
+                startupState != AppStartupState.Ready -> LearningFocusUiState.Loading
+                else -> projectLearningFocus(
+                    definition = FoundationLearningFocusCatalog.definition,
+                    selections = selections,
                     instances = instances,
                     stageRows = stages,
                     actionState = actionState
                 )
             }
-        }.stateIn(viewModelScope, screenSharing, CampaignUiState.Loading)
+        }.stateIn(viewModelScope, screenSharing, LearningFocusUiState.Loading)
     }
 
     val recentLearningActivity: StateFlow<List<LearningActivityFeedItem>> by lazy {
@@ -558,21 +679,30 @@ class UserProgressViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    fun chooseCampaignRoute(routeId: String) {
-        val definition = FoundationCampaignCatalog.definition
-        if (definition.route(routeId) == null || campaignChoiceAction.value.savingRouteId != null) return
-        campaignChoiceAction.value = CampaignChoiceActionState(savingRouteId = routeId)
+    fun selectLearningFocus(optionId: String) {
+        val definition = FoundationLearningFocusCatalog.definition
+        if (
+            definition.option(optionId) == null ||
+            learningFocusSelectionAction.value.savingOptionId != null
+        ) return
+        learningFocusSelectionAction.value =
+            LearningFocusSelectionActionState(savingOptionId = optionId)
         viewModelScope.launch {
-            runCatching { gamification.chooseCampaignRoute(routeId) }
-                .onSuccess { campaignChoiceAction.value = CampaignChoiceActionState() }
+            runCatching { gamification.selectLearningFocus(optionId) }
+                .onSuccess {
+                    learningFocusSelectionAction.value = LearningFocusSelectionActionState()
+                }
                 .onFailure { error ->
-                    campaignChoiceAction.value = CampaignChoiceActionState(
+                    learningFocusSelectionAction.value = LearningFocusSelectionActionState(
                         errorMessage = when {
-                            error.message?.contains("already committed", ignoreCase = true) == true ->
-                                "Your saved route is already committed. No progress or XP was changed."
+                            error is LearningFocusAlreadySelectedException ->
+                                "A different Learning Focus is already saved. No new selection was written."
+                            error is LearningFocusRecordIncompatibleException ->
+                                "Your saved Learning Focus does not match this app version. Cinnamon did not reset your progress or XP."
                             error.message?.contains("prerequisite", ignoreCase = true) == true ->
-                                "Secure the first Foundation chapter before choosing a route."
-                            else -> "Your route was not saved. Your Journey and XP are safe; try again."
+                                "Complete Foundation milestone 1 before choosing a Learning Focus."
+                            else ->
+                                "We couldn’t save this Learning Focus. Nothing changed; try again."
                         }
                     )
                 }
@@ -600,11 +730,33 @@ private fun Long.toUiXp(): Int = coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 private fun projectFoundationJourney(
     instances: List<JourneyInstanceEntity>,
     stageRows: List<JourneyStageProgressEntity>
-): JourneyUiState = projectJourney(
-    definition = FoundationJourneyCatalog.definition,
-    instances = instances,
-    stageRows = stageRows
-)
+): JourneyUiState {
+    val definition = FoundationJourneyCatalog.definition
+    val matches = instances.filter { instance ->
+        LegacyFoundationJourneyWireCompatibility.matchesDefinitionIdentity(
+            definition = definition,
+            storedDefinitionId = instance.definitionId,
+            storedDefinitionVersion = instance.definitionVersion
+        )
+    }
+    if (matches.size > 1) {
+        return JourneyUiState.Unavailable(
+            "We found more than one saved Foundation plan. Cinnamon did not reset your progress or XP."
+        )
+    }
+    val persistedDefinition = matches.singleOrNull()?.let { instance ->
+        LegacyFoundationJourneyWireCompatibility.definitionForStoredIdentity(
+            definition = definition,
+            storedDefinitionId = instance.definitionId,
+            storedDefinitionVersion = instance.definitionVersion
+        )
+    } ?: definition
+    return projectJourney(
+        definition = persistedDefinition,
+        instances = instances,
+        stageRows = stageRows
+    )
+}
 
 private fun projectJourney(
     definition: JourneyDefinition,
@@ -622,7 +774,7 @@ private fun projectJourney(
         .associateBy(JourneyStageProgressEntity::stageDefinitionId)
     if (persistedStages.keys != definition.stages.mapTo(linkedSetOf()) { it.id }) {
         return JourneyUiState.Unavailable(
-            "Some saved chapters for ${definition.title} are missing. Retry setup before continuing."
+            "Some saved milestones for ${definition.title} are missing. Try setup again before continuing."
         )
     }
 
@@ -656,7 +808,7 @@ private fun projectJourney(
             state = instance.state,
             completedStageCount = completedStages.size,
             totalStageCount = stages.size,
-            securedXp = completedStages.sumOf(JourneyStageUiModel::rewardXp),
+            earnedXp = completedStages.sumOf(JourneyStageUiModel::rewardXp),
             completionTitle = definition.completionTitle,
             completionDescription = definition.completionDescription,
             stages = stages
@@ -664,80 +816,109 @@ private fun projectJourney(
     )
 }
 
-internal fun projectCampaignRoute(
-    definition: CampaignDefinition,
-    choices: List<CampaignRouteChoiceEntity>,
+internal fun projectLearningFocus(
+    definition: LearningFocusDefinition,
+    selections: List<LearningFocusSelectionRecord>,
     instances: List<JourneyInstanceEntity>,
     stageRows: List<JourneyStageProgressEntity>,
-    actionState: CampaignChoiceActionState
-): CampaignUiState {
-    val foundationInstance = instances.firstOrNull { instance ->
-        instance.definitionId == definition.prerequisiteJourneyDefinitionId &&
-            instance.definitionVersion == definition.prerequisiteJourneyDefinitionVersion
-    } ?: return CampaignUiState.Unavailable(
-        "The Foundation Journey record is missing. Retry setup before choosing a route."
+    actionState: LearningFocusSelectionActionState
+): LearningFocusUiState {
+    val canonicalFoundation = FoundationJourneyCatalog.definition
+    val foundationInstances = instances.filter { instance ->
+        LegacyFoundationJourneyWireCompatibility.matchesDefinitionIdentity(
+            definition = canonicalFoundation,
+            storedDefinitionId = instance.definitionId,
+            storedDefinitionVersion = instance.definitionVersion
+        ) && definition.prerequisiteDefinitionId == canonicalFoundation.id &&
+            definition.prerequisiteDefinitionVersion == canonicalFoundation.version
+    }
+    if (foundationInstances.size > 1) {
+        return LearningFocusUiState.Unavailable(
+            "We found more than one saved Foundation plan. Cinnamon did not reset your progress or XP."
+        )
+    }
+    val foundationInstance = foundationInstances.singleOrNull()
+        ?: return LearningFocusUiState.Unavailable(
+        "We couldn’t find the saved Foundation plan. Try setup again before choosing a focus."
     )
     val prerequisite = stageRows.firstOrNull { row ->
         row.journeyInstanceId == foundationInstance.journeyInstanceId &&
-            row.stageDefinitionId == definition.prerequisiteStageDefinitionId
-    } ?: return CampaignUiState.Unavailable(
-        "The chapter that unlocks campaign routes is missing. Retry setup before continuing."
+            row.stageDefinitionId == definition.prerequisiteMilestoneDefinitionId
+    } ?: return LearningFocusUiState.Unavailable(
+        "We couldn’t find Foundation milestone 1. Cinnamon did not reset your recorded progress or XP."
     )
     if (prerequisite.state != "completed") {
-        return CampaignUiState.Locked(
+        return LearningFocusUiState.Locked(
             eyebrow = definition.eyebrow,
-            title = definition.title,
-            message = "Secure the first Foundation chapter to unlock both committed routes."
+            title = "Unlock your Learning Focus",
+            message = "Review three different terms to unlock two focus options.",
+            progress = prerequisite.progress.coerceAtLeast(0L).toUiXp(),
+            target = prerequisite.target.coerceAtLeast(1L).toUiXp()
         )
     }
 
-    val matchingChoices = choices.filter { choice ->
-        choice.campaignDefinitionId == definition.id &&
-            choice.campaignDefinitionVersion == definition.version
-    }
-    if (matchingChoices.size > 1) {
-        return CampaignUiState.Unavailable(
-            "More than one saved route was found. Your Journey and XP are untouched."
+    if (selections.size > 1) {
+        return LearningFocusUiState.Unavailable(
+            "We found more than one saved Learning Focus. Cinnamon did not reset your progress or XP."
         )
     }
-    val choice = matchingChoices.singleOrNull()
-    if (choice == null) {
-        return CampaignUiState.Choose(
+    val selection = selections.singleOrNull()
+    if (selection == null) {
+        return LearningFocusUiState.Choose(
             eyebrow = definition.eyebrow,
             title = definition.title,
             description = definition.description,
-            routes = definition.routes.map { route ->
-                CampaignRouteChoiceUiModel(
-                    id = route.id,
-                    title = route.title,
-                    tagline = route.tagline,
-                    commitmentCopy = route.commitmentCopy,
-                    totalRewardXp = route.totalRewardXp.toUiXp(),
-                    tone = route.tone
+            options = definition.options.map { option ->
+                LearningFocusOptionUiModel(
+                    id = option.id,
+                    title = option.title,
+                    tagline = option.tagline,
+                    metrics = option.milestonePlan.stages.map { milestone ->
+                        LearningFocusMetricUiModel(
+                            value = milestone.target.toUiXp(),
+                            label = when (milestone.evidenceMetric) {
+                                JourneyEvidenceMetric.DISTINCT_REVIEWED_ITEMS -> "reviewed items"
+                                JourneyEvidenceMetric.DISTINCT_PRACTICE_CONTENT_KINDS -> "practice formats"
+                                JourneyEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY -> "delayed-recall items"
+                                JourneyEvidenceMetric.ACTIVE_STUDY_DAYS -> "active days"
+                            }
+                        )
+                    },
+                    totalRewardXp = option.totalRewardXp.toUiXp(),
+                    tone = option.tone
                 )
             },
-            savingRouteId = actionState.savingRouteId,
+            savingOptionId = actionState.savingOptionId,
             errorMessage = actionState.errorMessage
         )
     }
 
-    val route = definition.route(choice.routeId) ?: return CampaignUiState.Unavailable(
-        "Your saved route is not present in this campaign version. No progress was changed."
-    )
-    if (route.journey.id != choice.journeyDefinitionId) {
-        return CampaignUiState.Unavailable(
-            "Your saved route and chapter record do not match. No progress was changed."
+    if (selection is LearningFocusSelectionRecord.Incompatible) {
+        return LearningFocusUiState.Unavailable(
+            "Your saved Learning Focus does not match this app version. Cinnamon did not reset your progress or XP."
         )
     }
-    return when (val journeyState = projectJourney(route.journey, instances, stageRows)) {
-        JourneyUiState.Loading -> CampaignUiState.Loading
-        is JourneyUiState.Unavailable -> CampaignUiState.Unavailable(journeyState.message)
-        is JourneyUiState.Ready -> CampaignUiState.Ready(
-            campaignTitle = definition.title,
-            routeTitle = route.title,
-            routeTagline = route.tagline,
-            tone = route.tone,
-            journey = journeyState.journey
+    selection as LearningFocusSelectionRecord.Compatible
+    val option = definition.option(selection.optionId) ?: return LearningFocusUiState.Unavailable(
+        "Your saved Learning Focus option is unavailable in this app version. Cinnamon did not reset your progress or XP."
+    )
+    if (selection.milestonePlanDefinitionId != option.milestonePlan.id) {
+        return LearningFocusUiState.Unavailable(
+            "Your saved Learning Focus and milestone plan do not match. Cinnamon did not reset your progress or XP."
+        )
+    }
+    val persistedMilestonePlan = LegacyLearningFocusWireCompatibility.milestonePlanForSelection(
+        option = option,
+        persistedMilestonePlanDefinitionId = selection.persistedMilestonePlanDefinitionId
+    )
+    return when (val planState = projectJourney(persistedMilestonePlan, instances, stageRows)) {
+        JourneyUiState.Loading -> LearningFocusUiState.Loading
+        is JourneyUiState.Unavailable -> LearningFocusUiState.Unavailable(planState.message)
+        is JourneyUiState.Ready -> LearningFocusUiState.Ready(
+            focusTitle = option.title,
+            focusTagline = option.tagline,
+            tone = option.tone,
+            milestonePlan = planState.journey
         )
     }
 }
@@ -784,14 +965,20 @@ private fun activityFeedItem(activity: LearningActivity): LearningActivityFeedIt
         else -> activity.subjectType.replace('_', ' ').replaceFirstChar(Char::uppercase)
     }
     val title = when (activity.eventType) {
-        RewardableEventType.REVIEW_COMPLETED.wireName -> "Review committed"
+        RewardableEventType.REVIEW_COMPLETED.wireName -> "Review completed"
         RewardableEventType.PRACTICE_SESSION_COMPLETED.wireName -> "Practice session completed"
+        RewardableEventType.MISTAKE_CORRECTED.wireName -> "Mistake repaired"
+        RewardableEventType.CONFUSABLE_PAIR_RESOLVED.wireName -> "Confusable pair retained"
+        RewardableEventType.CONTEXT_APPLICATION_VERIFIED.wireName -> "Context use verified"
+        RewardableEventType.DELAYED_RECALL_SUCCEEDED.wireName -> "Delayed recall retained"
+        RewardableEventType.COMEBACK_SESSION_COMPLETED.wireName -> "Welcome back - momentum restored"
+        RewardableEventType.SAVED_ITEM_REVIEWED.wireName -> "Saved item revisited"
         else -> "Learning activity recorded"
     }
     val rewardDetail = if (activity.xpAwarded > 0L) {
-        "${activity.xpAwarded} XP settled in the ledger"
+        "${activity.xpAwarded} XP earned"
     } else {
-        "Recorded without an XP grant"
+        "Completed without an XP reward"
     }
     return LearningActivityFeedItem(
         id = activity.eventId,

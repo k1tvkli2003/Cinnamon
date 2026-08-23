@@ -28,7 +28,6 @@ data class ProgressSnapshot(
     val reviewedToday: Int = 0,
     val weeklyXp: List<Int> = List(7) { 0 },   // oldest → today
     val theme: String = CinnamonThemes.TOASTED,
-    val learningFocus: String = "None",
     val soundEffectsEnabled: Boolean = true,
     val hapticFeedbackEnabled: Boolean = true,
     val reduceMotion: Boolean = false
@@ -38,7 +37,7 @@ private val Context.progressDataStore by preferencesDataStore(name = "cinnamon_p
 
 /**
  * Legacy-progress import bridge plus presentation preferences. XP, review
- * counts, and streaks are now derived from the immutable Room reward ledger.
+ * counts, and streaks are now derived from immutable Room reward events.
  */
 class ProgressStore private constructor(private val appContext: Context) {
 
@@ -51,11 +50,15 @@ class ProgressStore private constructor(private val appContext: Context) {
         val REVIEWED_DAY = longPreferencesKey("reviewed_day")
         val HISTORY = stringPreferencesKey("xp_history")     // "epochDay:xp,epochDay:xp"
         val THEME = stringPreferencesKey("theme")
-        val LEARNING_FOCUS = stringPreferencesKey("learning_focus")
+        // Retained in-place for non-destructive compatibility. The old Cardiology/Neurology
+        // selector never changed practice behavior, so active UI no longer reads or writes it.
+        @Suppress("unused")
+        val RETIRED_SPECIALTY_PREFERENCE = stringPreferencesKey("learning_focus")
         val SOUND_EFFECTS_ENABLED = booleanPreferencesKey("sound_effects_enabled")
         val HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
         val SEEDED_VERSION = intPreferencesKey("seeded_version")
+        val MESH_REFERENCE_SEEDED_VERSION = intPreferencesKey("mesh_reference_seeded_version")
     }
 
     val snapshot: Flow<ProgressSnapshot> = appContext.progressDataStore.data.map { prefs ->
@@ -70,7 +73,6 @@ class ProgressStore private constructor(private val appContext: Context) {
             reviewedToday = if ((prefs[Keys.REVIEWED_DAY] ?: 0L) == today) prefs[Keys.REVIEWED_TODAY] ?: 0 else 0,
             weeklyXp = (6 downTo 0).map { offset -> history[today - offset] ?: 0 },
             theme = prefs[Keys.THEME] ?: CinnamonThemes.TOASTED,
-            learningFocus = prefs[Keys.LEARNING_FOCUS] ?: "None",
             soundEffectsEnabled = prefs[Keys.SOUND_EFFECTS_ENABLED] ?: true,
             hapticFeedbackEnabled = prefs[Keys.HAPTIC_FEEDBACK_ENABLED] ?: true,
             reduceMotion = prefs[Keys.REDUCE_MOTION] ?: false
@@ -84,11 +86,6 @@ class ProgressStore private constructor(private val appContext: Context) {
     suspend fun setDailyGoal(xp: Int) {
         // Keep the aspirational target attainable under the reward engine's daily XP cap.
         appContext.progressDataStore.edit { it[Keys.DAILY_GOAL] = xp.coerceIn(20, 160) }
-    }
-
-    suspend fun setLearningFocus(focus: String) {
-        require(focus in setOf("None", "Cardiology", "Neurology")) { "Unsupported learning focus" }
-        appContext.progressDataStore.edit { it[Keys.LEARNING_FOCUS] = focus }
     }
 
     suspend fun setSoundEffectsEnabled(enabled: Boolean) {
@@ -108,6 +105,15 @@ class ProgressStore private constructor(private val appContext: Context) {
 
     suspend fun setSeededVersion(version: Int) {
         appContext.progressDataStore.edit { it[Keys.SEEDED_VERSION] = version }
+    }
+
+    suspend fun meshReferenceSeededVersionOnce(): Int =
+        appContext.progressDataStore.data.first()[Keys.MESH_REFERENCE_SEEDED_VERSION] ?: 0
+
+    suspend fun setMeshReferenceSeededVersion(version: Int) {
+        appContext.progressDataStore.edit {
+            it[Keys.MESH_REFERENCE_SEEDED_VERSION] = version
+        }
     }
 
     private fun parseHistory(raw: String): Map<Long, Int> =

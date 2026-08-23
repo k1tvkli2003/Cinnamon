@@ -1,0 +1,39 @@
+Cinnamon isolated Android instrumentation proof
+Recorded: 2026-07-22 21:12:11 Asia/Tehran
+
+Isolation
+- Serial: emulator-5582
+- AVD: Codex_API35, read-only, no-window
+- Android API: 35
+- Android release: 15
+- No other emulator serial was used for installation or execution.
+
+Artifacts installed only on emulator-5582
+- app/build/outputs/apk/debug/app-debug.apk
+- app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+- debug APK SHA-256: fccc252fc9811e2c2aadcb2bd20027e109450a563bc9c8262b9058c1da73bc2e
+
+Command
+adb -s emulator-5582 shell am instrument -w -r com.cinnamon.app.test/androidx.test.runner.AndroidJUnitRunner
+
+Result
+INSTRUMENTATION_STATUS: numtests=10
+OK (10 tests)
+INSTRUMENTATION_CODE: -1
+
+Passed coverage includes
+1. ExampleInstrumentedTest.useAppContext
+2. AppStartupCoordinatorAndroidTest.bundledStartup_reachesReady
+3. GamificationCatalogAndroidTest.bundledCatalog_validatesWithAndroidRegexEngine
+4. LearningFocusLifecycleAndroidTest.step1_reviewEvidenceUnlocksFocus_selectionIsImmutable_andSurvivesActivityRecreation
+5. LearningFocusLifecycleAndroidTest.step2_focusPersistsAcrossFreshInstrumentationProcess
+6. QuestLifecycleAndroidTest.step1_reviewCompletesQuest_claimsOnce_andSurvivesActivityRecreation
+7. QuestLifecycleAndroidTest.step2_claimPersistsAcrossFreshInstrumentationProcess
+8. QuestboardWeeklyQuestAndroidTest.freshStartup_weeklyQuestIsReachableFromPractice
+9. RepairLoopLifecycleAndroidTest.fiveVerifiedRepairs_unlockTurnaround_once_andRenderInProfile
+10. StartupRecoveryMatrixAndroidTest.everyFailureStage_rendersSpecificRecoveryAndWorkingAction
+
+Environment note
+An earlier full-suite attempt on emulator-5554 is intentionally not used as evidence because an
+unrelated Gauss task stole foreground on that shared emulator. This proof was rerun manually on
+the isolated Cinnamon serial above and passed without that interference.

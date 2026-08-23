@@ -61,25 +61,22 @@ data class JourneyDefinition(
     }
 }
 
-/**
- * Identity-neutral campaign content. Visual identity can wrap this contract later without
- * rewriting progress, rewards, or migration history.
- */
+/** Stable, evidence-led Foundation plan. Legacy wire identity is isolated in the data adapter. */
 object FoundationJourneyCatalog {
     val definition: JourneyDefinition = JourneyDefinition(
-        id = "journey.foundation.expedition",
+        id = "journey.foundation.plan",
         version = 1,
-        eyebrow = "YOUR LONG-RANGE JOURNEY",
-        title = "Foundation Expedition",
-        description = "Four connected chapters turn daily practice into a route you can finish—and keep.",
-        completionTitle = "Expedition complete",
-        completionDescription = "Your first learning route is secured. Every chapter remains in your record.",
+        eyebrow = "YOUR FOUNDATION PLAN",
+        title = "Foundation Plan",
+        description = "Four milestones build wider recall, varied practice, durable memory, and a steady learning rhythm.",
+        completionTitle = "Foundation plan complete",
+        completionDescription = "You completed all four milestones. Your progress and earned XP remain in your record.",
         stages = listOf(
             JourneyStageDefinition(
                 id = "stage.memory-spark",
                 order = 1,
-                title = "Spark the memory trail",
-                description = "Review three different terms to light the first marker. Repeat reviews stay useful; this chapter advances with new terms.",
+                title = "Review three different terms",
+                description = "Build recall with three different terms. Repeat reviews still help; this milestone counts each term once.",
                 evidenceMetric = JourneyEvidenceMetric.DISTINCT_REVIEWED_ITEMS,
                 target = 3L,
                 rewardXp = 10L,
@@ -89,8 +86,8 @@ object FoundationJourneyCatalog {
             JourneyStageDefinition(
                 id = "stage.cross-train",
                 order = 2,
-                title = "Cross-train your recall",
-                description = "Complete two different practice formats so recall works beyond one familiar game.",
+                title = "Practice in two formats",
+                description = "Use two different practice formats so recall is not tied to one familiar activity.",
                 evidenceMetric = JourneyEvidenceMetric.DISTINCT_PRACTICE_CONTENT_KINDS,
                 target = 2L,
                 rewardXp = 20L,
@@ -100,8 +97,8 @@ object FoundationJourneyCatalog {
             JourneyStageDefinition(
                 id = "stage.first-mastery",
                 order = 3,
-                title = "Lock in a lasting mastery",
-                description = "Bring one term through a later review until lasting mastery is confirmed.",
+                title = "Confirm delayed recall",
+                description = "Bring one term through a later review until durable recall is confirmed.",
                 evidenceMetric = JourneyEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY,
                 target = 1L,
                 rewardXp = 20L,
@@ -111,8 +108,8 @@ object FoundationJourneyCatalog {
             JourneyStageDefinition(
                 id = "stage.rhythm",
                 order = 4,
-                title = "Build a three-day rhythm",
-                description = "Finish a meaningful learning activity on three different days and close the expedition with momentum.",
+                title = "Learn on three different days",
+                description = "Complete meaningful learning activity on three different days to build a repeatable rhythm.",
                 evidenceMetric = JourneyEvidenceMetric.ACTIVE_STUDY_DAYS,
                 target = 3L,
                 rewardXp = 30L,

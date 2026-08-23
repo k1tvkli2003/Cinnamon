@@ -1,0 +1,65 @@
+scenario=Learning Focus
+timestamp_utc=2026-07-22T13:49:18.902Z
+device_serial=emulator-5554
+api_level=35
+pid_before_force_stop=
+pid_after_force_stop=
+pid_after_fresh_invocation=
+step_one=PASS
+step_two=PASS
+process_restart_asserted=true
+
+[step_one_output]
+INSTRUMENTATION_STATUS: class=com.cinnamon.app.ui.LearningFocusLifecycleAndroidTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.cinnamon.app.ui.LearningFocusLifecycleAndroidTest:
+INSTRUMENTATION_STATUS: test=step1_reviewEvidenceUnlocksFocus_selectionIsImmutable_andSurvivesActivityRecreation
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.cinnamon.app.ui.LearningFocusLifecycleAndroidTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=step1_reviewEvidenceUnlocksFocus_selectionIsImmutable_andSurvivesActivityRecreation
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 3.895
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1
+
+[step_two_output]
+INSTRUMENTATION_STATUS: class=com.cinnamon.app.ui.LearningFocusLifecycleAndroidTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.cinnamon.app.ui.LearningFocusLifecycleAndroidTest:
+INSTRUMENTATION_STATUS: test=step2_focusPersistsAcrossFreshInstrumentationProcess
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.cinnamon.app.ui.LearningFocusLifecycleAndroidTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=step2_focusPersistsAcrossFreshInstrumentationProcess
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 3.135
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1
+
+[process_proof_log]
+--------- beginning of main
+I/FocusProcessProof( 7321): step=1 pid=7321
+I/FocusProcessProof( 7415): step=2 previousPid=7321 currentPid=7415 freshRequired=true

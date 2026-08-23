@@ -3,6 +3,7 @@ package com.cinnamon.app.ui.screens.profile
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -24,21 +25,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cinnamon.app.ui.components.SectionHeader
+import com.cinnamon.app.R
 import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 import com.cinnamon.app.ui.theme.CinnamonThemes
 import com.cinnamon.app.ui.theme.VitalsNumericStyle
+import com.cinnamon.app.viewmodel.Achievement
 import com.cinnamon.app.viewmodel.UserProgressViewModel
 
 @Composable
@@ -74,13 +83,27 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
         item {
             Surface(shape = RoundedCornerShape(26.dp), color = scheme.surface, modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier.size(64.dp).clip(CircleShape).background(scheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) { Text("🤎", style = MaterialTheme.typography.headlineMedium) }
+                    Image(
+                        painter = painterResource(R.mipmap.ic_launcher_foreground),
+                        contentDescription = "Cinnamon roll mark",
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .border(
+                                1.dp,
+                                scheme.primary.copy(alpha = 0.42f),
+                                RoundedCornerShape(22.dp)
+                            ),
+                        contentScale = ContentScale.Crop
+                    )
                     Spacer(Modifier.width(16.dp))
-                    Column {
-                        Text("Your study profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = scheme.onSurface)
+                    Column(Modifier.weight(1f)) {
+                        Text("Your learning studio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = scheme.onSurface)
+                        Text(
+                            "Evidence-backed progress, tuned to you.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant
+                        )
                         Spacer(Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
@@ -135,16 +158,16 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
         item {
             Surface(shape = RoundedCornerShape(20.dp), color = scheme.surface, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("TODAY’S VERIFIED SIGNALS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.secondary)
+                    Text("TODAY’S LEARNING", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = scheme.secondary)
                     Spacer(Modifier.height(14.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                        EvidenceStat("$reviewedToday", "reviews committed", scheme.primary)
-                        EvidenceStat("$xpToday", "XP settled", scheme.secondary)
+                        EvidenceStat("$reviewedToday", "reviews completed", scheme.primary)
+                        EvidenceStat("$xpToday", "XP earned", scheme.secondary)
                         EvidenceStat("$dailyGoal", "today’s target", scheme.tertiary)
                     }
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "These numbers come from completed Room ledger events, not estimated clinical confidence.",
+                        "These totals include completed activities saved on this device; they do not estimate clinical ability.",
                         style = MaterialTheme.typography.labelSmall,
                         color = scheme.onSurfaceVariant
                     )
@@ -285,36 +308,245 @@ fun ProfileScreen(viewModel: UserProgressViewModel) {
             }
         }
 
-        item { SectionHeader(title = "Catalog milestones") }
+        item { AchievementCabinetSummary(achievements) }
 
-        items(achievements) { achievement ->
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = if (achievement.reached) scheme.surface else scheme.surface.copy(alpha = 0.55f),
-                border = if (achievement.reached) BorderStroke(1.dp, scheme.primary.copy(alpha = 0.3f)) else null
+        items(achievements, key = Achievement::id) { achievement ->
+            AchievementCabinetCard(achievement)
+        }
+    }
+}
+
+@Composable
+private fun AchievementCabinetSummary(achievements: List<Achievement>) {
+    val scheme = MaterialTheme.colorScheme
+    val unlocked = achievements.count(Achievement::reached)
+    val total = achievements.size
+    val overallProgress = if (total == 0) 0f else unlocked.toFloat() / total.toFloat()
+    val shape = RoundedCornerShape(24.dp)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        scheme.primaryContainer,
+                        scheme.tertiaryContainer.copy(alpha = 0.76f),
+                        scheme.surface
+                    )
+                )
+            )
+            .border(1.dp, scheme.primary.copy(alpha = 0.42f), shape)
+            .padding(20.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (total == 0) {
+                    "Achievement cabinet is preparing"
+                } else {
+                    "$unlocked of $total achievement milestones unlocked"
+                }
+            },
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(scheme.primary.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
             ) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(achievement.icon, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(end = 12.dp))
-                    Column(Modifier.weight(1f)) {
+                Icon(
+                    Icons.Rounded.EmojiEvents,
+                    contentDescription = null,
+                    tint = scheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "ACHIEVEMENT CABINET",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.secondary,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    if (total == 0) "Preparing your milestones" else "$unlocked of $total unlocked",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = scheme.onSurface,
+                    fontWeight = FontWeight.Black
+                )
+            }
+            Surface(
+                shape = CircleShape,
+                color = scheme.surface.copy(alpha = 0.72f),
+                border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.32f))
+            ) {
+                Text(
+                    "$unlocked/$total",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = scheme.primary,
+                    fontWeight = FontWeight.Black
+                )
+            }
+        }
+
+        Text(
+            "Every badge is backed by saved learning evidence—never by opening a screen or tapping for points.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = scheme.onSurfaceVariant
+        )
+
+        if (achievements.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                achievements.take(5).forEach { achievement ->
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (achievement.reached) {
+                                    scheme.primary.copy(alpha = 0.22f)
+                                } else {
+                                    scheme.surface.copy(alpha = 0.54f)
+                                }
+                            )
+                            .border(
+                                1.dp,
+                                if (achievement.reached) scheme.primary else scheme.outline.copy(alpha = 0.35f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            achievement.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                            achievement.icon,
+                            style = MaterialTheme.typography.titleMedium,
                             color = if (achievement.reached) scheme.onSurface else scheme.onSurfaceVariant
                         )
-                        Text(achievement.description, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-                        Text(
-                            "Evidence: ${achievement.progress}/${achievement.target}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = scheme.secondary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    if (achievement.reached) {
-                        Icon(Icons.Rounded.EmojiEvents, contentDescription = "Evidence threshold reached", tint = scheme.primary, modifier = Modifier.size(24.dp))
                     }
                 }
+            }
+        }
+
+        LinearProgressIndicator(
+            progress = { overallProgress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(CircleShape)
+                .semantics {
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        current = unlocked.toFloat(),
+                        range = 0f..total.coerceAtLeast(1).toFloat()
+                    )
+                },
+            color = scheme.primary,
+            trackColor = scheme.surface.copy(alpha = 0.48f)
+        )
+    }
+}
+
+@Composable
+private fun AchievementCabinetCard(achievement: Achievement) {
+    val scheme = MaterialTheme.colorScheme
+    val safeTarget = achievement.target.coerceAtLeast(1)
+    val current = achievement.progress.coerceIn(0, safeTarget)
+    val progress = current.toFloat() / safeTarget.toFloat()
+    val status = if (achievement.reached) "UNLOCKED" else "IN PROGRESS"
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                contentDescription =
+                    "${achievement.title}, $status, $current of $safeTarget evidence recorded"
+            },
+        shape = RoundedCornerShape(20.dp),
+        color = if (achievement.reached) {
+            scheme.primaryContainer.copy(alpha = 0.48f)
+        } else {
+            scheme.surface
+        },
+        border = BorderStroke(
+            1.dp,
+            if (achievement.reached) scheme.primary.copy(alpha = 0.48f)
+            else scheme.outline.copy(alpha = 0.34f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (achievement.reached) scheme.primary.copy(alpha = 0.20f)
+                        else scheme.surfaceVariant
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(achievement.icon, style = MaterialTheme.typography.headlineSmall)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    status,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (achievement.reached) scheme.primary else scheme.secondary,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    achievement.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.onSurface
+                )
+                Text(
+                    achievement.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant
+                )
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 3.dp)
+                        .height(6.dp)
+                        .clip(CircleShape)
+                        .semantics {
+                            progressBarRangeInfo = ProgressBarRangeInfo(
+                                current = current.toFloat(),
+                                range = 0f..safeTarget.toFloat()
+                            )
+                        },
+                    color = if (achievement.reached) scheme.primary else scheme.secondary,
+                    trackColor = scheme.surfaceVariant
+                )
+                Text(
+                    "$current / $safeTarget evidence recorded",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = scheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            if (achievement.reached) {
+                Spacer(Modifier.width(10.dp))
+                Icon(
+                    Icons.Rounded.Verified,
+                    contentDescription = null,
+                    tint = scheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }

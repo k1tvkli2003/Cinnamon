@@ -1,0 +1,44 @@
+You are a senior UX writer for an advanced English-learning Android app.
+Return final recommendations only; no hidden reasoning.
+
+Product truth
+- Cinnamon is a private English-perfection companion for one advanced (above-B2) medical student.
+- The learner already knows medicine and is improving pronunciation, natural usage, collocations, register, clinical communication, and durable recall.
+- The current app accidentally calls a branched learning-plan feature a "Campaign". The owner rejected that term as unrelated to the product.
+- Gamification must reveal real learning progress. It must not use military, marketing-campaign, childish, manipulative, or fake-clinical language.
+- XP is awarded only for verified learning evidence. Selecting a focus grants 0 XP.
+
+Correct product model
+- Replace Campaign with a product-native "Focus Cycle": a bounded set of three evidence-backed goals.
+- The learner chooses one focus for the current cycle. It remains active until those goals are complete; saved Journey and XP are never reset.
+- Option A is precision-oriented: cross-format practice, later-review mastery, and a five-day rhythm.
+- Option B is fluency-oriented: broader recall, cross-format transfer, and a five-day rhythm.
+- Tone: warm expertise, lively but adult, concise, shame-free, honest, and specific to advanced Medical English.
+- Visible language is English. Use sentence case rather than all caps except a very short eyebrow if it materially helps hierarchy.
+
+Surfaces needing copy
+1. Section label and chooser hero: eyebrow, title, body, zero-XP explanation.
+2. Two option cards: title, one-line benefit, concise evidence summary, CTA.
+3. Confirmation dialog: title, consequence/body, cancel, confirm.
+4. Locked state before the Foundation prerequisite is complete.
+5. Saving/loading state.
+6. Conflict/already-active recovery state.
+7. Persistence/data-mismatch recovery state that reassures the learner no XP/progress changed.
+8. Active focus header and completion copy.
+9. Three stage titles/descriptions/actions for each focus.
+10. Literal screen-reader labels for both CTAs and the confirmation action.
+
+Constraints
+- Do not use Campaign, expedition, circuit, trail, quest, battle, mission, ward fantasy, residency roleplay, treatment, prescription, diagnosis, or patient-care claims.
+- Do not imply the app tests medical knowledge or clinical competence.
+- Do not claim a future cycle exists unless the current implementation supports it.
+- Avoid "commit", "locked forever", and pressure language. Explain that the focus remains active until its goals are complete.
+- Do not reward selection; explicitly keep selection at 0 XP without making the UI sound bureaucratic.
+- Prefer "Clinical Precision" and "Fluent Recall" only if they are genuinely clear; recommend stronger names if needed.
+- Keep body copy short enough for a 430px-wide Android screen at large text.
+
+Task
+1. Critique the Focus Cycle terminology and the two tentative option names.
+2. Recommend one coherent terminology system, not a menu of unrelated directions.
+3. Provide polished copy for every surface listed above.
+4. Flag any wording that could be mistaken for medical training or an unsupported product promise.

@@ -218,7 +218,7 @@ data class QuestInstanceEntity(
 )
 
 /**
- * Durable, versioned campaign progress for one learner. A journey is longer-lived than a daily
+ * Durable, versioned long-form progress for one learner. A journey is longer-lived than a daily
  * quest: it survives process death, app updates, and time-zone changes, and advances only from
  * immutable learning evidence committed in the same Room transaction.
  */
@@ -323,12 +323,14 @@ data class JourneyStageProgressEntity(
 )
 
 /**
- * One immutable campaign route commitment per actor and authored campaign version. The choice is
- * an auditable event, but never a reward grant. Its selected journey definition owns all later
- * progress and value settlement.
+ * One immutable Learning Focus selection per actor and authored definition version.
+ *
+ * Selection is an auditable zero-XP event. [selectedAtEpochMillis] is also the exclusive lower
+ * bound for evidence that can advance this focus, so activity completed before selection cannot
+ * be credited retroactively.
  */
 @Entity(
-    tableName = "campaign_route_choices",
+    tableName = "learning_focus_selections",
     foreignKeys = [
         ForeignKey(
             entity = GamificationEventEntity::class,
@@ -340,26 +342,26 @@ data class JourneyStageProgressEntity(
     ],
     indices = [
         Index(
-            name = "idx_campaign_choices_actor_definition_version",
-            value = ["actorId", "campaignDefinitionId", "campaignDefinitionVersion"],
+            name = "idx_learning_focus_selections_actor_definition_version",
+            value = ["actorId", "definitionId", "definitionVersion"],
             unique = true
         ),
-        Index(name = "idx_campaign_choices_source_event", value = ["sourceEventId"]),
+        Index(name = "idx_learning_focus_selections_source_event", value = ["sourceEventId"]),
         Index(
-            name = "idx_campaign_choices_actor_chosen_at",
-            value = ["actorId", "chosenAtEpochMillis"]
+            name = "idx_learning_focus_selections_actor_selected_at",
+            value = ["actorId", "selectedAtEpochMillis"]
         )
     ]
 )
-data class CampaignRouteChoiceEntity(
-    @PrimaryKey val choiceId: String,
+data class LearningFocusSelectionEntity(
+    @PrimaryKey val selectionId: String,
     val actorId: String,
-    val campaignDefinitionId: String,
-    val campaignDefinitionVersion: Int,
-    val routeId: String,
-    val journeyDefinitionId: String,
+    val definitionId: String,
+    val definitionVersion: Int,
+    val optionId: String,
+    val milestonePlanDefinitionId: String,
     val sourceEventId: String,
-    val chosenAtEpochMillis: Long
+    val selectedAtEpochMillis: Long
 )
 
 /** One immutable unlock per actor, achievement, and catalog level. */

@@ -67,6 +67,10 @@ interface LearnDao {
     )
     fun confusables(query: String): Flow<List<Confusable>>
 
+    /** A small, varied round assembled from the seeded clinical-language corpus. */
+    @Query("SELECT * FROM confusables ORDER BY RANDOM() LIMIT :limit")
+    suspend fun randomConfusables(limit: Int): List<Confusable>
+
     // ── Sentences ──
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSentences(items: List<PracticeSentence>)

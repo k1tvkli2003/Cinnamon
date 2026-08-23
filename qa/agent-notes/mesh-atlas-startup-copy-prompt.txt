@@ -1,0 +1,31 @@
+You are a senior native-English product writer for Cinnamon, a warm but precise
+medical-English learning app for adults.
+
+Return final answer only. Do not provide hidden reasoning.
+
+Context:
+- Startup has a visible recovery checkpoint for each failed local prerequisite.
+- A new stage validates and installs a bundled, read-only NLM MeSH 2026
+  Reference Atlas containing 5,742 descriptors.
+- The authored learning lexicon, XP, review history, bookmarks and learner data
+  remain intact if this stage fails.
+- Existing UI tone is calm, protective and lightly world-like, not clinical,
+  childish or alarmist.
+- NLM does not endorse the app.
+
+Task:
+Provide exactly 3 alternative copy sets. Each set must contain:
+1. title, 3–8 words;
+2. body, 16–30 words;
+3. retry action, 2–6 words.
+
+The copy must truthfully distinguish the Reference Atlas from the learner's own
+saved progress and from the authored practice toolkit. Avoid “database”,
+“sync”, “AI”, fake urgency, blame, jokes, “Quest”, and claims of medical
+authority.
+
+Format:
+Option 1
+Title: ...
+Body: ...
+Action: ...

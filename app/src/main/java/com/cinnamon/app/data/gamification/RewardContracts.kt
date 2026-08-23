@@ -21,7 +21,17 @@ enum class RewardableEventType(val wireName: String) {
     CONCEPT_MASTERED("concept_mastered"),
     REVIEW_COMPLETED("review_completed"),
     PRACTICE_SESSION_COMPLETED("practice_session_completed"),
+    MISTAKE_RECORDED("mistake_recorded"),
     MISTAKE_CORRECTED("mistake_corrected"),
+    CONFUSABLE_PAIR_ATTEMPTED("confusable_pair_attempted"),
+    CONFUSABLE_PAIR_RESOLVED("confusable_pair_resolved"),
+    CONTEXT_APPLICATION_VERIFIED("context_application_verified"),
+    DELAYED_RECALL_SUCCEEDED("delayed_recall_succeeded"),
+    COMEBACK_SESSION_COMPLETED("comeback_session_completed"),
+    BOOKMARK_SAVED("bookmark_saved"),
+    SAVED_ITEM_REVIEWED("saved_item_reviewed"),
+    REVIEW_QUEUE_OPENED("review_queue_opened"),
+    REVIEW_QUEUE_CLEARED("review_queue_cleared"),
     OTHER("other")
 }
 
@@ -281,6 +291,17 @@ object StableRewardIds {
         stageDefinitionId: String
     ): String = stableId("journey_stage", journeyInstanceId, stageDefinitionId)
 
+    fun learningFocusSelectionId(
+        actorId: String,
+        definitionId: String,
+        definitionVersion: Int
+    ): String = stableId(
+        "learning_focus_selection",
+        actorId,
+        definitionId,
+        definitionVersion.toString()
+    )
+
     fun journeyPresentationReceiptId(
         eventId: String,
         journeyDefinitionId: String,
@@ -293,16 +314,9 @@ object StableRewardIds {
         GamificationPresentationIds.JOURNEY_STAGE_COMPLETE
     )
 
-    fun campaignRouteChoiceId(
-        actorId: String,
-        campaignDefinitionId: String,
-        campaignDefinitionVersion: Int
-    ): String = stableId(
-        "campaign_choice",
-        actorId,
-        campaignDefinitionId,
-        campaignDefinitionVersion.toString()
-    )
+    /** Only bounded compatibility adapters may use a frozen historical ID namespace. */
+    internal fun compatibilityStableId(prefix: String, vararg parts: String): String =
+        stableId(prefix, *parts)
 
     private fun stableId(prefix: String, vararg parts: String): String {
         require(parts.all { it.isNotBlank() }) { "Stable ID parts must not be blank" }

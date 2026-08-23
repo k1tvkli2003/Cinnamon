@@ -2,12 +2,14 @@ package com.cinnamon.app.data.gamification
 
 import android.content.Context
 import android.database.sqlite.SQLiteConstraintException
+import androidx.room.withTransaction
 import com.cinnamon.app.data.local.AppDatabase
 import com.cinnamon.app.data.local.AchievementUnlockEntity
-import com.cinnamon.app.data.local.CampaignRouteChoiceEntity
 import com.cinnamon.app.data.local.DailyRewardCapExceededException
 import com.cinnamon.app.data.local.GamificationEventEntity
 import com.cinnamon.app.data.local.LearningActivityRow
+import com.cinnamon.app.data.local.LearningFocusAlreadySelectedException
+import com.cinnamon.app.data.local.LearningFocusSelectionEntity
 import com.cinnamon.app.data.local.JourneyInstanceEntity
 import com.cinnamon.app.data.local.JourneyStageProgressEntity
 import com.cinnamon.app.data.local.JourneySettlementRequest
@@ -20,14 +22,12 @@ import com.cinnamon.app.data.local.RewardWriteStatus
 import com.cinnamon.app.data.local.StudyDayCurrencyTotal
 import com.cinnamon.app.data.prefs.ProgressSnapshot
 import com.cinnamon.app.data.prefs.ProgressStore
-import com.cinnamon.app.domain.gamification.ClaimBehavior
-import com.cinnamon.app.domain.gamification.FoundationCampaignCatalog
+import com.cinnamon.app.domain.gamification.FoundationLearningFocusCatalog
 import com.cinnamon.app.domain.gamification.GamificationCatalogBundle
-import com.cinnamon.app.domain.gamification.PresentationTier
-import com.cinnamon.app.domain.gamification.RewardType
+import com.cinnamon.app.domain.gamification.JourneyDefinition
+import com.cinnamon.app.domain.gamification.LearningFocusDefinition
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import java.util.Locale
 
 enum class LearningEventSource(val wireName: String) {
     REVIEW("review"),
@@ -62,7 +62,6 @@ data class LearningEventCommand(
     val occurrenceKey: String,
     val completedItemCount: Int,
     val source: LearningEventSource,
-    val correctedAfterMistake: Boolean = false,
     val occurredAtEpochMillis: Long = System.currentTimeMillis()
 ) {
     init {
@@ -71,6 +70,11 @@ data class LearningEventCommand(
         require(occurrenceKey.isNotBlank()) { "occurrenceKey must not be blank" }
         require(completedItemCount >= 0) { "completedItemCount must not be negative" }
         require(occurredAtEpochMillis >= 0L) { "occurredAtEpochMillis must not be negative" }
+        if (eventType == RewardableEventType.MISTAKE_RECORDED) {
+            require(source == LearningEventSource.REVIEW && completedItemCount == 1) {
+                "Mistake evidence must come from one committed review attempt"
+            }
+        }
     }
 }
 
@@ -118,6 +122,34 @@ class GamificationRepository private constructor(context: Context) {
         actorId = LOCAL_ACTOR_ID,
         eventType = RewardableEventType.CONCEPT_MASTERED.wireName
     )
+
+    /** Unique review subjects with a Room-verified mistake → later correction chain. */
+    val repairedSubjectCount: Flow<Int> =
+        dao.observeDistinctVerifiedRepairSubjectCount(LOCAL_ACTOR_ID)
+
+    /** Pairs whose distinction survived a real 24-hour delayed return. */
+    val resolvedConfusablePairCount: Flow<Int> =
+        dao.observeDistinctVerifiedConfusablePairCount(LOCAL_ACTOR_ID)
+
+    /** First verified use of a real bundled lexicon entry in an authored context. */
+    val verifiedContextApplicationCount: Flow<Int> =
+        dao.observeDistinctVerifiedContextApplicationCount(LOCAL_ACTOR_ID)
+
+    /** Items recalled successfully after a Room-verified three-day interval. */
+    val delayedRecallCount: Flow<Int> =
+        dao.observeDistinctVerifiedDelayedRecallCount(LOCAL_ACTOR_ID)
+
+    /** One substantial return after a real seven-day learner absence. */
+    val verifiedComebackSessionCount: Flow<Int> =
+        dao.observeVerifiedComebackSessionCount(LOCAL_ACTOR_ID)
+
+    /** Distinct bookmarked terms whose later successful review is ledger-verified. */
+    val verifiedSavedItemCount: Flow<Int> =
+        dao.observeDistinctVerifiedSavedItemCount(LOCAL_ACTOR_ID)
+
+    /** Distinct local days where a Room-snapshotted queue of five or more reached zero. */
+    val verifiedReviewQueueClearDayCount: Flow<Int> =
+        dao.observeVerifiedReviewQueueClearDayCount(LOCAL_ACTOR_ID)
 
     fun completedPracticeSessionCountForStudyDay(studyDay: Long): Flow<Int> =
         dao.observeEventCountForStudyDay(
@@ -176,13 +208,349 @@ class GamificationRepository private constructor(context: Context) {
     val journeyStages: Flow<List<JourneyStageProgressEntity>> =
         dao.observeJourneyStages(LOCAL_ACTOR_ID)
 
-    val campaignRouteChoices: Flow<List<CampaignRouteChoiceEntity>> =
-        dao.observeCampaignRouteChoices(LOCAL_ACTOR_ID)
+    val learningFocusSelections: Flow<List<LearningFocusSelectionRecord>> =
+        dao.observeLearningFocusSelections(LOCAL_ACTOR_ID).map { selections ->
+            val definition = FoundationLearningFocusCatalog.definition
+            selections.map { selection ->
+                LegacyLearningFocusWireCompatibility.toRecord(definition, selection)
+            }
+        }
 
     val achievementUnlocks: Flow<List<AchievementUnlockEntity>> =
         dao.observeAchievementUnlocks(LOCAL_ACTOR_ID)
 
     suspend fun record(command: LearningEventCommand): RewardWriteResult {
+        require(
+                command.eventType != RewardableEventType.MISTAKE_CORRECTED &&
+                command.eventType != RewardableEventType.CONFUSABLE_PAIR_RESOLVED &&
+                command.eventType != RewardableEventType.CONTEXT_APPLICATION_VERIFIED &&
+                command.eventType != RewardableEventType.DELAYED_RECALL_SUCCEEDED &&
+                command.eventType != RewardableEventType.COMEBACK_SESSION_COMPLETED &&
+                command.eventType != RewardableEventType.SAVED_ITEM_REVIEWED &&
+                command.eventType != RewardableEventType.REVIEW_QUEUE_OPENED &&
+                command.eventType != RewardableEventType.REVIEW_QUEUE_CLEARED
+        ) {
+            "Verified outcomes must be derived from their persisted learning evidence"
+        }
+        return recordInternal(command, repairOfEventId = null)
+    }
+
+    /** The bookmark must correspond to a currently persisted local lexicon item. */
+    suspend fun recordBookmarkSaved(
+        lexiconEntryId: Long,
+        occurrenceKey: String,
+        occurredAtEpochMillis: Long
+    ): RewardWriteResult? = database.withTransaction {
+        val entry = lexiconDao.entryByIdOnce(lexiconEntryId) ?: return@withTransaction null
+        if (!entry.isBookmarked) return@withTransaction null
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.BOOKMARK_SAVED,
+                subjectType = CONTEXT_SUBJECT_TYPE,
+                subjectId = entry.id.toString(),
+                occurrenceKey = occurrenceKey,
+                completedItemCount = 0,
+                source = LearningEventSource.PRACTICE,
+                occurredAtEpochMillis = occurredAtEpochMillis
+            ),
+            repairOfEventId = null
+        )
+    }
+
+    /**
+     * Produces one saved-item outcome only after a real bookmark has remained long enough and the
+     * same currently saved lexicon entry receives a successful review.
+     */
+    suspend fun recordVerifiedSavedItemReview(
+        lexiconEntryId: Long,
+        occurrenceKey: String,
+        occurredAtEpochMillis: Long
+    ): RewardWriteResult? = database.withTransaction {
+        val entry = lexiconDao.entryByIdOnce(lexiconEntryId) ?: return@withTransaction null
+        if (!entry.isBookmarked || dao.hasEventForSubject(
+                actorId = LOCAL_ACTOR_ID,
+                eventType = RewardableEventType.SAVED_ITEM_REVIEWED.wireName,
+                subjectType = CONTEXT_SUBJECT_TYPE,
+                subjectId = entry.id.toString()
+            )
+        ) return@withTransaction null
+        val bookmark = dao.latestBookmarkSavedBeforeOnce(
+            actorId = LOCAL_ACTOR_ID,
+            subjectType = CONTEXT_SUBJECT_TYPE,
+            subjectId = entry.id.toString(),
+            beforeEpochMillis = occurredAtEpochMillis
+        ) ?: return@withTransaction null
+        if (occurredAtEpochMillis < bookmark.occurredAtEpochMillis + SAVED_ITEM_DELAY_MILLIS) {
+            return@withTransaction null
+        }
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.SAVED_ITEM_REVIEWED,
+                subjectType = CONTEXT_SUBJECT_TYPE,
+                subjectId = entry.id.toString(),
+                occurrenceKey = occurrenceKey,
+                completedItemCount = 1,
+                source = LearningEventSource.REVIEW,
+                occurredAtEpochMillis = occurredAtEpochMillis
+            ),
+            repairOfEventId = bookmark.eventId
+        )
+    }
+
+    /**
+     * Captures the authoritative due count when the learner enters Review. One stable opening per
+     * local day keeps retries and multiple UI instances from producing ledger noise.
+     */
+    suspend fun recordReviewQueueOpened(
+        occurredAtEpochMillis: Long = System.currentTimeMillis()
+    ): RewardWriteResult? = database.withTransaction {
+        val startingDueCount = lexiconDao.dueCountOnce(occurredAtEpochMillis)
+        if (startingDueCount < MIN_REVIEW_QUEUE_SIZE) return@withTransaction null
+        val studyDay = ProgressStore.localEpochDay(occurredAtEpochMillis)
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.REVIEW_QUEUE_OPENED,
+                subjectType = REVIEW_QUEUE_SUBJECT_TYPE,
+                subjectId = studyDay.toString(),
+                occurrenceKey = "review_queue_open_v1:$studyDay",
+                completedItemCount = 0,
+                source = LearningEventSource.REVIEW,
+                occurredAtEpochMillis = occurredAtEpochMillis
+            ),
+            repairOfEventId = null,
+            reviewQueueStartingDueCount = startingDueCount
+        )
+    }
+
+    /**
+     * Emits a queue-clear outcome only after Room proves both ends of the relationship: the
+     * same-day opening captured at least five due items and the current due count is exactly zero.
+     */
+    suspend fun recordVerifiedReviewQueueCleared(
+        occurredAtEpochMillis: Long
+    ): RewardWriteResult? = database.withTransaction {
+        val finalDueCount = lexiconDao.dueCountOnce(occurredAtEpochMillis)
+        if (finalDueCount != 0) return@withTransaction null
+        val studyDay = ProgressStore.localEpochDay(occurredAtEpochMillis)
+        val opening = dao.verifiedReviewQueueOpeningForStudyDayOnce(
+            actorId = LOCAL_ACTOR_ID,
+            studyDay = studyDay,
+            throughEpochMillis = occurredAtEpochMillis
+        ) ?: return@withTransaction null
+        if (opening.startingDueCount < MIN_REVIEW_QUEUE_SIZE) return@withTransaction null
+
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.REVIEW_QUEUE_CLEARED,
+                subjectType = REVIEW_QUEUE_SUBJECT_TYPE,
+                subjectId = studyDay.toString(),
+                occurrenceKey = "review_queue_clear_v1:$studyDay",
+                completedItemCount = opening.startingDueCount,
+                source = LearningEventSource.REVIEW,
+                occurredAtEpochMillis = occurredAtEpochMillis
+            ),
+            repairOfEventId = opening.eventId,
+            reviewQueueStartingDueCount = opening.startingDueCount,
+            reviewQueueFinalDueCount = finalDueCount
+        )
+    }
+
+    /**
+     * Persists a normal, idempotent practice session and only then derives a Gentle Return outcome
+     * from the immutable prior-activity ledger. New learners and ordinary next-day sessions stay
+     * ordinary; a second activity after the return cannot re-trigger the same absence window.
+     */
+    suspend fun recordPracticeSessionWithComeback(
+        command: LearningEventCommand
+    ): RewardWriteResult = database.withTransaction {
+        require(command.eventType == RewardableEventType.PRACTICE_SESSION_COMPLETED) {
+            "Comeback derivation is only valid for a completed practice session"
+        }
+        require(command.source == LearningEventSource.GAME && command.completedItemCount >= 3) {
+            "Comeback derivation requires a verified three-action game session"
+        }
+        val priorActivity = dao.latestMeaningfulActivityBeforeOnce(
+            actorId = LOCAL_ACTOR_ID,
+            beforeEpochMillis = command.occurredAtEpochMillis
+        )
+        val practiceWrite = recordInternal(command, repairOfEventId = null)
+        if (
+            practiceWrite.status == RewardWriteStatus.DUPLICATE ||
+            priorActivity == null ||
+            command.occurredAtEpochMillis < priorActivity.occurredAtEpochMillis + COMEBACK_ABSENCE_MILLIS
+        ) {
+            return@withTransaction practiceWrite
+        }
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.COMEBACK_SESSION_COMPLETED,
+                subjectType = COMEBACK_SUBJECT_TYPE,
+                subjectId = command.occurrenceKey,
+                occurrenceKey = "${command.occurrenceKey}:comeback_v1",
+                completedItemCount = command.completedItemCount,
+                source = LearningEventSource.GAME,
+                occurredAtEpochMillis = command.occurredAtEpochMillis
+            ),
+            repairOfEventId = priorActivity.eventId,
+            comebackMeaningfulActionCount = command.completedItemCount
+        )
+        practiceWrite
+    }
+
+    /**
+     * Records one correction only when Room can link it to an earlier, still-unrepaired mistake for
+     * the same subject. The query and write share one transaction, so concurrent retries cannot
+     * turn one mistake into multiple repair evidence events.
+     */
+    suspend fun recordVerifiedMistakeCorrection(
+        subjectType: String,
+        subjectId: String,
+        occurrenceKey: String,
+        source: LearningEventSource,
+        occurredAtEpochMillis: Long
+    ): RewardWriteResult? = database.withTransaction {
+        val mistake = dao.latestUnrepairedMistakeBeforeOnce(
+            actorId = LOCAL_ACTOR_ID,
+            subjectType = subjectType,
+            subjectId = subjectId,
+            beforeEpochMillis = occurredAtEpochMillis
+        ) ?: return@withTransaction null
+
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.MISTAKE_CORRECTED,
+                subjectType = subjectType,
+                subjectId = subjectId,
+                occurrenceKey = occurrenceKey,
+                completedItemCount = 1,
+                source = source,
+                occurredAtEpochMillis = occurredAtEpochMillis
+            ),
+            repairOfEventId = mistake.eventId
+        )
+    }
+
+    /**
+     * A first correct discrimination opens a pair-specific recall challenge. A later correct
+     * answer can resolve it only after 24 hours and only by linking the immutable first attempt.
+     * Repeated taps before that boundary create no new evidence or reward surface.
+     */
+    suspend fun recordConfusablePairSuccess(
+        confusablePairId: String,
+        occurrenceKey: String,
+        occurredAtEpochMillis: Long
+    ): RewardWriteResult? = database.withTransaction {
+        val attempt = dao.latestUnresolvedConfusableAttemptBeforeOnce(
+            actorId = LOCAL_ACTOR_ID,
+            subjectType = CONFUSABLE_SUBJECT_TYPE,
+            subjectId = confusablePairId,
+            beforeEpochMillis = occurredAtEpochMillis
+        )
+        if (attempt == null) {
+            return@withTransaction recordInternal(
+                command = LearningEventCommand(
+                    eventType = RewardableEventType.CONFUSABLE_PAIR_ATTEMPTED,
+                    subjectType = CONFUSABLE_SUBJECT_TYPE,
+                    subjectId = confusablePairId,
+                    occurrenceKey = occurrenceKey,
+                    completedItemCount = 1,
+                    source = LearningEventSource.GAME,
+                    occurredAtEpochMillis = occurredAtEpochMillis
+                ),
+                repairOfEventId = null
+            )
+        }
+        if (occurredAtEpochMillis < attempt.occurredAtEpochMillis + CONFUSABLE_DELAY_MILLIS) {
+            return@withTransaction null
+        }
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.CONFUSABLE_PAIR_RESOLVED,
+                subjectType = CONFUSABLE_SUBJECT_TYPE,
+                subjectId = confusablePairId,
+                occurrenceKey = occurrenceKey,
+                completedItemCount = 1,
+                source = LearningEventSource.GAME,
+                occurredAtEpochMillis = occurredAtEpochMillis
+            ),
+            repairOfEventId = attempt.eventId
+        )
+    }
+
+    /**
+     * The Cloze surface may ask for this event only after it has evaluated its authored answer.
+     * Room confirms that the cited item is a bundled lexicon entry; generic callers cannot forge
+     * a context application through [record].
+     */
+    suspend fun recordVerifiedContextApplication(
+        lexiconEntryId: Long,
+        occurrenceKey: String,
+        occurredAtEpochMillis: Long = System.currentTimeMillis()
+    ): RewardWriteResult? = database.withTransaction {
+        val entry = lexiconDao.entryByIdOnce(lexiconEntryId) ?: return@withTransaction null
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.CONTEXT_APPLICATION_VERIFIED,
+                subjectType = CONTEXT_SUBJECT_TYPE,
+                subjectId = entry.id.toString(),
+                occurrenceKey = occurrenceKey,
+                completedItemCount = 1,
+                source = LearningEventSource.GAME,
+                occurredAtEpochMillis = occurredAtEpochMillis
+            ),
+            repairOfEventId = null,
+            contextApplicationVerified = true
+        )
+    }
+
+    /**
+     * Builds one durable-recall evidence event only from a prior committed successful review of
+     * the same lexicon entry. A client timestamp or a handcrafted metadata flag is insufficient.
+     */
+    suspend fun recordVerifiedDelayedRecall(
+        lexiconEntryId: Long,
+        occurrenceKey: String,
+        occurredAtEpochMillis: Long
+    ): RewardWriteResult? = database.withTransaction {
+        val entry = lexiconDao.entryByIdOnce(lexiconEntryId) ?: return@withTransaction null
+        if (dao.hasEventForSubject(
+                actorId = LOCAL_ACTOR_ID,
+                eventType = RewardableEventType.DELAYED_RECALL_SUCCEEDED.wireName,
+                subjectType = CONTEXT_SUBJECT_TYPE,
+                subjectId = entry.id.toString()
+            )
+        ) return@withTransaction null
+        val priorReview = dao.latestSuccessfulReviewBeforeOnce(
+            actorId = LOCAL_ACTOR_ID,
+            subjectType = CONTEXT_SUBJECT_TYPE,
+            subjectId = entry.id.toString(),
+            beforeEpochMillis = occurredAtEpochMillis
+        ) ?: return@withTransaction null
+        if (occurredAtEpochMillis < priorReview.occurredAtEpochMillis + DELAYED_RECALL_MILLIS) {
+            return@withTransaction null
+        }
+        recordInternal(
+            command = LearningEventCommand(
+                eventType = RewardableEventType.DELAYED_RECALL_SUCCEEDED,
+                subjectType = CONTEXT_SUBJECT_TYPE,
+                subjectId = entry.id.toString(),
+                occurrenceKey = occurrenceKey,
+                completedItemCount = 1,
+                source = LearningEventSource.REVIEW,
+                occurredAtEpochMillis = occurredAtEpochMillis
+            ),
+            repairOfEventId = priorReview.eventId
+        )
+    }
+
+    private suspend fun recordInternal(
+        command: LearningEventCommand,
+        repairOfEventId: String?,
+        contextApplicationVerified: Boolean = false,
+        comebackMeaningfulActionCount: Int = 0,
+        reviewQueueStartingDueCount: Int = 0,
+        reviewQueueFinalDueCount: Int = -1
+    ): RewardWriteResult {
         val studyDay = ProgressStore.localEpochDay(command.occurredAtEpochMillis)
         val eventIdempotencyKey = StableRewardIds.eventIdempotencyKey(
             actorId = LOCAL_ACTOR_ID,
@@ -235,22 +603,38 @@ class GamificationRepository private constructor(context: Context) {
                     occurredAtEpochMillis = command.occurredAtEpochMillis,
                     rewardWindowId = rewardWindowId,
                     xpAlreadyAwardedInWindow = awardedToday,
-                    meaningful = command.isMeaningful(),
+                    meaningful = command.isMeaningful(
+                        hasVerifiedRepairLink = repairOfEventId != null,
+                        reviewQueueStartingDueCount = reviewQueueStartingDueCount,
+                        reviewQueueFinalDueCount = reviewQueueFinalDueCount
+                    ),
                     firstCompletion = firstCompletion,
                     uniqueSubjectInWindow = uniqueSubjectToday,
-                    correctedAfterMistake = command.correctedAfterMistake,
+                    correctedAfterMistake =
+                        command.eventType == RewardableEventType.MISTAKE_CORRECTED &&
+                            repairOfEventId != null,
                     completedItemCount = command.completedItemCount
                 )
             )
 
             try {
-                val event = command.toEventEntity(eventIdempotencyKey, studyDay)
+                val event = command.toEventEntity(
+                    eventIdempotencyKey = eventIdempotencyKey,
+                    studyDay = studyDay,
+                    repairOfEventId = repairOfEventId,
+                    contextApplicationVerified = contextApplicationVerified,
+                    comebackMeaningfulActionCount = comebackMeaningfulActionCount,
+                    reviewQueueStartingDueCount = reviewQueueStartingDueCount,
+                    reviewQueueFinalDueCount = reviewQueueFinalDueCount
+                )
                 val settlement = CatalogSettlementPlanner.plan(
                     bundle = catalogRepository.bundle,
                     event = event,
-                    dueItemCountAtAssignment = lexiconDao.dueCountOnce(command.occurredAtEpochMillis)
+                    dueItemCountAtAssignment = lexiconDao.dueCountOnce(command.occurredAtEpochMillis),
+                    repairCandidateCountAtAssignment = dao.unrepairedRepairCandidateCountOnce(LOCAL_ACTOR_ID),
+                    existingQuestInstances = dao.activeQuestInstancesOnce(LOCAL_ACTOR_ID)
                 )
-                val selectedCampaignJourney = selectedCampaignJourneySettlement(event)
+                val selectedLearningFocusProgress = selectedLearningFocusSettlement(event)
                 return dao.recordRewardAtomically(
                     event = event,
                     transactions = decision.toTransactionEntities(command.occurredAtEpochMillis),
@@ -258,7 +642,7 @@ class GamificationRepository private constructor(context: Context) {
                     presentationReceipts = decision.toReceiptEntities(command.occurredAtEpochMillis),
                     catalogSettlement = settlement,
                     journeySettlement = JourneySettlementPlanner.plan(event),
-                    additionalJourneySettlements = listOfNotNull(selectedCampaignJourney)
+                    additionalJourneySettlements = listOfNotNull(selectedLearningFocusProgress)
                 )
             } catch (_: SQLiteConstraintException) {
                 // A concurrent attempt claimed the same subject/window reward.
@@ -287,7 +671,7 @@ class GamificationRepository private constructor(context: Context) {
             eventType = RewardableEventType.OTHER,
             subjectType = "catalog_reconciliation",
             subjectId = bundle.catalog.catalogVersion,
-            domainOccurrenceKey = "catalog_reconcile_v1:$studyDay"
+            domainOccurrenceKey = "catalog_reconcile_v2:$studyDay"
         )
         replayResultIfAlreadyApplied(eventId)?.let { return it }
         val event = GamificationEventEntity(
@@ -325,7 +709,9 @@ class GamificationRepository private constructor(context: Context) {
             catalogSettlement = CatalogSettlementPlanner.plan(
                 bundle = bundle,
                 event = event,
-                dueItemCountAtAssignment = lexiconDao.dueCountOnce(occurredAtEpochMillis)
+                dueItemCountAtAssignment = lexiconDao.dueCountOnce(occurredAtEpochMillis),
+                repairCandidateCountAtAssignment = dao.unrepairedRepairCandidateCountOnce(LOCAL_ACTOR_ID),
+                existingQuestInstances = dao.activeQuestInstancesOnce(LOCAL_ACTOR_ID)
             )
         )
     }
@@ -338,7 +724,7 @@ class GamificationRepository private constructor(context: Context) {
     suspend fun reconcileJourney(
         occurredAtEpochMillis: Long = System.currentTimeMillis()
     ): RewardWriteResult {
-        val definition = com.cinnamon.app.domain.gamification.FoundationJourneyCatalog.definition
+        val definition = foundationJourneyDefinitionForPersistence()
         val studyDay = ProgressStore.localEpochDay(occurredAtEpochMillis)
         val eventId = StableRewardIds.eventIdempotencyKey(
             actorId = LOCAL_ACTOR_ID,
@@ -385,38 +771,63 @@ class GamificationRepository private constructor(context: Context) {
     }
 
     /**
-     * Persists one irrevocable campaign route and initializes its versioned Journey in the same
-     * Room transaction. The choice event grants no XP; only already-persisted evidence may move
-     * the first route chapter.
+     * Persists one immutable Learning Focus and initializes only its milestone plan in the same
+     * Room transaction. Selection grants no XP; later milestones use post-selection evidence.
      */
-    suspend fun chooseCampaignRoute(
-        routeId: String,
+    suspend fun selectLearningFocus(
+        optionId: String,
         occurredAtEpochMillis: Long = System.currentTimeMillis()
     ): RewardWriteResult {
-        val definition = FoundationCampaignCatalog.definition
-        val route = requireNotNull(definition.route(routeId)) { "Unknown campaign route: $routeId" }
+        val definition = FoundationLearningFocusCatalog.definition
+        val option = requireNotNull(definition.option(optionId)) {
+            "Unknown Learning Focus option: $optionId"
+        }
+        learningFocusSelectionOnce(definition)?.let { existing ->
+            val existingOption = LegacyLearningFocusWireCompatibility.canonicalOption(
+                definition = definition,
+                storedDefinitionId = existing.definitionId,
+                storedDefinitionVersion = existing.definitionVersion,
+                storedOptionId = existing.optionId,
+                storedMilestonePlanDefinitionId = existing.milestonePlanDefinitionId
+            ) ?: throw LearningFocusRecordIncompatibleException(
+                selectionId = existing.selectionId,
+                reason = LegacyLearningFocusWireCompatibility.compatibilityFailure(definition, existing)
+            )
+            if (existingOption.id != option.id) {
+                throw LearningFocusAlreadySelectedException(
+                    existingOptionId = existingOption.id,
+                    requestedOptionId = option.id
+                )
+            }
+            return RewardWriteResult(
+                status = RewardWriteStatus.DUPLICATE,
+                canonicalEventId = existing.sourceEventId,
+                summary = dao.rewardSummaryForEvent(existing.sourceEventId)
+            )
+        }
         val studyDay = ProgressStore.localEpochDay(occurredAtEpochMillis)
         val eventId = StableRewardIds.eventIdempotencyKey(
             actorId = LOCAL_ACTOR_ID,
             eventType = RewardableEventType.OTHER,
-            subjectType = "campaign_route_choice",
+            subjectType = "learning_focus_selection",
             subjectId = definition.id,
-            domainOccurrenceKey = "campaign_v${definition.version}:${route.id}"
+            domainOccurrenceKey = "learning_focus_v${definition.version}:${option.id}"
         )
         replayResultIfAlreadyApplied(eventId)?.let { return it }
         val event = GamificationEventEntity(
             eventId = eventId,
             actorId = LOCAL_ACTOR_ID,
-            eventType = "campaign_route_selected",
-            subjectType = "campaign_definition",
+            eventType = "learning_focus_selected",
+            subjectType = "learning_focus_definition",
             subjectId = definition.id,
             occurredAtEpochMillis = occurredAtEpochMillis,
             recordedAtEpochMillis = System.currentTimeMillis(),
             studyDay = studyDay,
             idempotencyKey = eventId,
-            source = "campaign",
+            source = "learning_focus",
             ruleVersion = GamificationVersions.CURRENT_RULE_VERSION,
-            metadataJson = "{\"routeId\":\"${route.id}\",\"journeyDefinitionId\":\"${route.journey.id}\"}",
+            metadataJson = "{\"optionId\":\"${option.id}\"," +
+                "\"milestonePlanDefinitionId\":\"${option.milestonePlan.id}\"}",
             replayOfEventId = null
         )
         return dao.recordRewardAtomically(
@@ -432,14 +843,16 @@ class GamificationRepository private constructor(context: Context) {
                 achievementIdsJson = "[]",
                 unlockedContentJson = "[]",
                 celebrationTier = CelebrationTier.NONE.wireName,
-                summaryJson = "{\"reasonCode\":\"campaign_route_selected\",\"xpAwarded\":0}",
+                summaryJson = "{\"reasonCode\":\"learning_focus_selected\",\"xpAwarded\":0}",
                 createdAtEpochMillis = occurredAtEpochMillis
             ),
             presentationReceipts = emptyList(),
-            campaignRouteChoice = CampaignSettlementPlanner.planChoice(
+            learningFocusSelection = LearningFocusSelectionPlanner.planSelection(
                 event = event,
-                routeId = route.id,
+                optionId = option.id,
                 definition = definition
+            ).copy(
+                prerequisiteDefinitionId = foundationJourneyDefinitionForPersistence().id
             )
         )
     }
@@ -454,22 +867,10 @@ class GamificationRepository private constructor(context: Context) {
             "Quest instance does not exist"
         }
         require(instance.actorId == LOCAL_ACTOR_ID) { "Quest belongs to another actor" }
-        val bundle = catalogRepository.bundle
-        val definition = checkNotNull(bundle.catalog.quests.firstOrNull { it.id == instance.definitionId }) {
-            "Quest definition is no longer present in the validated catalog"
+        val claim = checkNotNull(QuestAssignmentContracts.resolveClaim(instance)) {
+            "Quest assignment has no valid immutable reward contract"
         }
-        require(definition.claimBehavior == ClaimBehavior.MANUAL_ONCE) {
-            "Quest is not manually claimable"
-        }
-        val rewardsById = bundle.catalog.rewards.associateBy { it.id }
-        val rewards = definition.rewardRefs.map { rewardId ->
-            checkNotNull(rewardsById[rewardId]) { "Quest reward $rewardId is missing" }
-        }
-        require(rewards.all { reward -> reward.type == RewardType.XP }) {
-            "Quest claim contains a reward type without a persistence contract"
-        }
-        val xp = rewards.sumOf { reward -> reward.amount?.toLong() ?: 0L }
-        require(xp > 0L) { "Quest claim must settle positive value" }
+        val xp = claim.xpAmount
         val studyDay = ProgressStore.localEpochDay(occurredAtEpochMillis)
         val eventId = StableRewardIds.eventIdempotencyKey(
             actorId = LOCAL_ACTOR_ID,
@@ -478,16 +879,13 @@ class GamificationRepository private constructor(context: Context) {
             subjectId = questInstanceId,
             domainOccurrenceKey = "manual_claim_v1"
         )
-        val ruleId = "catalog.quest.${definition.id}.claim"
+        val ruleId = "catalog.quest.${instance.definitionId}.claim"
         val transactionId = StableRewardIds.transactionId(eventId, ruleId, RewardCurrencies.XP)
-        val presentation = checkNotNull(
-            bundle.catalog.presentations.firstOrNull { it.id == definition.presentationId }
-        ) { "Quest presentation is missing" }
         val receiptId = StableRewardIds.catalogPresentationReceiptId(
             eventId = eventId,
-            catalogItemId = definition.id,
+            catalogItemId = instance.definitionId,
             level = 1,
-            presentationFamily = definition.presentationId
+            presentationFamily = claim.presentationId
         )
         val event = GamificationEventEntity(
             eventId = eventId,
@@ -501,7 +899,7 @@ class GamificationRepository private constructor(context: Context) {
             idempotencyKey = eventId,
             source = "questboard",
             ruleVersion = GamificationVersions.CURRENT_RULE_VERSION,
-            metadataJson = "{\"definitionId\":\"${definition.id}\"}",
+            metadataJson = "{\"definitionId\":\"${instance.definitionId}\"}",
             replayOfEventId = null
         )
         val transaction = RewardTransactionEntity(
@@ -530,7 +928,7 @@ class GamificationRepository private constructor(context: Context) {
                 questProgressJson = "[{\"questInstanceId\":\"$questInstanceId\",\"claimed\":true}]",
                 achievementIdsJson = "[]",
                 unlockedContentJson = "[]",
-                celebrationTier = presentation.tier.name.lowercase(Locale.ROOT),
+                celebrationTier = claim.presentationTier,
                 summaryJson = "{\"reasonCode\":\"quest_claimed\",\"xpAwarded\":$xp}",
                 createdAtEpochMillis = occurredAtEpochMillis
             ),
@@ -540,17 +938,17 @@ class GamificationRepository private constructor(context: Context) {
                     actorId = LOCAL_ACTOR_ID,
                     sourceEventId = eventId,
                     sourceTransactionId = transactionId,
-                    presentationFamily = definition.presentationId,
+                    presentationFamily = claim.presentationId,
                     idempotencyKey = receiptId,
-                    priority = presentation.tier.priority(),
-                    tier = presentation.tier.name.lowercase(Locale.ROOT),
+                    priority = claim.presentationPriority,
+                    tier = claim.presentationTier,
                     state = PresentationReceiptState.PENDING.wireName,
                     immutableSummaryJson = "{\"questInstanceId\":\"$questInstanceId\",\"xpAwarded\":$xp}",
                     createdAtEpochMillis = occurredAtEpochMillis,
                     updatedAtEpochMillis = occurredAtEpochMillis,
                     expiresAtEpochMillis = Math.addExact(
                         occurredAtEpochMillis,
-                        Math.multiplyExact(presentation.expiresAfterSeconds.toLong(), 1_000L)
+                        Math.multiplyExact(claim.presentationExpiresAfterSeconds.toLong(), 1_000L)
                     ),
                     acknowledgedAtEpochMillis = null,
                     suppressionReason = null,
@@ -640,22 +1038,81 @@ class GamificationRepository private constructor(context: Context) {
         )
     }
 
-    private suspend fun selectedCampaignJourneySettlement(
+    private suspend fun selectedLearningFocusSettlement(
         event: GamificationEventEntity
     ): JourneySettlementRequest? {
-        val definition = FoundationCampaignCatalog.definition
-        val choice = dao.campaignRouteChoiceOnce(
-            actorId = LOCAL_ACTOR_ID,
-            campaignDefinitionId = definition.id,
-            campaignDefinitionVersion = definition.version
-        ) ?: return null
-        val route = checkNotNull(definition.route(choice.routeId)) {
-            "Saved campaign route is missing from its versioned definition"
+        val definition = FoundationLearningFocusCatalog.definition
+        val selection = learningFocusSelectionOnce(definition) ?: return null
+        val option = LegacyLearningFocusWireCompatibility.canonicalOption(
+            definition = definition,
+            storedDefinitionId = selection.definitionId,
+            storedDefinitionVersion = selection.definitionVersion,
+            storedOptionId = selection.optionId,
+            storedMilestonePlanDefinitionId = selection.milestonePlanDefinitionId
+        ) ?: throw LearningFocusRecordIncompatibleException(
+            selectionId = selection.selectionId,
+            reason = LegacyLearningFocusWireCompatibility.compatibilityFailure(definition, selection)
+        )
+        val persistedPlan = LegacyLearningFocusWireCompatibility.milestonePlanForSelection(
+            option = option,
+            persistedMilestonePlanDefinitionId = selection.milestonePlanDefinitionId
+        )
+        return JourneySettlementPlanner.plan(event, persistedPlan).copy(
+            evidenceAfterEpochMillis = selection.selectedAtEpochMillis
+        )
+    }
+
+    /** Reads both accepted identities but never guesses when more than one durable row exists. */
+    private suspend fun learningFocusSelectionOnce(
+        definition: LearningFocusDefinition
+    ): LearningFocusSelectionEntity? {
+        val legacyDefinitionId = LegacyLearningFocusWireCompatibility.legacyDefinitionId(definition)
+        val acceptedDefinitionIds = listOf(legacyDefinitionId, definition.id).distinct()
+        val matches = acceptedDefinitionIds.mapNotNull { definitionId ->
+            dao.learningFocusSelectionOnce(
+                actorId = LOCAL_ACTOR_ID,
+                definitionId = definitionId,
+                definitionVersion = definition.version
+            )
+        }.distinctBy(LearningFocusSelectionEntity::selectionId)
+        if (matches.size > 1) {
+            throw LearningFocusRecordIncompatibleException(
+                selectionId = matches.first().selectionId,
+                reason = LearningFocusCompatibilityFailure.MULTIPLE_SELECTIONS
+            )
         }
-        check(route.journey.id == choice.journeyDefinitionId) {
-            "Saved campaign route and journey definition diverged"
+        return matches.singleOrNull()
+    }
+
+    /** Reuses one exact legacy identity when present; otherwise fresh installs mint canonical v5. */
+    private suspend fun foundationJourneyDefinitionForPersistence(): JourneyDefinition {
+        val definition =
+            com.cinnamon.app.domain.gamification.FoundationJourneyCatalog.definition
+        val matches = LegacyFoundationJourneyWireCompatibility
+            .acceptedDefinitionIds(definition)
+            .flatMap { definitionId ->
+                dao.journeyInstancesForDefinitionOnce(
+                    actorId = LOCAL_ACTOR_ID,
+                    definitionId = definitionId,
+                    definitionVersion = definition.version
+                )
+            }
+            .distinctBy(JourneyInstanceEntity::journeyInstanceId)
+        if (matches.size > 1) {
+            throw FoundationJourneyRecordIncompatibleException(
+                persistedInstanceIds = matches.mapTo(linkedSetOf()) {
+                    it.journeyInstanceId
+                }
+            )
         }
-        return JourneySettlementPlanner.plan(event, route.journey)
+        val persisted = matches.singleOrNull() ?: return definition
+        return checkNotNull(
+            LegacyFoundationJourneyWireCompatibility.definitionForStoredIdentity(
+                definition = definition,
+                storedDefinitionId = persisted.definitionId,
+                storedDefinitionVersion = persisted.definitionVersion
+            )
+        ) { "The persisted Foundation plan identity was accepted but could not be projected" }
     }
 
     private fun legacyProgressEventId(): String = StableRewardIds.eventIdempotencyKey(
@@ -666,16 +1123,42 @@ class GamificationRepository private constructor(context: Context) {
         domainOccurrenceKey = "opening_balance_v1"
     )
 
-    private fun LearningEventCommand.isMeaningful(): Boolean = when (eventType) {
+    private fun LearningEventCommand.isMeaningful(
+        hasVerifiedRepairLink: Boolean,
+        reviewQueueStartingDueCount: Int,
+        reviewQueueFinalDueCount: Int
+    ): Boolean = when (eventType) {
         RewardableEventType.CONCEPT_MASTERED -> completedItemCount >= 1
         RewardableEventType.REVIEW_COMPLETED -> completedItemCount >= 1
         RewardableEventType.PRACTICE_SESSION_COMPLETED -> completedItemCount >= 3
-        RewardableEventType.MISTAKE_CORRECTED -> correctedAfterMistake
+        RewardableEventType.MISTAKE_RECORDED -> completedItemCount == 1 && source == LearningEventSource.REVIEW
+        RewardableEventType.MISTAKE_CORRECTED -> hasVerifiedRepairLink
+        RewardableEventType.CONFUSABLE_PAIR_ATTEMPTED -> false
+        RewardableEventType.CONFUSABLE_PAIR_RESOLVED -> hasVerifiedRepairLink
+        RewardableEventType.CONTEXT_APPLICATION_VERIFIED -> hasVerifiedRepairLink
+        RewardableEventType.DELAYED_RECALL_SUCCEEDED -> hasVerifiedRepairLink
+        RewardableEventType.COMEBACK_SESSION_COMPLETED -> hasVerifiedRepairLink && completedItemCount >= 3
+        RewardableEventType.BOOKMARK_SAVED -> false
+        RewardableEventType.SAVED_ITEM_REVIEWED -> hasVerifiedRepairLink && completedItemCount >= 1
+        RewardableEventType.REVIEW_QUEUE_OPENED -> false
+        RewardableEventType.REVIEW_QUEUE_CLEARED ->
+            hasVerifiedRepairLink &&
+                reviewQueueStartingDueCount >= MIN_REVIEW_QUEUE_SIZE &&
+                reviewQueueFinalDueCount == 0
         RewardableEventType.OTHER -> false
     }
 
     companion object {
         const val LOCAL_ACTOR_ID: String = "local_learner"
+        const val CONFUSABLE_SUBJECT_TYPE: String = "confusable_pair"
+        const val CONTEXT_SUBJECT_TYPE: String = "lexicon_entry"
+        const val COMEBACK_SUBJECT_TYPE: String = "return_session"
+        const val REVIEW_QUEUE_SUBJECT_TYPE: String = "review_queue"
+        const val MIN_REVIEW_QUEUE_SIZE: Int = 5
+        const val DELAYED_RECALL_MILLIS: Long = 72L * 60L * 60L * 1000L
+        const val SAVED_ITEM_DELAY_MILLIS: Long = 60L * 60L * 1000L
+        const val CONFUSABLE_DELAY_MILLIS: Long = 24L * 60L * 60L * 1000L
+        const val COMEBACK_ABSENCE_MILLIS: Long = 7L * 24L * 60L * 60L * 1000L
         private const val LEGACY_IMPORT_RULE_ID = "migration.v1.legacy_opening_balance"
 
         @Volatile
@@ -714,7 +1197,12 @@ private fun RewardPresentationReceiptEntity.toPendingPresentation(): PendingRewa
 
 private fun LearningEventCommand.toEventEntity(
     eventIdempotencyKey: String,
-    studyDay: Long
+    studyDay: Long,
+    repairOfEventId: String?,
+    contextApplicationVerified: Boolean = false,
+    comebackMeaningfulActionCount: Int = 0,
+    reviewQueueStartingDueCount: Int = 0,
+    reviewQueueFinalDueCount: Int = -1
 ): GamificationEventEntity = GamificationEventEntity(
     eventId = eventIdempotencyKey,
     actorId = GamificationRepository.LOCAL_ACTOR_ID,
@@ -727,9 +1215,58 @@ private fun LearningEventCommand.toEventEntity(
     idempotencyKey = eventIdempotencyKey,
     source = source.wireName,
     ruleVersion = GamificationVersions.CURRENT_RULE_VERSION,
-    metadataJson = "{}",
+    metadataJson = when {
+        eventType == RewardableEventType.CONFUSABLE_PAIR_RESOLVED && repairOfEventId != null ->
+            "{\"confusableAttemptEventId\":${repairOfEventId.toJsonString()}," +
+                "\"confusableLinkPresent\":true,\"minimumDelayHoursSatisfied\":true}"
+        eventType == RewardableEventType.MISTAKE_CORRECTED && repairOfEventId != null ->
+            "{\"repairOfEventId\":${repairOfEventId.toJsonString()}," +
+                "\"repairLinkPresent\":true,\"incorrectAttemptPrecedesCorrection\":true}"
+        eventType == RewardableEventType.MISTAKE_RECORDED -> "{\"repairCandidate\":true}"
+        eventType == RewardableEventType.CONFUSABLE_PAIR_ATTEMPTED -> "{\"confusableCandidate\":true}"
+        eventType == RewardableEventType.CONTEXT_APPLICATION_VERIFIED && contextApplicationVerified ->
+            "{\"applicationVerified\":true,\"applicationSource\":\"authored_cloze\"}"
+        eventType == RewardableEventType.DELAYED_RECALL_SUCCEEDED && repairOfEventId != null ->
+            "{\"priorReviewEventId\":${repairOfEventId.toJsonString()}," +
+                "\"delayedRecallLinkPresent\":true,\"minimumDelayHoursSatisfied\":true}"
+        eventType == RewardableEventType.COMEBACK_SESSION_COMPLETED && repairOfEventId != null &&
+            comebackMeaningfulActionCount >= 3 ->
+            "{\"priorActivityEventId\":${repairOfEventId.toJsonString()}," +
+                "\"comebackLinkPresent\":true,\"minimumAbsenceDaysSatisfied\":true," +
+                "\"meaningfulActionCount\":$comebackMeaningfulActionCount}"
+        eventType == RewardableEventType.BOOKMARK_SAVED -> "{\"bookmarkRecorded\":true}"
+        eventType == RewardableEventType.SAVED_ITEM_REVIEWED && repairOfEventId != null ->
+            "{\"bookmarkEventId\":${repairOfEventId.toJsonString()}," +
+                "\"savedItemLinkPresent\":true,\"minimumDelayHoursSatisfied\":true," +
+                "\"successfulReviewCount\":1}"
+        eventType == RewardableEventType.REVIEW_QUEUE_OPENED &&
+            reviewQueueStartingDueCount >= GamificationRepository.MIN_REVIEW_QUEUE_SIZE ->
+            "{\"queueOpenVerified\":true,\"startingDueCount\":$reviewQueueStartingDueCount}"
+        eventType == RewardableEventType.REVIEW_QUEUE_CLEARED && repairOfEventId != null &&
+            reviewQueueStartingDueCount >= GamificationRepository.MIN_REVIEW_QUEUE_SIZE &&
+            reviewQueueFinalDueCount == 0 ->
+            "{\"reviewQueueOpeningEventId\":${repairOfEventId.toJsonString()}," +
+                "\"queueClearLinkPresent\":true,\"startingDueCount\":$reviewQueueStartingDueCount," +
+                "\"finalDueCount\":$reviewQueueFinalDueCount}"
+        else -> "{}"
+    },
     replayOfEventId = null
 )
+
+private fun String.toJsonString(): String = buildString(length + 2) {
+    append('"')
+    this@toJsonString.forEach { character ->
+        when (character) {
+            '"' -> append("\\\"")
+            '\\' -> append("\\\\")
+            '\n' -> append("\\n")
+            '\r' -> append("\\r")
+            '\t' -> append("\\t")
+            else -> append(character)
+        }
+    }
+    append('"')
+}
 
 private fun RewardDecision.toTransactionEntities(createdAtEpochMillis: Long): List<RewardTransactionEntity> =
     transactions.map { transaction ->
@@ -787,10 +1324,3 @@ private fun RewardDecision.toReceiptEntities(createdAtEpochMillis: Long): List<R
             coalescedCount = 1
         )
     }
-
-private fun PresentationTier.priority(): Int = when (this) {
-    PresentationTier.MICRO -> 10
-    PresentationTier.STANDARD -> 20
-    PresentationTier.MILESTONE -> 30
-    PresentationTier.SHOWPIECE -> 40
-}

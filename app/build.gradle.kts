@@ -49,6 +49,22 @@ abstract class VerifyReleaseSigningTask : DefaultTask() {
   }
 }
 
+abstract class PrintManagedDeviceConfigTask : DefaultTask() {
+  @get:Input
+  abstract val managedDevicesEnabled: Property<Boolean>
+
+  @get:Input
+  abstract val testedAbi: Property<String>
+
+  @TaskAction
+  fun printConfig() {
+    println("managedDevices.enabled=${managedDevicesEnabled.get()}")
+    if (managedDevicesEnabled.get()) {
+      println("pixel2Api35.testedAbi=${testedAbi.get()}")
+    }
+  }
+}
+
 val localProperties = Properties().apply {
   val localPropertiesFile = rootProject.file("local.properties")
   if (localPropertiesFile.isFile) {
@@ -69,6 +85,9 @@ val releaseSigningConfigured = listOf(
 val releaseKeystorePathForValidation = releaseKeystorePath
   ?.let { file(it).absolutePath }
   .orEmpty()
+val enableManagedDevices = providers.environmentVariable("CI")
+  .map { it.equals("true", ignoreCase = true) }
+  .orElse(false)
 
 android {
   namespace = "com.cinnamon.app"
@@ -134,7 +153,27 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests { isIncludeAndroidResources = true }
+    if (enableManagedDevices.get()) {
+      managedDevices {
+        allDevices.create(
+          "pixel2Api35",
+          com.android.build.api.dsl.ManagedVirtualDevice::class.java
+        ) {
+          device = "Pixel 2"
+          sdkVersion = 35
+          systemImageSource = "aosp"
+          testedAbi = "x86_64"
+        }
+      }
+    }
+  }
+}
+
+tasks.register<PrintManagedDeviceConfigTask>("printManagedDeviceConfig") {
+  managedDevicesEnabled.set(enableManagedDevices)
+  testedAbi.set(if (enableManagedDevices.get()) "x86_64" else "")
 }
 
 val verifyReleaseSigning = tasks.register<VerifyReleaseSigningTask>("verifyReleaseSigning") {

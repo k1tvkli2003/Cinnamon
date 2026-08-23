@@ -22,3 +22,9 @@ debug.keystore.base64
 .build-outputs/
 assets/.aistudio/
 *.apk
+
+# Local scratch / ephemeral tooling state
+.codex-tmp/
+tmp/
+__pycache__/
+*.pyc

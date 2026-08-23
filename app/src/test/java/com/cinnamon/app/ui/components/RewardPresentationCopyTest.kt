@@ -7,11 +7,11 @@ import org.junit.Test
 class RewardPresentationCopyTest {
 
     @Test
-    fun `positive ledger receipt states the settled XP amount`() {
+    fun `positive receipt states the earned XP amount`() {
         val copy = rewardPresentationCopy(12L)
 
-        assertEquals("Progress recorded", copy.title)
-        assertEquals("+12 XP added after this verified activity.", copy.detail)
+        assertEquals("Progress saved", copy.title)
+        assertEquals("+12 XP earned from this completed activity.", copy.detail)
         assertEquals("Dismiss reward notice", copy.dismissLabel)
     }
 
@@ -19,7 +19,7 @@ class RewardPresentationCopyTest {
     fun `zero value receipt never implies an XP award`() {
         val copy = rewardPresentationCopy(0L)
 
-        assertEquals("Practice recorded", copy.title)
+        assertEquals("Practice saved", copy.title)
         assertEquals("Your completed activity is saved.", copy.detail)
         assertEquals("Dismiss reward notice", copy.dismissLabel)
     }
@@ -35,13 +35,13 @@ class RewardPresentationCopyTest {
             )
         )
 
-        assertEquals("Quest reward secured", copy.title)
-        assertEquals("+10 XP added to your balance from this completed checkpoint.", copy.detail)
+        assertEquals("Quest complete", copy.title)
+        assertEquals("+10 XP earned from this checkpoint.", copy.detail)
         assertEquals("Dismiss quest reward", copy.dismissLabel)
     }
 
     @Test
-    fun `milestone receipt says unlock persists after dismissal`() {
+    fun `achievement receipt says unlock persists after dismissal`() {
         val copy = rewardPresentationCopy(
             PendingRewardPresentation(
                 receiptId = "achievement-receipt",
@@ -51,16 +51,16 @@ class RewardPresentationCopyTest {
             )
         )
 
-        assertEquals("Milestone unlocked", copy.title)
+        assertEquals("Achievement unlocked", copy.title)
         assertEquals(
-            "+20 XP awarded from your learning progress. This milestone stays unlocked.",
+            "+20 XP earned. This achievement stays in your collection.",
             copy.detail
         )
-        assertEquals("Dismiss milestone notice", copy.dismissLabel)
+        assertEquals("Dismiss achievement notice", copy.dismissLabel)
     }
 
     @Test
-    fun `journey receipt celebrates a settled chapter without making dismissal a claim`() {
+    fun `foundation receipt celebrates a completed milestone without making dismissal a claim`() {
         val copy = rewardPresentationCopy(
             PendingRewardPresentation(
                 receiptId = "journey-receipt",
@@ -70,8 +70,8 @@ class RewardPresentationCopyTest {
             )
         )
 
-        assertEquals("Journey chapter secured", copy.title)
-        assertEquals("+20 XP added. This chapter is now secured on your saved route.", copy.detail)
-        assertEquals("Dismiss journey milestone", copy.dismissLabel)
+        assertEquals("Milestone complete", copy.title)
+        assertEquals("+20 XP earned. This Foundation milestone is now complete.", copy.detail)
+        assertEquals("Dismiss milestone reward", copy.dismissLabel)
     }
 }

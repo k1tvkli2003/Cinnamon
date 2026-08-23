@@ -1133,7 +1133,7 @@ fun AbbreviationsExpanderLab(viewModel: UserProgressViewModel) {
                     Text("Reference round complete", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        "All five authored expansions were matched. Saving one verified vocabulary-practice completion.",
+                        "All five authored expansions were matched. Saving one completed vocabulary-practice result.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         fontSize = 12.sp
@@ -1619,7 +1619,7 @@ fun EmrSimulatorLab(viewModel: UserProgressViewModel) {
                 OutlinedTextField(
                     value = chatInput,
                     onValueChange = { chatInput = it },
-                    placeholder = { Text("Verbalize a empathetic response...", fontSize = 11.sp) },
+                    placeholder = { Text("Verbalize an empathetic response...", fontSize = 11.sp) },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     textStyle = TextStyle(color = Color.White, fontSize = 12.sp)
                 )

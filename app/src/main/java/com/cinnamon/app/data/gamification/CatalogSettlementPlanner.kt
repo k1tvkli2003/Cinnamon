@@ -36,7 +36,10 @@ object CatalogSettlementPlanner {
     fun plan(
         bundle: GamificationCatalogBundle,
         event: GamificationEventEntity,
-        dueItemCountAtAssignment: Int
+        dueItemCountAtAssignment: Int,
+        repairCandidateCountAtAssignment: Int = 0,
+        assignmentTimeZone: TimeZone = TimeZone.getDefault(),
+        existingQuestInstances: List<QuestInstanceEntity> = emptyList()
     ): CatalogSettlementRequest {
         val catalog = bundle.catalog
         val rewardsById = catalog.rewards.associateBy { it.id }
@@ -94,29 +97,46 @@ object CatalogSettlementPlanner {
             .asSequence()
             .filter { definition ->
                 definition.lifecycle.state == CatalogLifecycleState.ACTIVE &&
-                    definition.cadence == QuestCadence.DAILY &&
+                    definition.cadence in SUPPORTED_QUEST_CADENCES &&
                     definition.claimBehavior == ClaimBehavior.MANUAL_ONCE
             }
             .mapNotNull { definition ->
                 val metric = definition.criterion.supportedSettlementMetric()
                     ?: return@mapNotNull null
-                if (metric != CatalogEvidenceMetric.DISTINCT_DUE_REVIEWS_TODAY) {
-                    return@mapNotNull null
-                }
-                val eligible = definition.eligibility.clauses.all { clause ->
-                    val actual = when (clause.metric) {
-                        EligibilityMetric.ALWAYS -> 1
-                        EligibilityMetric.DUE_ITEM_COUNT -> dueItemCountAtAssignment.coerceAtLeast(0)
-                        else -> return@mapNotNull null
-                    }
-                    when (clause.operator) {
-                        ComparisonOperator.EQ -> actual == clause.value
-                        ComparisonOperator.GTE -> actual >= clause.value
-                        ComparisonOperator.LTE -> actual <= clause.value
-                        ComparisonOperator.IN -> return@mapNotNull null
-                    }
-                }
-                buildDailyQuestCandidate(bundle, event, definition, metric, eligible)
+                if (!definition.supportsWindowedMetric(metric)) return@mapNotNull null
+                if (!definition.supportsImmutableQuestRewards(rewardsById)) return@mapNotNull null
+                val effectiveRepairCandidateCount = repairCandidateCountAtAssignment.coerceAtLeast(0) +
+                    if (event.eventType == RewardableEventType.MISTAKE_RECORDED.wireName) 1 else 0
+                val eligible = definition.resolveAssignmentEligibility(
+                    dueItemCountAtAssignment = dueItemCountAtAssignment,
+                    repairCandidateCountAtAssignment = effectiveRepairCandidateCount
+                )
+                    ?: return@mapNotNull null
+                val existing = matchingExistingQuest(
+                    event = event,
+                    definitionId = definition.id,
+                    catalogVersion = bundle.catalog.storageVersion,
+                    instances = existingQuestInstances
+                )
+                val window = existing?.let { (instance, criteria) ->
+                    QuestAssignmentWindow(
+                        evidenceStartsAtEpochMillis = criteria.evidenceStartsAtEpochMillis,
+                        evidenceEndsAtEpochMillis = criteria.evidenceEndsAtEpochMillis,
+                        expiresAtEpochMillis = instance.endsAtEpochMillis
+                    )
+                } ?: definition.assignmentWindow(event.occurredAtEpochMillis, assignmentTimeZone)
+                    ?: return@mapNotNull null
+                buildQuestCandidate(
+                    bundle = bundle,
+                    event = event,
+                    definition = definition,
+                    metric = metric,
+                    eligible = eligible && event.recordedAtEpochMillis < window.expiresAtEpochMillis,
+                    window = window,
+                    assignmentTimeZoneId = existing?.second?.assignmentTimeZoneId
+                        ?: assignmentTimeZone.id,
+                    existingInstance = existing?.first
+                )
             }
             .toList()
 
@@ -223,58 +243,210 @@ object CatalogSettlementPlanner {
         )
     }
 
-    private fun buildDailyQuestCandidate(
+    private fun buildQuestCandidate(
         bundle: GamificationCatalogBundle,
         event: GamificationEventEntity,
         definition: com.cinnamon.app.domain.gamification.QuestDefinition,
         metric: CatalogEvidenceMetric,
-        eligible: Boolean
+        eligible: Boolean,
+        window: QuestAssignmentWindow,
+        assignmentTimeZoneId: String,
+        existingInstance: QuestInstanceEntity?
     ): CatalogQuestSettlementCandidate {
-        val zone = TimeZone.getDefault()
-        val startCalendar = Calendar.getInstance(zone).apply {
-            timeInMillis = event.occurredAtEpochMillis
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val startsAt = startCalendar.timeInMillis
-        val endsAt = (startCalendar.clone() as Calendar).apply {
-            add(Calendar.DAY_OF_MONTH, 1)
-            add(Calendar.HOUR_OF_DAY, definition.expiry.graceHours)
-        }.timeInMillis
         val instanceId = StableRewardIds.questInstanceId(
             actorId = event.actorId,
             definitionId = definition.id,
-            startsAtEpochMillis = startsAt,
+            startsAtEpochMillis = window.evidenceStartsAtEpochMillis,
             catalogVersion = bundle.catalog.storageVersion
         )
-        val target = definition.criterion.clauses.single().target.toLong()
+        val clause = definition.criterion.clauses.single()
+        val target = clause.target.toLong()
+        val metricName = clause.metric.name.lowercase(Locale.ROOT)
+        val aggregationName = clause.aggregation.name.lowercase(Locale.ROOT)
+        val distinctByName = clause.distinctBy.name.lowercase(Locale.ROOT)
+        existingInstance?.let { persisted ->
+            val persistedCriteria = checkNotNull(
+                QuestAssignmentContracts.decodeCriteria(persisted.criteriaJson)
+            ) { "Existing quest ${persisted.questInstanceId} has an invalid criteria snapshot" }
+            check(persisted.questInstanceId == instanceId) {
+                "Existing quest identity no longer matches its immutable assignment window"
+            }
+            check(persisted.target == target && persisted.cadence == definition.cadence.name.lowercase(Locale.ROOT)) {
+                "Catalog storage version changed a persisted quest contract without a version bump"
+            }
+            check(
+                persistedCriteria.metric == metricName &&
+                    persistedCriteria.aggregation == aggregationName &&
+                    persistedCriteria.distinctBy == distinctByName
+            ) { "Persisted quest evidence contract no longer matches its catalog definition" }
+        }
+        val instance = existingInstance ?: QuestInstanceEntity(
+            questInstanceId = instanceId,
+            actorId = event.actorId,
+            definitionId = definition.id,
+            catalogVersion = bundle.catalog.storageVersion,
+            cadence = definition.cadence.name.lowercase(Locale.ROOT),
+            startsAtEpochMillis = window.evidenceStartsAtEpochMillis,
+            endsAtEpochMillis = window.expiresAtEpochMillis,
+            state = QuestInstanceState.AVAILABLE.wireName,
+            progress = 0L,
+            target = target,
+            criteriaJson = QuestAssignmentContracts.encodeCriteria(
+                QuestCriteriaSnapshot(
+                    metric = metricName,
+                    aggregation = aggregationName,
+                    distinctBy = distinctByName,
+                    assignmentTimeZoneId = assignmentTimeZoneId,
+                    evidenceStartsAtEpochMillis = window.evidenceStartsAtEpochMillis,
+                    evidenceEndsAtEpochMillis = window.evidenceEndsAtEpochMillis
+                )
+            ),
+            rewardJson = QuestAssignmentContracts.encodeReward(
+                QuestAssignmentContracts.createRewardSnapshot(bundle, definition)
+            ),
+            createdAtEpochMillis = event.occurredAtEpochMillis,
+            updatedAtEpochMillis = event.occurredAtEpochMillis,
+            completionEventId = null,
+            completedAtEpochMillis = null,
+            claimedAtEpochMillis = null
+        )
 
         return CatalogQuestSettlementCandidate(
-            instance = QuestInstanceEntity(
-                questInstanceId = instanceId,
-                actorId = event.actorId,
-                definitionId = definition.id,
-                catalogVersion = bundle.catalog.storageVersion,
-                cadence = definition.cadence.name.lowercase(Locale.ROOT),
-                startsAtEpochMillis = startsAt,
-                endsAtEpochMillis = endsAt,
-                state = QuestInstanceState.AVAILABLE.wireName,
-                progress = 0L,
-                target = target,
-                criteriaJson = "{\"metric\":\"due_review_completed\",\"distinctBy\":\"subject_id\",\"timezone\":${jsonString(zone.id)}}",
-                rewardJson = definition.rewardRefs.joinToString(prefix = "[", postfix = "]", transform = ::jsonString),
-                createdAtEpochMillis = event.occurredAtEpochMillis,
-                updatedAtEpochMillis = event.occurredAtEpochMillis,
-                completionEventId = null,
-                completedAtEpochMillis = null,
-                claimedAtEpochMillis = null
-            ),
+            instance = instance,
             metric = metric,
-            eligibleForAssignment = eligible
+            evidenceStartsAtEpochMillis = window.evidenceStartsAtEpochMillis,
+            evidenceEndsAtEpochMillis = window.evidenceEndsAtEpochMillis,
+            eligibleForAssignment = existingInstance == null && eligible
         )
     }
+
+    private fun matchingExistingQuest(
+        event: GamificationEventEntity,
+        definitionId: String,
+        catalogVersion: Int,
+        instances: List<QuestInstanceEntity>
+    ): Pair<QuestInstanceEntity, QuestCriteriaSnapshot>? {
+        val relevant = instances.filter { instance ->
+            instance.actorId == event.actorId &&
+                instance.definitionId == definitionId &&
+                instance.catalogVersion == catalogVersion &&
+                instance.state in REUSABLE_QUEST_STATES
+        }.map { instance ->
+            instance to QuestAssignmentContracts.decodeCriteria(instance.criteriaJson)
+        }
+        val overlapping = relevant.mapNotNull { (instance, criteria) ->
+            criteria?.takeIf { snapshot ->
+                event.occurredAtEpochMillis >= snapshot.evidenceStartsAtEpochMillis &&
+                    event.occurredAtEpochMillis < snapshot.evidenceEndsAtEpochMillis
+            }?.let { snapshot -> instance to snapshot }
+        }
+        check(overlapping.size <= 1) {
+            "Multiple quest instances overlap one assignment-time evidence window"
+        }
+        if (overlapping.isEmpty()) {
+            check(
+                relevant.none { (instance, criteria) ->
+                    criteria == null &&
+                        event.occurredAtEpochMillis >= instance.startsAtEpochMillis &&
+                        event.occurredAtEpochMillis < instance.endsAtEpochMillis
+                }
+            ) { "An undecodable quest instance overlaps the current assignment instant" }
+        }
+        return overlapping.singleOrNull()
+    }
+}
+
+private val SUPPORTED_QUEST_CADENCES = setOf(QuestCadence.DAILY, QuestCadence.WEEKLY)
+private val REUSABLE_QUEST_STATES = setOf("available", "in_progress", "completed", "claimed")
+
+private data class QuestAssignmentWindow(
+    val evidenceStartsAtEpochMillis: Long,
+    val evidenceEndsAtEpochMillis: Long,
+    val expiresAtEpochMillis: Long
+)
+
+private fun com.cinnamon.app.domain.gamification.QuestDefinition.supportsWindowedMetric(
+    metric: CatalogEvidenceMetric
+): Boolean = when (cadence) {
+    QuestCadence.DAILY -> metric in setOf(
+        CatalogEvidenceMetric.DISTINCT_DUE_REVIEWS_TODAY,
+        CatalogEvidenceMetric.DISTINCT_REPAIRED_SUBJECTS,
+        CatalogEvidenceMetric.DISTINCT_CONFUSABLE_PAIRS,
+        CatalogEvidenceMetric.DISTINCT_CONTEXT_APPLICATIONS
+    )
+    QuestCadence.WEEKLY -> metric in setOf(
+        CatalogEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY,
+        CatalogEvidenceMetric.VERIFIED_REVIEW_QUEUE_CLEAR_DAYS
+    )
+    else -> false
+}
+
+private fun com.cinnamon.app.domain.gamification.QuestDefinition.supportsImmutableQuestRewards(
+    rewardsById: Map<String, com.cinnamon.app.domain.gamification.RewardDefinition>
+): Boolean = rewardRefs.isNotEmpty() && rewardRefs.all { rewardId ->
+    rewardsById[rewardId]?.let { reward ->
+        reward.type == RewardType.XP && reward.amount != null && reward.amount > 0
+    } == true
+}
+
+private fun com.cinnamon.app.domain.gamification.QuestDefinition.resolveAssignmentEligibility(
+    dueItemCountAtAssignment: Int,
+    repairCandidateCountAtAssignment: Int
+): Boolean? {
+    val results = eligibility.clauses.map { clause ->
+        val actual = when (clause.metric) {
+            EligibilityMetric.ALWAYS -> 1
+            EligibilityMetric.DUE_ITEM_COUNT -> dueItemCountAtAssignment.coerceAtLeast(0)
+            EligibilityMetric.REPAIR_CANDIDATE_COUNT -> repairCandidateCountAtAssignment.coerceAtLeast(0)
+            else -> return null
+        }
+        when (clause.operator) {
+            ComparisonOperator.EQ -> actual == clause.value
+            ComparisonOperator.GTE -> actual >= clause.value
+            ComparisonOperator.LTE -> actual <= clause.value
+            ComparisonOperator.IN -> return null
+        }
+    }
+    return results.all { it }
+}
+
+private fun com.cinnamon.app.domain.gamification.QuestDefinition.assignmentWindow(
+    occurredAtEpochMillis: Long,
+    timeZone: TimeZone
+): QuestAssignmentWindow? {
+    val start = Calendar.getInstance(timeZone).apply {
+        timeInMillis = occurredAtEpochMillis
+        firstDayOfWeek = Calendar.MONDAY
+        minimalDaysInFirstWeek = 4
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+        when (cadence) {
+            QuestCadence.DAILY -> Unit
+            QuestCadence.WEEKLY -> {
+                while (get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
+                    add(Calendar.DAY_OF_MONTH, -1)
+                }
+            }
+            else -> return null
+        }
+    }
+    val evidenceEnd = (start.clone() as Calendar).apply {
+        when (cadence) {
+            QuestCadence.DAILY -> add(Calendar.DAY_OF_MONTH, 1)
+            QuestCadence.WEEKLY -> add(Calendar.DAY_OF_MONTH, 7)
+            else -> return null
+        }
+    }
+    val claimEnd = (evidenceEnd.clone() as Calendar).apply {
+        add(Calendar.HOUR_OF_DAY, expiry.graceHours)
+    }
+    return QuestAssignmentWindow(
+        evidenceStartsAtEpochMillis = start.timeInMillis,
+        evidenceEndsAtEpochMillis = evidenceEnd.timeInMillis,
+        expiresAtEpochMillis = claimEnd.timeInMillis
+    )
 }
 
 private fun CatalogCriteria.supportedSettlementMetric(): CatalogEvidenceMetric? {
@@ -286,6 +458,17 @@ private fun CatalogCriteria.supportedSettlementMetric(): CatalogEvidenceMetric? 
         clause.isDelayedMasteryCriterion() -> CatalogEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY
         clause.isRhythmWeekCriterion() -> CatalogEvidenceMetric.RHYTHM_WEEKS
         clause.isContentBreadthCriterion() -> CatalogEvidenceMetric.DISTINCT_PRACTICE_CONTENT_KINDS
+        clause.isRepairCriterion() || clause.isSingleRepairQuestCriterion() ->
+            CatalogEvidenceMetric.DISTINCT_REPAIRED_SUBJECTS
+        clause.isConfusablePrecisionCriterion() || clause.isDailyConfusableQuestCriterion() ->
+            CatalogEvidenceMetric.DISTINCT_CONFUSABLE_PAIRS
+        clause.isContextApplicationCriterion() -> CatalogEvidenceMetric.DISTINCT_CONTEXT_APPLICATIONS
+        clause.isDelayedRecallCriterion() -> CatalogEvidenceMetric.DISTINCT_DELAYED_RECALLS
+        clause.isGentleReturnCriterion() -> CatalogEvidenceMetric.VERIFIED_COMEBACK_SESSIONS
+        clause.isSavedItemReviewCriterion() -> CatalogEvidenceMetric.DISTINCT_VERIFIED_SAVED_ITEMS
+        clause.isReviewQueueClearAchievementCriterion() ||
+            clause.isReviewQueueClearQuestCriterion() ->
+            CatalogEvidenceMetric.VERIFIED_REVIEW_QUEUE_CLEAR_DAYS
         else -> null
     }
 }
@@ -321,6 +504,123 @@ private fun CriterionClause.isContentBreadthCriterion(): Boolean =
         distinctBy == DistinctDimension.CONTENT_KIND &&
         minimumDelayHours == 0 &&
         filters.isEmpty()
+
+private fun CriterionClause.isRepairCriterion(): Boolean {
+    if (
+        metric != LearningMetric.MISTAKE_REPAIRED ||
+        aggregation != CriterionAggregation.COUNT_DISTINCT ||
+        distinctBy != DistinctDimension.SUBJECT_ID ||
+        minimumDelayHours != 0 ||
+        filters.size != 2
+    ) {
+        return false
+    }
+    val filtersByField = filters.associateBy { filter -> filter.field }
+    return filtersByField.size == 2 &&
+        filtersByField["repair_link_present"]?.let { filter ->
+            filter.operator == ComparisonOperator.EQ && filter.value == "true"
+        } == true &&
+        filtersByField["incorrect_attempt_precedes_correction"]?.let { filter ->
+            filter.operator == ComparisonOperator.EQ && filter.value == "true"
+        } == true
+}
+
+/** The daily quest is one verified repair; the DAO still revalidates temporal linkage itself. */
+private fun CriterionClause.isSingleRepairQuestCriterion(): Boolean =
+    metric == LearningMetric.MISTAKE_REPAIRED &&
+        aggregation == CriterionAggregation.BOOLEAN &&
+        distinctBy == DistinctDimension.NONE &&
+        minimumDelayHours == 0 &&
+        filters.singleOrNull()?.let { filter ->
+            filter.field == "repair_link_present" &&
+                filter.operator == ComparisonOperator.EQ &&
+                filter.value == "true"
+        } == true
+
+private fun CriterionClause.isConfusablePrecisionCriterion(): Boolean =
+    metric == LearningMetric.CONFUSABLE_PAIR_RESOLVED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.CONFUSABLE_PAIR &&
+        minimumDelayHours >= 24 &&
+        filters.isEmpty()
+
+/** The event-layer link makes the daily contract truthful even though the catalog sets no delay. */
+private fun CriterionClause.isDailyConfusableQuestCriterion(): Boolean =
+    metric == LearningMetric.CONFUSABLE_PAIR_RESOLVED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.CONFUSABLE_PAIR &&
+        minimumDelayHours == 0 &&
+        filters.isEmpty()
+
+private fun CriterionClause.isContextApplicationCriterion(): Boolean =
+    metric == LearningMetric.NEW_ITEM_APPLIED_IN_CONTEXT &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.SUBJECT_ID &&
+        minimumDelayHours == 0 &&
+        filters.singleOrNull()?.let { filter ->
+            filter.field == "application_verified" &&
+                filter.operator == ComparisonOperator.EQ &&
+                filter.value == "true"
+        } == true
+
+private fun CriterionClause.isDelayedRecallCriterion(): Boolean =
+    metric == LearningMetric.DELAYED_RECALL_SUCCEEDED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.SUBJECT_ID &&
+        minimumDelayHours >= 72 &&
+        filters.isEmpty()
+
+private fun CriterionClause.isGentleReturnCriterion(): Boolean {
+    if (
+        metric != LearningMetric.COMEBACK_SESSION_COMPLETED ||
+        aggregation != CriterionAggregation.BOOLEAN ||
+        distinctBy != DistinctDimension.NONE ||
+        minimumDelayHours != 0 ||
+        filters.size != 2
+    ) {
+        return false
+    }
+    val filtersByField = filters.associateBy { filter -> filter.field }
+    return filtersByField.size == 2 &&
+        filtersByField["absence_days"]?.let { filter ->
+            filter.operator == ComparisonOperator.GTE && filter.value.toIntOrNull() == 7
+        } == true &&
+        filtersByField["meaningful_actions"]?.let { filter ->
+            filter.operator == ComparisonOperator.GTE && filter.value.toIntOrNull() == 3
+        } == true
+}
+
+private fun CriterionClause.isSavedItemReviewCriterion(): Boolean =
+    metric == LearningMetric.SAVED_ITEM_REVIEWED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.SUBJECT_ID &&
+        minimumDelayHours >= 1 &&
+        filters.singleOrNull()?.let { filter ->
+            filter.field == "successful_review_count" &&
+            filter.operator == ComparisonOperator.GTE &&
+                filter.value.toIntOrNull() == 1
+        } == true
+
+private fun CriterionClause.isReviewQueueClearAchievementCriterion(): Boolean =
+    metric == LearningMetric.REVIEW_QUEUE_CLEARED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.DAY &&
+        minimumDelayHours == 0 &&
+        hasExactReviewQueueStartingSizeFilter()
+
+private fun CriterionClause.isReviewQueueClearQuestCriterion(): Boolean =
+    metric == LearningMetric.REVIEW_QUEUE_CLEARED &&
+        aggregation == CriterionAggregation.BOOLEAN &&
+        distinctBy == DistinctDimension.NONE &&
+        minimumDelayHours == 0 &&
+        hasExactReviewQueueStartingSizeFilter()
+
+private fun CriterionClause.hasExactReviewQueueStartingSizeFilter(): Boolean =
+    filters.singleOrNull()?.let { filter ->
+        filter.field == "starting_due_count" &&
+            filter.operator == ComparisonOperator.GTE &&
+            filter.value.toIntOrNull() == 5
+    } == true
 
 private fun PresentationTier.priority(): Int = when (this) {
     PresentationTier.MICRO -> 10

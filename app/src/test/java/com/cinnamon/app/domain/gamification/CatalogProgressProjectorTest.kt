@@ -52,23 +52,100 @@ class CatalogProgressProjectorTest {
             CatalogEvidenceSnapshot(
                 masteredItemsAfterDelay = 10,
                 rhythmWeeks = 2,
-                distinctPracticeContentKinds = 3
+                distinctPracticeContentKinds = 3,
+                repairedItems = 5,
+                resolvedConfusablePairs = 5,
+                verifiedContextApplications = 5,
+                verifiedDelayedRecalls = 3,
+                verifiedComebackSessions = 1,
+                verifiedSavedItems = 10,
+                verifiedReviewQueueClearDays = 1
             )
         )
 
         assertEquals(
             setOf(
                 "achievement.mastery.durable_memory",
+                "achievement.correction.repair_loop",
                 "achievement.consistency.weekly_rhythm",
-                "achievement.exploration.content_breadth"
+                "achievement.exploration.content_breadth",
+                "achievement.mastery.confusable_precision",
+                "achievement.application.context_builder",
+                "achievement.challenge.delayed_recall",
+                "achievement.comeback.gentle_return",
+                "achievement.collection.learned_not_saved",
+                "achievement.review.queue_resolved"
             ),
             projections.map { it.id }.toSet()
         )
         assertTrue(projections.all { it.thresholdReached })
         assertFalse(projections.any { projection ->
-            projection.id == "achievement.correction.repair_loop" ||
-                projection.id == "achievement.exploration.etymology_trail"
+            projection.id == "achievement.exploration.etymology_trail"
         })
+    }
+
+    @Test
+    fun `repair projection requires the exact two-link filter contract`() {
+        val repair = bundle.catalog.achievements.single {
+            it.id == "achievement.correction.repair_loop"
+        }
+        val changed = bundle.copy(
+            catalog = bundle.catalog.copy(
+                achievements = bundle.catalog.achievements.map { definition ->
+                    if (definition.id == repair.id) {
+                        definition.copy(
+                            criterion = definition.criterion.copy(
+                                clauses = listOf(
+                                    definition.criterion.clauses.single().copy(
+                                        filters = definition.criterion.clauses.single().filters.take(1)
+                                    )
+                                )
+                            )
+                        )
+                    } else {
+                        definition
+                    }
+                }
+            )
+        )
+
+        val ids = CatalogProgressProjector.projectAchievements(
+            changed,
+            CatalogEvidenceSnapshot(repairedItems = 5)
+        ).map { projection -> projection.id }
+
+        assertFalse(ids.contains(repair.id))
+    }
+
+    @Test
+    fun `queue projection requires the exact verified starting size contract`() {
+        val queueClear = bundle.catalog.achievements.single {
+            it.id == "achievement.review.queue_resolved"
+        }
+        val changed = bundle.copy(
+            catalog = bundle.catalog.copy(
+                achievements = bundle.catalog.achievements.map { definition ->
+                    if (definition.id == queueClear.id) {
+                        definition.copy(
+                            criterion = definition.criterion.copy(
+                                clauses = listOf(
+                                    definition.criterion.clauses.single().copy(filters = emptyList())
+                                )
+                            )
+                        )
+                    } else {
+                        definition
+                    }
+                }
+            )
+        )
+
+        val ids = CatalogProgressProjector.projectAchievements(
+            changed,
+            CatalogEvidenceSnapshot(verifiedReviewQueueClearDays = 1)
+        ).map { projection -> projection.id }
+
+        assertFalse(ids.contains(queueClear.id))
     }
 
     @Test
@@ -78,12 +155,12 @@ class CatalogProgressProjectorTest {
             CatalogEvidenceSnapshot(distinctDueReviewsToday = 2, dueItemCountNow = 3)
         )
 
-        assertEquals(1, eligible.size)
-        assertEquals("quest.daily.due_review", eligible.single().id)
-        assertEquals("Review three that are ready", eligible.single().title)
-        assertEquals(2, eligible.single().progress)
-        assertEquals(3, eligible.single().target)
-        assertFalse(eligible.single().thresholdReached)
+        val dueReview = eligible.single { it.id == "quest.daily.due_review" }
+        assertEquals("Review three that are ready", dueReview.title)
+        assertEquals(2, dueReview.progress)
+        assertEquals(3, dueReview.target)
+        assertFalse(dueReview.thresholdReached)
+        assertEquals(0, eligible.single { it.id == "quest.daily.confusable_pair" }.progress)
     }
 
     @Test
@@ -97,9 +174,12 @@ class CatalogProgressProjectorTest {
             CatalogEvidenceSnapshot(distinctDueReviewsToday = 3, dueItemCountNow = 0)
         )
 
-        assertTrue(unavailable.isEmpty())
-        assertEquals("quest.daily.due_review", completed.single().id)
-        assertTrue(completed.single().thresholdReached)
+        assertEquals(
+            setOf("quest.daily.confusable_pair", "quest.daily.context_use"),
+            unavailable.map { it.id }.toSet()
+        )
+        val dueReview = completed.single { it.id == "quest.daily.due_review" }
+        assertTrue(dueReview.thresholdReached)
     }
 
     @Test
@@ -107,7 +187,7 @@ class CatalogProgressProjectorTest {
         val quest = CatalogProgressProjector.projectEligibleDailyQuests(
             bundle,
             CatalogEvidenceSnapshot(distinctDueReviewsToday = 3, dueItemCountNow = 3)
-        ).single()
+        ).single { it.id == "quest.daily.due_review" }
         val achievement = CatalogProgressProjector.projectAchievements(
             bundle,
             CatalogEvidenceSnapshot(masteredItemsAfterDelay = 10)

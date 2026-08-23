@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -33,17 +34,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cinnamon.app.R
 import com.cinnamon.app.data.local.LexiconEntry
 import com.cinnamon.app.data.seed.LexiconSeedState
 import com.cinnamon.app.data.seed.LexiconSeeder
 import com.cinnamon.app.data.startup.AppStartupCoordinator
-import com.cinnamon.app.data.startup.AppStartupStage
 import com.cinnamon.app.data.startup.AppStartupState
 import com.cinnamon.app.domain.repository.LexiconRepository
 import com.cinnamon.app.domain.gamification.JourneyDestination
@@ -272,7 +279,7 @@ private fun JourneyPulseCard(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "Restoring your saved route…",
+                            "Restoring your saved learning plan…",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -372,7 +379,7 @@ private fun JourneyPulseCard(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    "${journey.securedXp} XP secured",
+                                    "${journey.earnedXp} XP earned",
                                     style = MaterialTheme.typography.labelLarge,
                                     color = colors.primary,
                                     fontWeight = FontWeight.Bold
@@ -381,7 +388,7 @@ private fun JourneyPulseCard(
                                     onClick = onOpenJourney,
                                     modifier = Modifier.heightIn(min = 48.dp)
                                 ) {
-                                    Text("Replay the route")
+                                    Text("View milestones")
                                 }
                             }
                         } else if (active != null) {
@@ -391,7 +398,7 @@ private fun JourneyPulseCard(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    "CHAPTER ${active.order}",
+                                    "MILESTONE ${active.order}",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = colors.primary
@@ -437,7 +444,7 @@ private fun JourneyPulseCard(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    "${active.progress} / ${active.target} verified",
+                                    "${active.progress} / ${active.target} recorded",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -478,13 +485,21 @@ private fun JourneyCheckpointRail(stages: List<JourneyStageUiModel>) {
                     .size(if (stage.state == JourneyStageUiState.ACTIVE) 32.dp else 28.dp)
                     .clip(CircleShape)
                     .background(markerColor)
-                    .semantics(mergeDescendants = true) {},
+                    .semantics(mergeDescendants = true) {
+                        val stateLabel = when (stage.state) {
+                            JourneyStageUiState.COMPLETED -> "complete"
+                            JourneyStageUiState.ACTIVE -> "in progress"
+                            JourneyStageUiState.LOCKED -> "locked"
+                        }
+                        contentDescription =
+                            "Foundation milestone ${stage.order}, ${stage.title}, $stateLabel"
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 when (stage.state) {
                     JourneyStageUiState.COMPLETED -> Icon(
                         Icons.Rounded.Check,
-                        contentDescription = "Chapter ${stage.order} complete",
+                        contentDescription = null,
                         tint = colors.onTertiary,
                         modifier = Modifier.size(17.dp)
                     )
@@ -496,7 +511,7 @@ private fun JourneyCheckpointRail(stages: List<JourneyStageUiModel>) {
                     )
                     JourneyStageUiState.LOCKED -> Icon(
                         Icons.Rounded.Lock,
-                        contentDescription = "Chapter ${stage.order} locked",
+                        contentDescription = null,
                         tint = colors.surface,
                         modifier = Modifier.size(14.dp)
                     )
@@ -615,7 +630,7 @@ private fun MissionPulseCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "$progress / $target verified",
+                    "$progress / $target recorded",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -656,7 +671,7 @@ private fun MissionPulseCard(
 }
 
 /**
- * A truthful first frame: no stale zero counts or tappable learning routes are
+ * A truthful first frame: no stale zero counts or tappable learning destinations are
  * presented while the local lexicon and reward ledger are still being checked.
  */
 @Composable
@@ -673,9 +688,9 @@ private fun StartupHomeScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
-            SeedStatusCard(
+            StartupCheckpointCard(
                 startupState = startupState,
-                state = seedState,
+                seedState = seedState,
                 onRetry = onRetry
             )
         }
@@ -683,64 +698,115 @@ private fun StartupHomeScreen(
 }
 
 @Composable
-private fun SeedStatusCard(
+internal fun StartupCheckpointCard(
     startupState: AppStartupState,
-    state: LexiconSeedState,
+    seedState: LexiconSeedState,
     onRetry: () -> Unit
 ) {
-    val startupFailure = startupState as? AppStartupState.Failed
-    val failed = startupFailure != null || state == LexiconSeedState.Failed
+    val presentation = startupCheckpointPresentation(startupState, seedState)
+    val foreground = if (presentation.isFailure) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    }
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = if (failed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                liveRegion = LiveRegionMode.Polite
+                stateDescription = presentation.stateDescription
+            },
+        shape = RoundedCornerShape(24.dp),
+        color = if (presentation.isFailure) {
+            MaterialTheme.colorScheme.errorContainer
+        } else {
+            MaterialTheme.colorScheme.secondaryContainer
+        },
+        border = BorderStroke(1.dp, foreground.copy(alpha = 0.16f))
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (failed) {
-                Icon(
-                    imageVector = Icons.Rounded.Healing,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer
-                )
-            } else {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 3.dp,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = if (failed) "Let's get your library ready" else "Preparing your language toolkit",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = if (failed) {
-                        when (startupFailure?.stage) {
-                            AppStartupStage.GamificationCatalog ->
-                                "We could not verify the built-in learning catalog. Your saved study history is safe."
-                            AppStartupStage.CatalogReconciliation ->
-                                "We could not restore today’s quest and milestone state. Your learning history is safe."
-                            AppStartupStage.JourneyReconciliation ->
-                                "We could not restore your learning journey. Your ledger and XP are safe."
-                            AppStartupStage.ProgressImport ->
-                                "We could not prepare your saved learning history. Nothing has been erased."
-                            else ->
-                                "Setup did not finish, and no partial content was saved. Your progress is safe."
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = foreground.copy(alpha = 0.10f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (presentation.isFailure) {
+                            Icon(
+                                imageVector = Icons.Rounded.Healing,
+                                contentDescription = null,
+                                tint = foreground
+                            )
+                        } else {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(25.dp),
+                                strokeWidth = 3.dp,
+                                color = foreground
+                            )
                         }
-                    } else {
-                        "We're checking the built-in lexicon for a reliable start. Your progress stays safe."
-                    },
-                    style = MaterialTheme.typography.bodySmall
-                )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        text = presentation.eyebrow,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = foreground.copy(alpha = 0.74f),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = presentation.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = foreground,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
-            if (failed) {
-                TextButton(onClick = onRetry) { Text("Try again") }
+
+            Text(
+                text = presentation.body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = foreground
+            )
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = foreground.copy(alpha = 0.08f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = foreground
+                    )
+                    Text(
+                        text = presentation.protectionNote,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = foreground
+                    )
+                }
+            }
+
+            presentation.actionLabel?.let { label ->
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                ) {
+                    Text(label, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -771,17 +837,29 @@ private fun HomeHeader(streak: Int, streakAlive: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column {
-            Text(
-                text = "Cinnamon!",
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onBackground
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(R.mipmap.ic_launcher_foreground),
+                contentDescription = "Cinnamon roll mark",
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                contentScale = ContentScale.Crop
             )
-            Text(
-                text = "Your English, perfected daily.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "Cinnamon",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Ready for one focused win?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         val flameColor = if (streakAlive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         Row(

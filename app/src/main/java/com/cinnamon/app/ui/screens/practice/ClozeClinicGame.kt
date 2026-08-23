@@ -180,6 +180,12 @@ fun ClozeClinicGame(
                                         chosen = option
                                         if (isAnswer) {
                                             score += 15; correctCount++
+                                            // This is a first-choice success inside a real authored sentence.
+                                            // The ViewModel cannot mint XP; it asks the ledger to verify the entry.
+                                            progressViewModel.recordVerifiedContextApplication(
+                                                lexiconEntryId = round.entry.id,
+                                                occurrenceKey = "$practiceSessionKey:${round.entry.id}"
+                                            )
                                         }
                                     },
                                 shape = RoundedCornerShape(15.dp),

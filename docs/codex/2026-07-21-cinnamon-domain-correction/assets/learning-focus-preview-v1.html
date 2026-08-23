@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cinnamon — Learning Focus preview</title>
+  <style>
+    :root {
+      --bg: #17110f;
+      --surface: #211815;
+      --surface-2: #2a1e19;
+      --line: #49372d;
+      --text: #fff8f2;
+      --muted: #b9a79d;
+      --mint: #80d7bb;
+      --cyan: #83d3c3;
+      --orange: #f1a55b;
+      --ink: #211712;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 922px;
+      min-height: 2048px;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Roboto, "Segoe UI", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 90% 55%, rgba(30, 105, 93, .10), transparent 33%),
+        radial-gradient(circle at 5% 74%, rgba(176, 90, 34, .08), transparent 30%),
+        var(--bg);
+    }
+
+    .appbar {
+      height: 190px;
+      display: flex;
+      align-items: flex-end;
+      gap: 31px;
+      padding: 0 35px 36px;
+      border-bottom: 1px solid rgba(255,255,255,.025);
+      background: #16100e;
+    }
+
+    .back {
+      width: 34px;
+      height: 34px;
+      color: var(--mint);
+      flex: 0 0 auto;
+    }
+
+    h1 {
+      margin: -2px 0 0;
+      font-size: 34px;
+      line-height: 1;
+      color: var(--mint);
+      letter-spacing: -.7px;
+      font-weight: 760;
+    }
+
+    .tabs {
+      height: 108px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 0 20px;
+      white-space: nowrap;
+      overflow: hidden;
+      background: #1d1512;
+    }
+
+    .tab {
+      padding: 21px 24px;
+      color: #aa998f;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .tab.active {
+      color: var(--mint);
+      border: 2px solid rgba(128,215,187,.65);
+      border-radius: 32px;
+      background: rgba(128,215,187,.14);
+    }
+
+    main {
+      padding: 28px 28px 54px;
+    }
+
+    .previous-context {
+      height: 260px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: rgba(34,24,20,.74);
+      padding: 29px 30px;
+      opacity: .88;
+    }
+
+    .previous-context::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 88px;
+      background: linear-gradient(transparent, var(--bg));
+    }
+
+    .micro {
+      color: #bba79c;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: .7px;
+    }
+
+    .previous-context h2 {
+      margin: 15px 0 10px;
+      font-size: 27px;
+      letter-spacing: -.3px;
+    }
+
+    .previous-context p {
+      width: 90%;
+      margin: 0;
+      color: var(--muted);
+      font-size: 19px;
+      line-height: 1.5;
+    }
+
+    .progress {
+      height: 8px;
+      margin-top: 28px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: #30241e;
+    }
+
+    .progress > span {
+      display: block;
+      width: 64%;
+      height: 100%;
+      background: var(--cyan);
+    }
+
+    .section-rule {
+      height: 1px;
+      margin: 31px 0 36px;
+      background: var(--line);
+    }
+
+    .section-label {
+      margin-bottom: 34px;
+      color: var(--cyan);
+      font-size: 20px;
+      font-weight: 850;
+      letter-spacing: .4px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 28px;
+      padding: 36px 30px 30px;
+      border: 1.5px solid rgba(131,211,195,.64);
+      border-radius: 36px;
+      background:
+        radial-gradient(circle at 87% 5%, rgba(131,211,195,.20), transparent 35%),
+        linear-gradient(118deg, #7f3f1d 0%, #664515 47%, #114d47 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      right: -80px;
+      top: -96px;
+      width: 270px;
+      height: 270px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 50%;
+      box-shadow: 0 0 0 36px rgba(255,255,255,.025), 0 0 0 75px rgba(255,255,255,.018);
+    }
+
+    .eyebrow {
+      position: relative;
+      color: #94e0d2;
+      font-size: 18px;
+      font-weight: 850;
+      letter-spacing: .3px;
+    }
+
+    .hero h2 {
+      position: relative;
+      margin: 24px 0 18px;
+      font-size: 38px;
+      line-height: 1.08;
+      letter-spacing: -1px;
+      font-weight: 900;
+    }
+
+    .hero > p {
+      position: relative;
+      width: 93%;
+      margin: 0;
+      color: rgba(255,248,242,.86);
+      font-size: 20px;
+      line-height: 1.48;
+    }
+
+    .truth-note {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 24px;
+      padding: 18px 19px;
+      border: 1px solid rgba(255,255,255,.045);
+      border-radius: 18px;
+      background: rgba(17,20,18,.33);
+      color: rgba(255,248,242,.82);
+      font-size: 16px;
+      line-height: 1.42;
+    }
+
+    .truth-note strong { color: #fff; }
+
+    .zero {
+      min-width: 57px;
+      padding: 7px 9px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.10);
+      color: #fff;
+      font-size: 14px;
+      text-align: center;
+      font-weight: 850;
+    }
+
+    .focus-card {
+      margin-top: 26px;
+      padding: 26px 26px 24px;
+      border: 2px solid;
+      border-radius: 34px;
+      background: rgba(34,24,20,.94);
+    }
+
+    .focus-card.precision { border-color: rgba(241,165,91,.82); }
+    .focus-card.fluency { border-color: rgba(131,211,195,.77); }
+
+    .card-head {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .icon-wrap {
+      width: 72px;
+      height: 72px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+    }
+
+    .precision .icon-wrap { color: var(--orange); background: rgba(241,165,91,.16); }
+    .fluency .icon-wrap { color: var(--cyan); background: rgba(131,211,195,.14); }
+    .icon-wrap svg { width: 34px; height: 34px; }
+
+    .card-title {
+      margin: 0 0 6px;
+      font-size: 28px;
+      line-height: 1.05;
+      font-weight: 900;
+      letter-spacing: -.45px;
+    }
+
+    .tagline {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .reward {
+      padding: 11px 14px;
+      border-radius: 24px;
+      font-size: 15px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .precision .reward { color: var(--orange); background: rgba(241,165,91,.14); }
+    .fluency .reward { color: var(--cyan); background: rgba(131,211,195,.13); }
+
+    .milestones {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 22px 0 20px;
+    }
+
+    .milestone {
+      min-height: 70px;
+      padding: 11px 10px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.035);
+      color: #cfbeb4;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .milestone b {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--text);
+      font-size: 17px;
+    }
+
+    button {
+      width: 100%;
+      height: 72px;
+      border: 0;
+      border-radius: 36px;
+      color: var(--ink);
+      font: inherit;
+      font-size: 20px;
+      font-weight: 850;
+    }
+
+    .precision button { background: #f6a958; }
+    .fluency button { background: #87d0c2; }
+
+    .fixed-note {
+      margin: 22px 0 0;
+      color: #9e8d83;
+      font-size: 14px;
+      line-height: 1.45;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header class="appbar">
+    <svg class="back" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15 5 8 12l7 7M8.5 12H21" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>Learning Questboard</h1>
+  </header>
+
+  <nav class="tabs" aria-label="Questboard sections">
+    <span class="tab active">Learning Plan</span>
+    <span class="tab">Practice &amp; Focus</span>
+    <span class="tab">Weekly Challenge</span>
+    <span class="tab">Match-3 Vocab</span>
+  </nav>
+
+  <main>
+    <section class="previous-context" aria-label="Existing foundation progress">
+      <div class="micro">FOUNDATION · MILESTONE 3</div>
+      <h2>Lock in lasting mastery</h2>
+      <p>Bring one term through a later review until durable recall is confirmed.</p>
+      <div class="progress"><span></span></div>
+    </section>
+
+    <div class="section-rule"></div>
+    <div class="section-label">LEARNING FOCUS</div>
+
+    <section class="hero">
+      <div class="eyebrow">CHOOSE WHAT TO SHARPEN</div>
+      <h2>What do you want to sharpen?</h2>
+      <p>Pick the language skill pattern you want to strengthen. Your focus advances only when Cinnamon records real practice and later recall.</p>
+      <div class="truth-note">
+        <span class="zero">0 XP</span>
+        <span>Choosing gives no reward. <strong>XP is earned only by completing recorded milestones.</strong></span>
+      </div>
+    </section>
+
+    <section class="focus-card precision">
+      <div class="card-head">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h7M15 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M13 4v6M7 9v6M11 14v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="card-title">Language Precision</h3>
+          <p class="tagline">Make accurate, natural usage survive new formats and later review.</p>
+        </div>
+        <div class="reward">110 XP</div>
+      </div>
+      <div class="milestones">
+        <div class="milestone"><b>3</b>practice formats</div>
+        <div class="milestone"><b>2</b>delayed mastery items</div>
+        <div class="milestone"><b>5</b>active days</div>
+      </div>
+      <button>Choose Language Precision</button>
+    </section>
+
+    <section class="focus-card fluency">
+      <div class="card-head">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M13.3 2 5 13h6l-.3 9L19 10h-6l.3-8Z" fill="currentColor"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="card-title">Recall Range</h3>
+          <p class="tagline">Build wider active recall and carry it across more practice formats.</p>
+        </div>
+        <div class="reward">110 XP</div>
+      </div>
+      <div class="milestones">
+        <div class="milestone"><b>8</b>reviewed items</div>
+        <div class="milestone"><b>4</b>practice formats</div>
+        <div class="milestone"><b>5</b>active days</div>
+      </div>
+      <button>Choose Recall Range</button>
+    </section>
+
+    <p class="fixed-note">Your choice is saved for this version. You’ll see a confirmation before it becomes active.</p>
+  </main>
+</body>
+</html>

@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +33,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -41,12 +50,12 @@ import androidx.compose.ui.unit.sp
 import com.cinnamon.app.ui.feedback.LocalCinnamonFeedbackPreferences
 import com.cinnamon.app.ui.theme.*
 import com.cinnamon.app.viewmodel.UserProgressViewModel
-import com.cinnamon.app.viewmodel.CampaignRouteChoiceUiModel
-import com.cinnamon.app.viewmodel.CampaignUiState
+import com.cinnamon.app.viewmodel.LearningFocusOptionUiModel
+import com.cinnamon.app.viewmodel.LearningFocusUiState
 import com.cinnamon.app.viewmodel.JourneyStageUiState
 import com.cinnamon.app.viewmodel.JourneyStageUiModel
 import com.cinnamon.app.viewmodel.JourneyUiState
-import com.cinnamon.app.domain.gamification.CampaignRouteTone
+import com.cinnamon.app.domain.gamification.LearningFocusTone
 import com.cinnamon.app.domain.gamification.JourneyDestination
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -62,14 +71,14 @@ fun GamificationHubScreen(
     onStartReview: () -> Unit,
     onOpenPractice: () -> Unit
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf("Journey Map") }
+    var selectedTab by rememberSaveable { mutableStateOf("Learning Plan") }
     val haptic = LocalHapticFeedback.current
 
     val tabs = listOf(
-        "Journey Map",
-        "Practice & Focus",
-        "Weekly Challenge",
-        "Match-3 Vocab",
+        "Learning Plan",
+        "Quests",
+        "Language Sprint",
+        "Vocab Pairs",
         "Transcript Escape",
         "Study Log"
     )
@@ -153,7 +162,9 @@ private fun QuestboardTabs(
 ) {
     if (compact) {
         LazyRow(
-            modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)),
+            modifier = modifier
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f))
+                .selectableGroup(),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -163,7 +174,13 @@ private fun QuestboardTabs(
                     shape = RoundedCornerShape(18.dp),
                     color = if (isActive) SurgicalGreen.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surface,
                     border = if (isActive) BorderStroke(1.dp, SurgicalGreen.copy(alpha = 0.7f)) else null,
-                    modifier = Modifier.clickable { onSelect(tab) }
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .selectable(
+                            selected = isActive,
+                            role = Role.Tab,
+                            onClick = { onSelect(tab) }
+                        )
                 ) {
                     Text(
                         text = tab,
@@ -179,7 +196,8 @@ private fun QuestboardTabs(
         Column(
             modifier = modifier
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .selectableGroup(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -188,7 +206,12 @@ private fun QuestboardTabs(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSelect(tab) }
+                        .heightIn(min = 48.dp)
+                        .selectable(
+                            selected = isActive,
+                            role = Role.Tab,
+                            onClick = { onSelect(tab) }
+                        )
                         .background(if (isActive) MaterialTheme.colorScheme.background else Color.Transparent)
                         .padding(vertical = 16.dp, horizontal = 12.dp),
                     contentAlignment = Alignment.CenterStart
@@ -232,31 +255,32 @@ private fun QuestboardWorkspace(
             label = "gamificationHubTransition"
         ) { targetTab ->
             when (targetTab) {
-                "Journey Map" -> RpgSkillTreeComponent(
+                "Learning Plan" -> RpgSkillTreeComponent(
                     viewModel = progressViewModel,
                     onStartReview = onStartReview,
                     onOpenPractice = onOpenPractice
                 )
-                "Practice & Focus" -> QuestsAndGuildsComponent(progressViewModel)
-                "Weekly Challenge" -> ScenarioLanguageSprintComponent(progressViewModel)
-                "Match-3 Vocab" -> Match3VocabComponent(progressViewModel)
+                "Quests" -> QuestsComponent(progressViewModel)
+                "Language Sprint" -> ScenarioLanguageSprintComponent(progressViewModel)
+                "Vocab Pairs" -> VocabPairsComponent(progressViewModel)
                 "Transcript Escape" -> TranscriptEscapeComponent(progressViewModel)
-                "Study Log" -> CaseReplaysComponent(progressViewModel)
-                else -> QuestsAndGuildsComponent(progressViewModel)
+                "Study Log" -> StudyLogComponent(progressViewModel)
+                else -> QuestsComponent(progressViewModel)
             }
         }
     }
 }
 
 // --------------------------------------------------------------------------------------
-// TAB 1: LEDGER-BACKED DAILY CHECKPOINTS AND LOCAL FOCUS
+// TAB: DAILY + WEEKLY QUESTS FROM PERSISTED LEARNING EVENTS
 // --------------------------------------------------------------------------------------
 @Composable
-fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
+fun QuestsComponent(viewModel: UserProgressViewModel) {
     val points by viewModel.points.collectAsState()
     val dailyQuests by viewModel.dailyQuests.collectAsState()
-    val selectedFocus by viewModel.selectedFocus.collectAsState()
+    val weeklyQuests by viewModel.weeklyQuests.collectAsState()
     val streak by viewModel.streak.collectAsState()
+    val visibleQuests = dailyQuests + weeklyQuests
 
     val haptic = LocalHapticFeedback.current
 
@@ -264,7 +288,7 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Checkpoints are projections of committed events, never tappable state.
+        // Checkpoints are projections of completed events, never tappable state.
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -277,14 +301,14 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("TODAY’S REAL CHECKPOINTS", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("YOUR QUESTS", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         Badge(containerColor = SurgicalGreen.copy(alpha = 0.2f)) {
-                            Text("LEDGER-BACKED", color = SurgicalGreen, modifier = Modifier.padding(4.dp), fontSize = 10.sp)
+                            Text("SAVED PROGRESS", color = SurgicalGreen, modifier = Modifier.padding(4.dp), fontSize = 10.sp)
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    dailyQuests.forEachIndexed { index, quest ->
+                    visibleQuests.forEachIndexed { index, quest ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -302,11 +326,11 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                                 Text(
                                     text = quest.title,
                                     color = if (quest.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 12.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium
                                 )
-                                Text("Progress: ${quest.progress}/${quest.target}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-                                Text(quest.detail, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 13.sp)
+                                Text("${quest.progress} of ${quest.target} complete", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                                Text(quest.detail, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, lineHeight = 20.sp)
                                 when {
                                     quest.claimable && quest.instanceId != null -> {
                                         FilledTonalButton(
@@ -324,7 +348,7 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                                         ) {
                                             Text(
                                                 if (quest.rewardXp > 0) "CLAIM +${quest.rewardXp} XP" else "CLAIM EARNED REWARD",
-                                                fontSize = 11.sp,
+                                                fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
@@ -332,12 +356,12 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                                     quest.claimed -> {
                                         Text(
                                             if (quest.rewardXp > 0) {
-                                                "${quest.rewardXp} XP CLAIMED · SETTLED ONCE"
+                                                "${quest.rewardXp} XP EARNED · CLAIMED ONCE"
                                             } else {
-                                                "REWARD CLAIMED · SETTLED ONCE"
+                                                "REWARD EARNED · CLAIMED ONCE"
                                             },
                                             color = SurgicalGreen,
-                                            fontSize = 10.sp,
+                                            fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.padding(top = 8.dp)
                                         )
@@ -345,65 +369,8 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                                 }
                             }
                         }
-                        if (index < dailyQuests.size - 1) {
+                        if (index < visibleQuests.size - 1) {
                             HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
-                        }
-                    }
-                }
-            }
-        }
-
-        // Local learning focus. It is deliberately not a networked team.
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("LEARNING FOCUS", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text("Choose a local topic focus for this device. It does not join a networked team or pool rewards.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, modifier = Modifier.padding(bottom = 12.dp))
-
-                    if (selectedFocus == "None") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    viewModel.selectLearningFocus("Cardiology")
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("🫀", fontSize = 20.sp)
-                                    Text("Cardiology", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-
-                            Button(
-                                onClick = {
-                                    viewModel.selectLearningFocus("Neurology")
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("🧠", fontSize = 20.sp)
-                                    Text("Neurology", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                                }
-                            }
-                        }
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                            Badge(containerColor = if (selectedFocus == "Cardiology") AlertRed else NeonCyan) {
-                                Text("LOCAL FOCUS: $selectedFocus", color = Color.Black, fontWeight = FontWeight.Bold, modifier = Modifier.padding(6.dp))
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text("Your focus is saved only on this device. It does not join a team or change rewards.", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp)
-                            TextButton(onClick = { viewModel.selectLearningFocus("None") }) { Text("Clear focus") }
                         }
                     }
                 }
@@ -424,38 +391,39 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Current streak", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
-                        Text("$streak days", color = SurgicalGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Current streak", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                        Text("$streak days", color = SurgicalGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Verified ledger balance", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
-                        Text("$points XP", color = SurgicalGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("XP balance", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                        Text("$points XP", color = SurgicalGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
-        // The product makes the evidence policy visible instead of inventing a rating.
+        // Keep reward authority understandable without exposing storage jargon.
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("FAIR-PLAY PROMISE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("HOW PROGRESS WORKS", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Your pathway is shaped only by completed, persisted learning evidence—not a manually moved rating or a made-up clinical score.",
+                        "Practice moves quests and milestones only after a completed activity is saved. Taps, retries, and guessed scores cannot create extra XP.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
                     )
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Text("Practice remains author-led until adaptive changes can be measured and explained honestly.", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
+                    Text("Activities stay predictable; Cinnamon won’t claim personalization until it can measure and explain the change.", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, lineHeight = 20.sp)
                 }
             }
         }
@@ -463,7 +431,7 @@ fun QuestsAndGuildsComponent(viewModel: UserProgressViewModel) {
 }
 
 // --------------------------------------------------------------------------------------
-// TAB 2: EVIDENCE-BACKED LEARNING ROUTE
+// TAB: FOUNDATION PLAN AND LEARNING FOCUS
 // --------------------------------------------------------------------------------------
 @Composable
 fun RpgSkillTreeComponent(
@@ -472,7 +440,7 @@ fun RpgSkillTreeComponent(
     onOpenPractice: () -> Unit
 ) {
     val journeyState by viewModel.learningJourney.collectAsState()
-    val campaignState by viewModel.campaignRoute.collectAsState()
+    val learningFocusState by viewModel.learningFocus.collectAsState()
     val reduceMotion = LocalCinnamonFeedbackPreferences.current.reduceMotion
 
     Column(
@@ -493,8 +461,8 @@ fun RpgSkillTreeComponent(
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(26.dp), strokeWidth = 3.dp)
                     Column {
-                        Text("CHARTING YOUR JOURNEY", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text("Restoring the route from your local record…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                        Text("PREPARING YOUR LEARNING PLAN", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Loading saved milestones from this device…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                     }
                 }
             }
@@ -504,14 +472,14 @@ fun RpgSkillTreeComponent(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
             ) {
                 Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("JOURNEY NEEDS ATTENTION", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text(state.message, color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 12.sp)
-                    Text("Your existing ledger and XP remain untouched.", color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.76f), fontSize = 11.sp)
+                    Text("FOUNDATION PLAN NEEDS ATTENTION", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(state.message, color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 14.sp, lineHeight = 20.sp)
+                    Text("Cinnamon did not reset your recorded progress or XP.", color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.76f), fontSize = 13.sp)
                     FilledTonalButton(
                         onClick = viewModel::retryStartup,
                         modifier = Modifier.heightIn(min = 48.dp)
                     ) {
-                        Text("Retry journey setup", fontWeight = FontWeight.Bold)
+                        Text("Try setup again", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -526,7 +494,7 @@ fun RpgSkillTreeComponent(
                     Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(journey.eyebrow, color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         Text(journey.title, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
-                        Text(journey.description, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), fontSize = 12.sp, lineHeight = 17.sp)
+                        Text(journey.description, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f), fontSize = 14.sp, lineHeight = 20.sp)
                         LinearProgressIndicator(
                             progress = {
                                 journey.completedStageCount.toFloat() / journey.totalStageCount.coerceAtLeast(1)
@@ -536,43 +504,21 @@ fun RpgSkillTreeComponent(
                             trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f)
                         )
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("${journey.completedStageCount}/${journey.totalStageCount} chapters secured", color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Text("${journey.securedXp} XP secured", color = SurgicalGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("${journey.completedStageCount}/${journey.totalStageCount} milestones complete", color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("${journey.earnedXp} XP earned", color = SurgicalGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                         if (journey.isComplete) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.14f))
                             Text(journey.completionTitle, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
-                            Text(journey.completionDescription, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), fontSize = 11.sp)
+                            Text(journey.completionDescription, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f), fontSize = 14.sp, lineHeight = 20.sp)
                         }
                     }
                 }
 
-            val dashOffset: Float
-            val activeGlowAlpha: Float
-            if (reduceMotion) {
-                dashOffset = 0f
-                activeGlowAlpha = 0.75f
-            } else {
-                val infiniteTransition = rememberInfiniteTransition(label = "pathwayPulse")
-                dashOffset = infiniteTransition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = 50f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1500, easing = LinearEasing),
-                        repeatMode = RepeatMode.Restart
-                    ),
-                    label = "dashOffset"
-                ).value
-                activeGlowAlpha = infiniteTransition.animateFloat(
-                    initialValue = 0.5f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1000, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "activeGlow"
-                ).value
-            }
+            // A static state accent avoids continuous GPU work and remains identical when
+            // reduced motion is enabled. Completion transitions elsewhere stay event-driven.
+            val dashOffset = 0f
+            val activeGlowAlpha = if (reduceMotion) 0.68f else 0.78f
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -583,6 +529,11 @@ fun RpgSkillTreeComponent(
                     val completed = stage.state == JourneyStageUiState.COMPLETED
                     val active = stage.state == JourneyStageUiState.ACTIVE
                     val glowAlpha = if (active) activeGlowAlpha else 0f
+                    val stageStateLabel = when {
+                        completed -> "complete"
+                        active -> "in progress"
+                        else -> "locked"
+                    }
 
                     Box(
                         modifier = Modifier
@@ -603,7 +554,10 @@ fun RpgSkillTreeComponent(
                                 else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             },
                             shape = RoundedCornerShape(18.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().semantics {
+                                contentDescription =
+                                    "Foundation milestone ${stage.order}, ${stage.title}, $stageStateLabel, ${stage.progress} of ${stage.target} recorded, ${stage.rewardXp} experience points"
+                            }
                         ) {
                             Row(
                                 modifier = Modifier.padding(14.dp),
@@ -617,34 +571,45 @@ fun RpgSkillTreeComponent(
                                         .border(2.dp, if (completed) SurgicalGreen else if (active) NeonCyan else Color.DarkGray, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = if (completed) "✓" else if (active) stage.order.toString() else "🔒",
-                                        fontSize = 18.sp
-                                    )
+                                    when {
+                                        completed -> Text("✓", fontSize = 18.sp)
+                                        active -> Text(stage.order.toString(), fontSize = 18.sp)
+                                        else -> Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(19.dp))
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("CHAPTER ${stage.order}", color = if (active) NeonCyan else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                                        Text("+${stage.rewardXp} XP", color = if (completed) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                                        Text("MILESTONE ${stage.order}", color = if (active) NeonCyan else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text("+${stage.rewardXp} XP", color = if (completed) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                     }
                                     Text(stage.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
-                                    Text(stage.description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 15.sp)
+                                    Text(stage.description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, lineHeight = 20.sp)
                                     Spacer(Modifier.height(8.dp))
                                     LinearProgressIndicator(
                                         progress = { stage.progress.toFloat() / stage.target.coerceAtLeast(1) },
-                                        modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(5.dp)
+                                            .clip(CircleShape)
+                                            .semantics {
+                                                progressBarRangeInfo = ProgressBarRangeInfo(
+                                                    current = stage.progress.toFloat(),
+                                                    range = 0f..stage.target.toFloat(),
+                                                    steps = (stage.target - 1).coerceAtLeast(0)
+                                                )
+                                            },
                                         color = if (completed) SurgicalGreen else NeonCyan,
                                         trackColor = MaterialTheme.colorScheme.surfaceVariant
                                     )
                                     Text(
                                         when {
-                                            completed -> "SECURED · ${stage.progress}/${stage.target} verified"
-                                            active -> "ACTIVE · ${stage.progress}/${stage.target} verified"
-                                            else -> "LOCKED · finish chapter ${stage.order - 1} first"
+                                            completed -> "COMPLETE · ${stage.progress}/${stage.target} recorded"
+                                            active -> "IN PROGRESS · ${stage.progress}/${stage.target} recorded"
+                                            else -> "LOCKED · complete milestone ${stage.order - 1} first"
                                         },
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 10.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
                                     if (active) {
@@ -660,7 +625,7 @@ fun RpgSkillTreeComponent(
                                                 contentColor = MaterialTheme.colorScheme.onSurface
                                             )
                                         ) {
-                                            Text(stage.actionLabel, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                            Text(stage.actionLabel, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         }
                                     }
                                 }
@@ -685,42 +650,45 @@ fun RpgSkillTreeComponent(
                             )
                         }
                     }
+                    if (index == 0) {
+                        LearningFocusBoard(
+                            state = learningFocusState,
+                            onSelectFocus = viewModel::selectLearningFocus,
+                            onStartReview = onStartReview,
+                            onOpenPractice = onOpenPractice,
+                            onRetrySetup = viewModel::retryStartup
+                        )
+                    }
                 }
             }
             }
         }
-
-        CampaignRouteBoard(
-            state = campaignState,
-            onChooseRoute = viewModel::chooseCampaignRoute,
-            onStartReview = onStartReview,
-            onOpenPractice = onOpenPractice
-        )
     }
 }
 
 @Composable
-private fun CampaignRouteBoard(
-    state: CampaignUiState,
-    onChooseRoute: (String) -> Unit,
+private fun LearningFocusBoard(
+    state: LearningFocusUiState,
+    onSelectFocus: (String) -> Unit,
     onStartReview: () -> Unit,
-    onOpenPractice: () -> Unit
+    onOpenPractice: () -> Unit,
+    onRetrySetup: () -> Unit
 ) {
-    var pendingRouteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingOptionId by rememberSaveable { mutableStateOf<String?>(null) }
 
     HorizontalDivider(
         modifier = Modifier.padding(vertical = 4.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
     )
     Text(
-        text = "CAMPAIGN ROUTES",
+        text = "LEARNING FOCUS",
         color = NeonCyan,
         fontWeight = FontWeight.ExtraBold,
         fontSize = 12.sp
     )
 
     when (state) {
-        CampaignUiState.Loading -> Card(
+        LearningFocusUiState.Loading -> Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -730,49 +698,91 @@ private fun CampaignRouteBoard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
-                Text("Restoring your committed campaign route…", fontSize = 12.sp)
+                Text("Loading your saved Learning Focus…", fontSize = 14.sp)
             }
         }
 
-        is CampaignUiState.Locked -> Card(
+        is LearningFocusUiState.Locked -> Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription =
+                        "Learning Focus locked. ${state.progress} of ${state.target} terms reviewed."
+                }
         ) {
-            Row(
+            Column(
                 modifier = Modifier.padding(18.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Lock, contentDescription = null)
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.background),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = null)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(state.eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(state.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                        Text(state.message, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, lineHeight = 20.sp)
+                    }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(state.eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                    Text(state.title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
-                    Text(state.message, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 16.sp)
+                LinearProgressIndicator(
+                    progress = { state.progress.toFloat() / state.target.coerceAtLeast(1) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(7.dp)
+                        .clip(CircleShape)
+                        .semantics {
+                            progressBarRangeInfo = ProgressBarRangeInfo(
+                                current = state.progress.toFloat(),
+                                range = 0f..state.target.toFloat(),
+                                steps = (state.target - 1).coerceAtLeast(0)
+                            )
+                        },
+                    color = NeonCyan,
+                    trackColor = MaterialTheme.colorScheme.background
+                )
+                Text(
+                    "${state.progress} of ${state.target} terms reviewed",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                FilledTonalButton(
+                    onClick = onStartReview,
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
+                    Text("Start review", fontWeight = FontWeight.Bold)
                 }
             }
         }
 
-        is CampaignUiState.Unavailable -> Card(
+        is LearningFocusUiState.Unavailable -> Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }
         ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("CAMPAIGN RECORD NEEDS ATTENTION", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Text(state.message, color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 12.sp)
-                Text("No route, Journey progress, or XP was rewritten.", color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.76f), fontSize = 11.sp)
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("LEARNING FOCUS NEEDS ATTENTION", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(state.message, color = MaterialTheme.colorScheme.onErrorContainer, fontSize = 14.sp, lineHeight = 20.sp)
+                FilledTonalButton(
+                    onClick = onRetrySetup,
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
+                    Text("Try setup again", fontWeight = FontWeight.Bold)
+                }
             }
         }
 
-        is CampaignUiState.Choose -> {
+        is LearningFocusUiState.Choose -> {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -786,75 +796,126 @@ private fun CampaignRouteBoard(
                     .padding(18.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(state.eyebrow, color = NeonCyan, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
+                    Text("CHOOSE WHAT TO SHARPEN", color = NeonCyan, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
                     Text(state.title, color = Color.White, fontWeight = FontWeight.Black, fontSize = 23.sp)
-                    Text(state.description, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp, lineHeight = 17.sp)
+                    Text(state.description, color = Color.White.copy(alpha = 0.86f), fontSize = 14.sp, lineHeight = 20.sp)
+                    Text(
+                        "Your choice is saved for this version and can’t be changed.",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                     Surface(
                         color = Color.Black.copy(alpha = 0.24f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            "Choosing a route grants no XP. The saved route moves only when verified learning evidence reaches a chapter target.",
-                            modifier = Modifier.padding(11.dp),
-                            color = Color.White.copy(alpha = 0.82f),
-                            fontSize = 10.sp,
-                            lineHeight = 15.sp
-                        )
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                color = Color.White.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(
+                                    "0 XP",
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Text(
+                                "Choosing earns no reward. XP is earned only by completing recorded milestones.",
+                                color = Color.White.copy(alpha = 0.86f),
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp
+                            )
+                        }
                     }
                 }
             }
 
-            state.routes.forEach { route ->
-                CampaignRouteChoiceCard(
-                    route = route,
-                    saving = state.savingRouteId == route.id,
-                    enabled = state.savingRouteId == null,
-                    onChoose = { pendingRouteId = route.id }
-                )
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val sideBySide = maxWidth >= 600.dp
+                if (sideBySide) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        state.options.forEach { option ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                LearningFocusOptionCard(
+                                    option = option,
+                                    saving = state.savingOptionId == option.id,
+                                    enabled = state.savingOptionId == null,
+                                    onChoose = { pendingOptionId = option.id }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        state.options.forEach { option ->
+                            LearningFocusOptionCard(
+                                option = option,
+                                saving = state.savingOptionId == option.id,
+                                enabled = state.savingOptionId == null,
+                                onChoose = { pendingOptionId = option.id }
+                            )
+                        }
+                    }
+                }
             }
 
             state.errorMessage?.let { message ->
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                ) {
                     Text(
                         message,
                         modifier = Modifier.padding(14.dp),
                         color = MaterialTheme.colorScheme.onErrorContainer,
-                        fontSize = 11.sp
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
                     )
                 }
             }
 
-            val pendingRoute = state.routes.firstOrNull { it.id == pendingRouteId }
-            if (pendingRoute != null) {
+            val pendingOption = state.options.firstOrNull { it.id == pendingOptionId }
+            if (pendingOption != null) {
                 AlertDialog(
-                    onDismissRequest = { pendingRouteId = null },
-                    icon = { Icon(Icons.Default.Route, contentDescription = null) },
-                    title = { Text("Commit to ${pendingRoute.title}?") },
+                    onDismissRequest = { pendingOptionId = null },
+                    icon = { Icon(Icons.Default.Tune, contentDescription = null) },
+                    title = { Text("Use ${pendingOption.title}?") },
                     text = {
                         Text(
-                            "This choice is saved and cannot be switched in this campaign version. Selecting it grants no XP; only verified learning moves its three chapters."
+                            "This focus is saved for this version and cannot be changed. Selecting it earns no XP; only completed milestones earn rewards."
                         )
                     },
                     confirmButton = {
                         Button(
                             onClick = {
-                                pendingRouteId = null
-                                onChooseRoute(pendingRoute.id)
+                                pendingOptionId = null
+                                onSelectFocus(pendingOption.id)
                             },
                             modifier = Modifier.heightIn(min = 48.dp)
-                        ) { Text("Commit route", fontWeight = FontWeight.Bold) }
+                        ) { Text("Use this focus", fontWeight = FontWeight.Bold) }
                     },
                     dismissButton = {
                         TextButton(
-                            onClick = { pendingRouteId = null },
+                            onClick = { pendingOptionId = null },
                             modifier = Modifier.heightIn(min = 48.dp)
-                        ) { Text("Not yet") }
+                        ) { Text("Review options") }
                     }
                 )
             }
         }
 
-        is CampaignUiState.Ready -> CampaignRouteProgressCard(
+        is LearningFocusUiState.Ready -> LearningFocusProgressCard(
             state = state,
             onStartReview = onStartReview,
             onOpenPractice = onOpenPractice
@@ -863,22 +924,22 @@ private fun CampaignRouteBoard(
 }
 
 @Composable
-private fun CampaignRouteChoiceCard(
-    route: CampaignRouteChoiceUiModel,
+private fun LearningFocusOptionCard(
+    option: LearningFocusOptionUiModel,
     saving: Boolean,
     enabled: Boolean,
     onChoose: () -> Unit
 ) {
-    val precision = route.tone == CampaignRouteTone.PRECISION
+    val precision = option.tone == LearningFocusTone.LANGUAGE_PRECISION
     val accent = if (precision) Color(0xFFF1A55B) else NeonCyan
-    val icon = if (precision) Icons.Default.Tune else Icons.Default.Bolt
+    val icon = if (precision) Icons.Default.Tune else Icons.Default.GridView
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.5.dp, accent.copy(alpha = 0.72f)),
         shape = RoundedCornerShape(20.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(
                     modifier = Modifier.size(46.dp).clip(CircleShape).background(accent.copy(alpha = 0.16f)),
@@ -887,26 +948,55 @@ private fun CampaignRouteChoiceCard(
                     Icon(icon, contentDescription = null, tint = accent)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(route.title, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                    Text(route.tagline, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 15.sp)
+                    Text(option.title, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    Text(option.tagline, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, lineHeight = 20.sp)
                 }
                 Surface(color = accent.copy(alpha = 0.14f), shape = RoundedCornerShape(999.dp)) {
-                    Text("${route.totalRewardXp} XP", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = accent, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                    Text("${option.totalRewardXp} XP", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
-            Text(route.commitmentCopy, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                option.metrics.forEach { metric ->
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                metric.value.toString(),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 15.sp
+                            )
+                            Text(
+                                metric.label,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp,
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+                }
+            }
             Button(
                 onClick = onChoose,
                 enabled = enabled,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color(0xFF1E1613))
             ) {
                 if (saving) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color(0xFF1E1613))
                     Spacer(Modifier.width(8.dp))
-                    Text("Saving route…", fontWeight = FontWeight.Bold)
+                    Text("Saving focus…", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 } else {
-                    Text("Choose ${route.title}", fontWeight = FontWeight.Bold)
+                    Text("Choose ${option.title}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }
@@ -914,14 +1004,15 @@ private fun CampaignRouteChoiceCard(
 }
 
 @Composable
-private fun CampaignRouteProgressCard(
-    state: CampaignUiState.Ready,
+private fun LearningFocusProgressCard(
+    state: LearningFocusUiState.Ready,
     onStartReview: () -> Unit,
     onOpenPractice: () -> Unit
 ) {
-    val journey = state.journey
-    val precision = state.tone == CampaignRouteTone.PRECISION
+    val journey = state.milestonePlan
+    val precision = state.tone == LearningFocusTone.LANGUAGE_PRECISION
     val accent = if (precision) Color(0xFFF1A55B) else NeonCyan
+    val availableXp = journey.stages.sumOf(JourneyStageUiModel::rewardXp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -938,31 +1029,47 @@ private fun CampaignRouteProgressCard(
         Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("ROUTE COMMITTED", color = accent, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
-                    Text(state.routeTitle, color = Color.White, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                    Text("CURRENT FOCUS", color = accent, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                    Text(state.focusTitle, color = Color.White, fontWeight = FontWeight.Black, fontSize = 22.sp)
                 }
                 Surface(color = accent.copy(alpha = 0.16f), shape = RoundedCornerShape(999.dp)) {
                     Text("${journey.completedStageCount}/${journey.totalStageCount}", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = accent, fontWeight = FontWeight.Bold)
                 }
             }
-            Text(state.routeTagline, color = Color.White.copy(alpha = 0.78f), fontSize = 11.sp, lineHeight = 16.sp)
+            Text(state.focusTagline, color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp, lineHeight = 20.sp)
             LinearProgressIndicator(
                 progress = { journey.completedStageCount.toFloat() / journey.totalStageCount.coerceAtLeast(1) },
-                modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(7.dp)
+                    .clip(CircleShape)
+                    .semantics {
+                        progressBarRangeInfo = ProgressBarRangeInfo(
+                            current = journey.completedStageCount.toFloat(),
+                            range = 0f..journey.totalStageCount.toFloat(),
+                            steps = (journey.totalStageCount - 1).coerceAtLeast(0)
+                        )
+                    },
                 color = accent,
                 trackColor = Color.White.copy(alpha = 0.14f)
             )
             Text(
                 if (journey.isComplete) journey.completionDescription
-                else "${journey.securedXp} XP secured · route choice is preserved",
+                else "${journey.earnedXp} of $availableXp XP earned · ${journey.completedStageCount} of ${journey.totalStageCount} milestones complete",
                 color = Color.White.copy(alpha = 0.78f),
-                fontSize = 10.sp
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+            Text(
+                "Saved for this version",
+                color = Color.White.copy(alpha = 0.68f),
+                fontSize = 12.sp
             )
         }
     }
 
     journey.stages.forEach { stage ->
-        CampaignStageCard(
+        LearningFocusMilestoneCard(
             stage = stage,
             accent = accent,
             onStartReview = onStartReview,
@@ -972,7 +1079,7 @@ private fun CampaignRouteProgressCard(
 }
 
 @Composable
-private fun CampaignStageCard(
+private fun LearningFocusMilestoneCard(
     stage: JourneyStageUiModel,
     accent: Color,
     onStartReview: () -> Unit,
@@ -980,8 +1087,19 @@ private fun CampaignStageCard(
 ) {
     val active = stage.state == JourneyStageUiState.ACTIVE
     val completed = stage.state == JourneyStageUiState.COMPLETED
+    val stateLabel = when {
+        completed -> "complete"
+        active -> "in progress"
+        else -> "locked"
+    }
     Card(
-        modifier = Modifier.fillMaxWidth().shadow(if (active) 10.dp else 0.dp, RoundedCornerShape(18.dp), spotColor = accent.copy(alpha = 0.6f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(if (active) 6.dp else 0.dp, RoundedCornerShape(18.dp), spotColor = accent.copy(alpha = 0.45f))
+            .semantics {
+                contentDescription =
+                    "Focus milestone ${stage.order}, ${stage.title}, $stateLabel, ${stage.progress} of ${stage.target} recorded, ${stage.rewardXp} experience points"
+            },
         colors = CardDefaults.cardColors(
             containerColor = if (active) accent.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
         ),
@@ -993,30 +1111,44 @@ private fun CampaignStageCard(
                 modifier = Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background).border(2.dp, if (completed) SurgicalGreen else if (active) accent else Color.DarkGray, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(if (completed) "✓" else if (active) stage.order.toString() else "🔒", fontSize = 17.sp)
+                when {
+                    completed -> Text("✓", fontSize = 17.sp)
+                    active -> Text(stage.order.toString(), fontSize = 17.sp)
+                    else -> Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
             }
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("ROUTE CHAPTER ${stage.order}", color = if (active) accent else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-                    Text("+${stage.rewardXp} XP", color = if (completed) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                    Text("FOCUS MILESTONE ${stage.order}", color = if (active) accent else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("+${stage.rewardXp} XP", color = if (completed) SurgicalGreen else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
                 Text(stage.title, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
-                Text(stage.description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 14.sp)
+                Text(stage.description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, lineHeight = 20.sp)
                 LinearProgressIndicator(
                     progress = { stage.progress.toFloat() / stage.target.coerceAtLeast(1) },
-                    modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(CircleShape)
+                        .semantics {
+                            progressBarRangeInfo = ProgressBarRangeInfo(
+                                current = stage.progress.toFloat(),
+                                range = 0f..stage.target.toFloat(),
+                                steps = (stage.target - 1).coerceAtLeast(0)
+                            )
+                        },
                     color = if (completed) SurgicalGreen else accent,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
                 Text(
                     when {
-                        completed -> "SECURED · ${stage.progress}/${stage.target} verified"
-                        active -> "ACTIVE · ${stage.progress}/${stage.target} verified"
-                        else -> "LOCKED · finish route chapter ${stage.order - 1} first"
+                        completed -> "COMPLETE · ${stage.progress}/${stage.target} recorded"
+                        active -> "IN PROGRESS · ${stage.progress}/${stage.target} recorded"
+                        else -> "LOCKED · complete milestone ${stage.order - 1} first"
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
                 if (active) {
@@ -1028,7 +1160,7 @@ private fun CampaignStageCard(
                         modifier = Modifier.padding(top = 5.dp).heightIn(min = 48.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(containerColor = accent.copy(alpha = 0.18f))
                     ) {
-                        Text(stage.actionLabel, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                        Text(stage.actionLabel, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             }
@@ -1216,7 +1348,7 @@ fun ScenarioLanguageSprintComponent(viewModel: UserProgressViewModel) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text("WHAT MAKES THIS COUNT", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text(
-                    "Match all three authored language prompts in one round. Only then is one idempotent practice completion sent to your learning ledger; retries cannot mint duplicate XP.",
+                    "Match all three language prompts in one round. Cinnamon saves one completed practice result; retries cannot earn duplicate XP.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     lineHeight = 16.sp
@@ -1263,7 +1395,7 @@ fun ScenarioLanguageSprintComponent(viewModel: UserProgressViewModel) {
                         if (nextCount == prompts.size) {
                             battleActive = false
                             completedSuccessfully = true
-                            battleStatus = "Sprint complete. All three references matched; saving one verified language-practice completion to your ledger."
+                            battleStatus = "Sprint complete. All three references matched; saving one completed language-practice result."
                             showConfetti = true
                             viewModel.recordPracticeSession(
                                 subjectType = "scenario_language_sprint",
@@ -1332,10 +1464,10 @@ fun ScenarioLanguageSprintComponent(viewModel: UserProgressViewModel) {
 }
 
 // --------------------------------------------------------------------------------------
-// TAB 4: FLASHCARD MATCH-3 GAMEPLAY (Idea 46)
+// TAB 4: VOCABULARY PAIR GAMEPLAY
 // --------------------------------------------------------------------------------------
 @Composable
-fun Match3VocabComponent(viewModel: UserProgressViewModel) {
+fun VocabPairsComponent(viewModel: UserProgressViewModel) {
     var matchScore by remember { mutableIntStateOf(0) }
     var selectedId1 by remember { mutableStateOf<Int?>(null) }
     var selectedId2 by remember { mutableStateOf<Int?>(null) }
@@ -1399,7 +1531,7 @@ fun Match3VocabComponent(viewModel: UserProgressViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("FLASHCARD MATCH-3 PUZZLE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("VOCAB PAIR PUZZLE", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text("Align medical-English terms with their plain-language descriptions to clear the board.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
             Badge(containerColor = SurgicalGreen, contentColor = Color.Black) {
@@ -1662,7 +1794,7 @@ fun TranscriptEscapeComponent(viewModel: UserProgressViewModel) {
                     clearedClueCount = nextCount
                     if (nextCount == clues.size) {
                         completedSuccessfully = true
-                        verdictFeedback = "Vault opened. All three written cues matched; saving one verified language-practice completion to your ledger."
+                        verdictFeedback = "Vault opened. All three written cues matched; saving one completed language-practice result."
                         viewModel.recordPracticeSession(
                             subjectType = "authored_transcript_escape",
                             subjectId = "respiratory_language_cues_v1",
@@ -1726,7 +1858,7 @@ fun TranscriptEscapeComponent(viewModel: UserProgressViewModel) {
 // TAB 6: DURABLE LEARNING ACTIVITY LOG
 // --------------------------------------------------------------------------------------
 @Composable
-fun CaseReplaysComponent(viewModel: UserProgressViewModel) {
+fun StudyLogComponent(viewModel: UserProgressViewModel) {
     val activities by viewModel.recentLearningActivity.collectAsState()
     var selectedActivityId by remember { mutableStateOf<String?>(null) }
     val haptic = LocalHapticFeedback.current
@@ -1739,7 +1871,7 @@ fun CaseReplaysComponent(viewModel: UserProgressViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("RECENT STUDY LOG", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        Text("Only committed learning events appear here. This build does not fabricate audio recordings, AI critiques, or clinical evaluations.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        Text("Only completed learning activities appear here. This build does not fabricate audio recordings, AI critiques, or clinical evaluations.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
 
         if (activities.isEmpty()) {
             Card(
@@ -1747,7 +1879,7 @@ fun CaseReplaysComponent(viewModel: UserProgressViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    "Finish a review or a full practice session to create your first ledger-backed entry.",
+                    "Finish a review or a full practice session to create your first saved learning entry.",
                     modifier = Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
@@ -1804,7 +1936,7 @@ fun CaseReplaysComponent(viewModel: UserProgressViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("LEDGER ENTRY", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("LEARNING ENTRY", color = SurgicalGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         IconButton(onClick = { selectedActivityId = null }) {
                             Icon(Icons.Default.Close, contentDescription = "Close", tint = AlertRed)
                         }

@@ -1,0 +1,33 @@
+Daily Repair One — isolated Android runtime proof
+Date: 2026-07-22 (Asia/Tehran)
+Workspace: C:\Users\K1\Desktop\Projects\Cinnamon
+Device: emulator-5582 only (Codex_API35, Android 15, emulation renderer)
+Isolation: started read-only by this Cinnamon validation pass; no shared emulator was used.
+
+Build:
+  .\gradlew.bat --no-daemon --console=plain :app:assembleDebug :app:assembleDebugAndroidTest
+  BUILD SUCCESSFUL
+
+Focused device proof:
+  adb -s emulator-5582 shell am instrument -w -r -e class com.cinnamon.app.ui.RepairLoopLifecycleAndroidTest com.cinnamon.app.test/androidx.test.runner.AndroidJUnitRunner
+  OK (1 test)
+
+The focused test performs a real Activity-backed lifecycle:
+  1. Five distinct Again reviews create zero-XP repair candidates.
+  2. Five later due Good reviews create valid, temporally ordered repair links.
+  3. The linked Daily Repair One quest reaches 1/1 and state completed.
+  4. Its manual claim grants exactly 10 XP once.
+  5. A duplicate claim returns DUPLICATE without another grant.
+  6. Turnaround still reaches 5/5 in Profile and replay produces no new repair value.
+
+Full device suite after the feature:
+  adb -s emulator-5582 shell am instrument -w -r com.cinnamon.app.test/androidx.test.runner.AndroidJUnitRunner
+  numtests=10
+  OK (10 tests)
+  INSTRUMENTATION_CODE: -1
+
+Host validation after the feature:
+  .\gradlew.bat --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug
+  BUILD SUCCESSFUL
+  Unit XML aggregate: 35 suites, 146 tests, 0 failures, 0 errors, 0 skipped.
+  Lint: 0 errors; 32 dependency/target warnings (20 GradleDependency, 9 NewerVersionAvailable, 2 AndroidGradlePluginVersion, 1 OldTargetApi).

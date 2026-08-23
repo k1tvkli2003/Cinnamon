@@ -1,0 +1,65 @@
+scenario=Quest
+timestamp_utc=2026-07-22T13:50:16.591Z
+device_serial=emulator-5554
+api_level=35
+pid_before_force_stop=
+pid_after_force_stop=
+pid_after_fresh_invocation=
+step_one=PASS
+step_two=PASS
+process_restart_asserted=true
+
+[step_one_output]
+INSTRUMENTATION_STATUS: class=com.cinnamon.app.ui.QuestLifecycleAndroidTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.cinnamon.app.ui.QuestLifecycleAndroidTest:
+INSTRUMENTATION_STATUS: test=step1_reviewCompletesQuest_claimsOnce_andSurvivesActivityRecreation
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.cinnamon.app.ui.QuestLifecycleAndroidTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=step1_reviewCompletesQuest_claimsOnce_andSurvivesActivityRecreation
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 5.838
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1
+
+[step_two_output]
+INSTRUMENTATION_STATUS: class=com.cinnamon.app.ui.QuestLifecycleAndroidTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.cinnamon.app.ui.QuestLifecycleAndroidTest:
+INSTRUMENTATION_STATUS: test=step2_claimPersistsAcrossFreshInstrumentationProcess
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.cinnamon.app.ui.QuestLifecycleAndroidTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=step2_claimPersistsAcrossFreshInstrumentationProcess
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 3.191
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1
+
+[process_proof_log]
+--------- beginning of main
+I/QuestProcessProof( 7534): step=1 pid=7534
+I/QuestProcessProof( 7643): step=2 previousPid=7534 currentPid=7643 freshRequired=true

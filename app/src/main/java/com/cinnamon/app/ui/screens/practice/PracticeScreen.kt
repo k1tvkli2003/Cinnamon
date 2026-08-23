@@ -80,7 +80,7 @@ fun PracticeScreen(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GameTile("Unscramble", "Rebuild advanced sentences", Icons.Rounded.ViewAgenda, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f), onStartUnscramble)
-                GameTile("Progress Hub", "Quests, ranks & streaks", Icons.Rounded.EmojiEvents, MaterialTheme.colorScheme.secondary, Modifier.weight(1f), onOpenProgressHub)
+                GameTile("Learning Questboard", "Milestones, focus & rewards", Icons.Rounded.EmojiEvents, MaterialTheme.colorScheme.secondary, Modifier.weight(1f), onOpenProgressHub)
             }
         }
 

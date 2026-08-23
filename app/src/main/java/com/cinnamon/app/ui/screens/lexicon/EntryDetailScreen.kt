@@ -64,7 +64,11 @@ fun EntryDetailScreen(
                         IconButton(onClick = { viewModel.toggleBookmark(e) }) {
                             Icon(
                                 imageVector = if (e.isBookmarked) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                                contentDescription = "Bookmark",
+                                contentDescription = if (e.isBookmarked) {
+                                    "Saved for Kept and Learned; review it successfully after one hour"
+                                } else {
+                                    "Save this word and return after one hour to make Kept and Learned progress"
+                                },
                                 tint = if (e.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -143,6 +147,41 @@ fun EntryDetailScreen(
                                         )
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (e.isBookmarked) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Bookmark,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    "Kept and Learned is active",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    "Return for one successful review after an hour to turn this save into progress.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.82f)
+                                )
                             }
                         }
                     }

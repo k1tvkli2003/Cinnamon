@@ -128,6 +128,16 @@ object RewardRuleEngine {
             baseXp = 4L,
             reasonCode = "mistake_repaired"
         )
+        RewardableEventType.MISTAKE_RECORDED,
+        RewardableEventType.CONFUSABLE_PAIR_ATTEMPTED,
+        RewardableEventType.CONFUSABLE_PAIR_RESOLVED,
+        RewardableEventType.CONTEXT_APPLICATION_VERIFIED,
+        RewardableEventType.DELAYED_RECALL_SUCCEEDED,
+        RewardableEventType.COMEBACK_SESSION_COMPLETED,
+        RewardableEventType.BOOKMARK_SAVED,
+        RewardableEventType.SAVED_ITEM_REVIEWED,
+        RewardableEventType.REVIEW_QUEUE_OPENED,
+        RewardableEventType.REVIEW_QUEUE_CLEARED,
         RewardableEventType.OTHER -> null
     }
 

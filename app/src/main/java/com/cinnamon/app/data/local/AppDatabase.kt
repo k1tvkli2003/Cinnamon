@@ -21,11 +21,12 @@ import androidx.room.RoomDatabase
         QuestInstanceEntity::class,
         JourneyInstanceEntity::class,
         JourneyStageProgressEntity::class,
-        CampaignRouteChoiceEntity::class,
+        LearningFocusSelectionEntity::class,
         AchievementUnlockEntity::class,
-        RewardPresentationReceiptEntity::class
+        RewardPresentationReceiptEntity::class,
+        MeshReferenceEntry::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,6 +34,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun learnDao(): LearnDao
     abstract fun flashcardDao(): FlashcardDao
     abstract fun gamificationDao(): GamificationDao
+    abstract fun meshReferenceDao(): MeshReferenceDao
 
     companion object {
         @Volatile
@@ -48,7 +50,9 @@ abstract class AppDatabase : RoomDatabase() {
                     .addMigrations(
                         AppDatabaseMigrations.MIGRATION_1_2,
                         AppDatabaseMigrations.MIGRATION_2_3,
-                        AppDatabaseMigrations.MIGRATION_3_4
+                        AppDatabaseMigrations.MIGRATION_3_4,
+                        AppDatabaseMigrations.MIGRATION_4_5,
+                        AppDatabaseMigrations.MIGRATION_5_6
                     )
                     .build()
                 INSTANCE = instance

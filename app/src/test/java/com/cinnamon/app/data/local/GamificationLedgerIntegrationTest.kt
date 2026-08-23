@@ -2,9 +2,9 @@ package com.cinnamon.app.data.local
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.cinnamon.app.data.gamification.CampaignSettlementPlanner
 import com.cinnamon.app.data.gamification.JourneySettlementPlanner
-import com.cinnamon.app.domain.gamification.FoundationCampaignCatalog
+import com.cinnamon.app.data.gamification.LearningFocusSelectionPlanner
+import com.cinnamon.app.domain.gamification.FoundationLearningFocusCatalog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -160,6 +160,83 @@ class GamificationLedgerIntegrationTest {
     }
 
     @Test
+    fun `queue-clear evidence requires a linked same-day Room snapshot and resists replays`() = runBlocking {
+        val studyDay = 19_675L
+        val openedAt = 1_700_000_000_000L
+        val opening = event(
+            eventKey = "queue-open",
+            eventType = "review_queue_opened",
+            subjectType = "review_queue",
+            subjectId = studyDay.toString(),
+            studyDay = studyDay,
+            occurredAtEpochMillis = openedAt
+        ).copy(metadataJson = "{\"queueOpenVerified\":true,\"startingDueCount\":5}")
+        commitCatalog(opening, CatalogSettlementRequest())
+
+        val mismatchedClear = event(
+            eventKey = "queue-clear-mismatch",
+            eventType = "review_queue_cleared",
+            subjectType = "review_queue",
+            subjectId = studyDay.toString(),
+            studyDay = studyDay,
+            occurredAtEpochMillis = openedAt + 1_000L
+        ).copy(
+            metadataJson = "{\"reviewQueueOpeningEventId\":\"${opening.eventId}\"," +
+                "\"queueClearLinkPresent\":true,\"startingDueCount\":6,\"finalDueCount\":0}"
+        )
+        commitCatalog(mismatchedClear, CatalogSettlementRequest())
+
+        val wrongDayClear = event(
+            eventKey = "queue-clear-wrong-day",
+            eventType = "review_queue_cleared",
+            subjectType = "review_queue",
+            subjectId = (studyDay + 1).toString(),
+            studyDay = studyDay + 1,
+            occurredAtEpochMillis = openedAt + 2_000L
+        ).copy(
+            metadataJson = "{\"reviewQueueOpeningEventId\":\"${opening.eventId}\"," +
+                "\"queueClearLinkPresent\":true,\"startingDueCount\":5,\"finalDueCount\":0}"
+        )
+        commitCatalog(wrongDayClear, CatalogSettlementRequest())
+
+        assertEquals(0, dao.observeVerifiedReviewQueueClearDayCount("learner").first())
+
+        val validClear = event(
+            eventKey = "queue-clear-valid",
+            eventType = "review_queue_cleared",
+            subjectType = "review_queue",
+            subjectId = studyDay.toString(),
+            studyDay = studyDay,
+            occurredAtEpochMillis = openedAt + 3_000L
+        ).copy(
+            metadataJson = "{\"reviewQueueOpeningEventId\":\"${opening.eventId}\"," +
+                "\"queueClearLinkPresent\":true,\"startingDueCount\":5,\"finalDueCount\":0}"
+        )
+        val applied = commitCatalog(validClear, CatalogSettlementRequest())
+        val replay = commitCatalog(validClear, CatalogSettlementRequest())
+
+        assertEquals(RewardWriteStatus.APPLIED, applied.status)
+        assertEquals(RewardWriteStatus.DUPLICATE, replay.status)
+        assertEquals(1, dao.observeVerifiedReviewQueueClearDayCount("learner").first())
+        assertEquals(
+            1,
+            dao.verifiedReviewQueueClearDayCountAfterOnce(
+                actorId = "learner",
+                afterEpochMillis = openedAt,
+                throughEpochMillis = openedAt + 4_000L
+            )
+        )
+        assertEquals(
+            1,
+            dao.verifiedReviewQueueClearDayCountInWindowOnce(
+                actorId = "learner",
+                fromEpochMillis = openedAt,
+                untilEpochMillis = openedAt + 4_000L
+            )
+        )
+    }
+
+    @Test
     fun `catalog unlock reward summary receipt and balance commit as one unit`() = runBlocking {
         val event = event(
             eventKey = "mastery-threshold",
@@ -275,6 +352,95 @@ class GamificationLedgerIntegrationTest {
     }
 
     @Test
+    fun `weekly mastery quest counts only distinct evidence inside its frozen window`() = runBlocking {
+        val windowStart = 1_700_000_000_000L
+        val evidenceEnd = windowStart + 7 * 86_400_000L
+        val expiresAt = evidenceEnd + 6 * 3_600_000L
+        val beforeWindow = event(
+            eventKey = "weekly-before-window",
+            eventType = "concept_mastered",
+            subjectId = "term-before",
+            occurredAtEpochMillis = windowStart - 1L
+        )
+        commitCatalog(beforeWindow, CatalogSettlementRequest())
+
+        val subjects = listOf(
+            "term-a",
+            "term-a",
+            "term-b",
+            "term-c",
+            "term-d",
+            "term-e",
+            "term-f",
+            "term-g",
+            "term-h"
+        )
+        subjects.forEachIndexed { index, subjectId ->
+            val evidence = event(
+                eventKey = "weekly-mastery-$index",
+                eventType = "concept_mastered",
+                subjectId = subjectId,
+                occurredAtEpochMillis = windowStart + index + 1L
+            )
+            commitCatalog(
+                event = evidence,
+                settlement = CatalogSettlementRequest(
+                    quests = listOf(
+                        weeklyMasteryQuestCandidate(
+                            event = evidence,
+                            windowStart = windowStart,
+                            evidenceEnd = evidenceEnd,
+                            expiresAt = expiresAt
+                        )
+                    )
+                )
+            )
+        }
+
+        val quest = checkNotNull(dao.questInstanceById("quest-weekly-durable-mastery"))
+        assertEquals(8L, quest.progress)
+        assertEquals("completed", quest.state)
+        assertEquals("event-weekly-mastery-8", quest.completionEventId)
+    }
+
+    @Test
+    fun `late replay expires an open weekly quest before it can add progress`() = runBlocking {
+        val windowStart = 1_700_000_000_000L
+        val evidenceEnd = windowStart + 7 * 86_400_000L
+        val expiresAt = evidenceEnd + 6 * 3_600_000L
+        val first = event(
+            eventKey = "weekly-on-time",
+            eventType = "concept_mastered",
+            subjectId = "term-a",
+            occurredAtEpochMillis = windowStart + 1L
+        )
+        commitCatalog(
+            event = first,
+            settlement = CatalogSettlementRequest(
+                quests = listOf(weeklyMasteryQuestCandidate(first, windowStart, evidenceEnd, expiresAt))
+            )
+        )
+
+        val lateReplay = event(
+            eventKey = "weekly-late-replay",
+            eventType = "concept_mastered",
+            subjectId = "term-b",
+            occurredAtEpochMillis = windowStart + 2L
+        ).copy(recordedAtEpochMillis = expiresAt + 1L)
+        val lateResult = commitCatalog(
+            event = lateReplay,
+            settlement = CatalogSettlementRequest(
+                quests = listOf(weeklyMasteryQuestCandidate(lateReplay, windowStart, evidenceEnd, expiresAt))
+            )
+        )
+
+        val quest = checkNotNull(dao.questInstanceById("quest-weekly-durable-mastery"))
+        assertEquals(1L, quest.progress)
+        assertEquals("expired", quest.state)
+        assertEquals("[]", lateResult.summary?.questProgressJson)
+    }
+
+    @Test
     fun `completed quest claim is idempotent and a second claim event rolls back`() = runBlocking {
         listOf("term-a", "term-b", "term-c").forEachIndexed { index, subjectId ->
             val evidenceEvent = event("claim-evidence-$index", subjectId = subjectId)
@@ -288,7 +454,8 @@ class GamificationLedgerIntegrationTest {
             eventKey = "quest-claim",
             eventType = "quest_reward_claimed",
             subjectType = "quest_instance",
-            subjectId = "quest-daily-due-review"
+            subjectId = "quest-daily-due-review",
+            occurredAtEpochMillis = 1_700_086_400_001L
         )
         val first = commitQuestClaim(claimEvent)
         val replay = commitQuestClaim(claimEvent)
@@ -479,27 +646,27 @@ class GamificationLedgerIntegrationTest {
     }
 
     @Test
-    fun `campaign choice stays locked and rolls back every row before its journey prerequisite`() = runBlocking {
-        val choiceEvent = campaignChoiceEvent(
-            eventKey = "locked-campaign-choice",
-            routeId = "route.precision-trail"
+    fun `Learning Focus stays locked and rolls back every row before its prerequisite`() = runBlocking {
+        val selectionEvent = learningFocusEvent(
+            eventKey = "locked-learning-focus",
+            optionId = "learning-focus.option.language-precision"
         )
 
         val failure = runCatching {
-            commitCampaignChoice(choiceEvent, "route.precision-trail")
+            commitLearningFocus(selectionEvent, "learning-focus.option.language-precision")
         }.exceptionOrNull()
 
         assertNotNull(failure)
-        assertNull(dao.eventById(choiceEvent.eventId))
-        assertTrue(dao.observeCampaignRouteChoices("learner").first().isEmpty())
+        assertNull(dao.eventById(selectionEvent.eventId))
+        assertTrue(dao.observeLearningFocusSelections("learner").first().isEmpty())
         assertTrue(dao.observeJourneyInstances("learner").first().isEmpty())
         assertTrue(dao.observeJourneyStages("learner").first().isEmpty())
         assertTrue(dao.observeRewardTransactions("learner").first().isEmpty())
     }
 
     @Test
-    fun `campaign choice atomically persists one route without granting selection XP`() = runBlocking {
-        unlockCampaignChoice()
+    fun `Learning Focus atomically persists one option without granting selection XP`() = runBlocking {
+        unlockLearningFocus()
         // Eligible historic evidence must not turn the selection tap into a reward event.
         listOf("vocabulary_match", "cloze_clinic", "rapid_recall").forEachIndexed { index, kind ->
             commit(
@@ -510,81 +677,148 @@ class GamificationLedgerIntegrationTest {
             )
         }
         val balanceBefore = dao.observeRewardBalance("learner", "xp").first()?.balance
-        val choiceEvent = campaignChoiceEvent(
+        val selectionEvent = learningFocusEvent(
             eventKey = "choose-precision",
-            routeId = "route.precision-trail"
+            optionId = "learning-focus.option.language-precision"
         )
 
-        val result = commitCampaignChoice(choiceEvent, "route.precision-trail")
+        val result = commitLearningFocus(
+            selectionEvent,
+            "learning-focus.option.language-precision"
+        )
 
-        val choice = dao.observeCampaignRouteChoices("learner").first().single()
+        val selection = dao.observeLearningFocusSelections("learner").first().single()
         val journeys = dao.observeJourneyInstances("learner").first()
-        val routeStages = dao.observeJourneyStages("learner").first()
-            .filter { stage -> stage.journeyInstanceId == choice.journeyDefinitionId.toJourneyInstanceId() }
+        val precisionOption = requireNotNull(
+            FoundationLearningFocusCatalog.definition.option(
+                "learning-focus.option.language-precision"
+            )
+        )
+        val recallOption = requireNotNull(
+            FoundationLearningFocusCatalog.definition.option(
+                "learning-focus.option.recall-range"
+            )
+        )
+        val precisionPlan = precisionOption.milestonePlan
+        val recallPlan = recallOption.milestonePlan
+        val focusStages = dao.observeJourneyStages("learner").first()
+            .filter { stage ->
+                stage.journeyInstanceId ==
+                    selection.milestonePlanDefinitionId.toPersistedJourneyInstanceId()
+            }
         assertEquals(RewardWriteStatus.APPLIED, result.status)
         assertEquals(0L, result.summary?.xpAwarded)
         assertEquals(balanceBefore, dao.observeRewardBalance("learner", "xp").first()?.balance)
-        assertEquals("route.precision-trail", choice.routeId)
-        assertEquals("journey.route.precision-trail", choice.journeyDefinitionId)
+        assertEquals(
+            precisionOption.id,
+            selection.optionId
+        )
+        assertEquals(precisionPlan.id, selection.milestonePlanDefinitionId)
+        assertEquals(selectionEvent.occurredAtEpochMillis, selection.selectedAtEpochMillis)
         assertEquals(2, journeys.size)
-        assertTrue(journeys.none { it.definitionId == "journey.route.momentum-circuit" })
-        assertEquals(listOf("active", "locked", "locked"), routeStages.map { it.state })
-        assertEquals(listOf(0L, 0L, 0L), routeStages.map { it.progress })
+        assertTrue(journeys.none { it.definitionId == recallPlan.id })
+        assertEquals(listOf("active", "locked", "locked"), focusStages.map { it.state })
+        assertEquals(listOf(0L, 0L, 0L), focusStages.map { it.progress })
         assertTrue(
             dao.observeRewardTransactions("learner").first()
-                .none { it.eventId == choiceEvent.eventId }
+                .none { it.eventId == selectionEvent.eventId }
         )
     }
 
     @Test
-    fun `campaign choice replay is stable while a conflicting route rolls back`() = runBlocking {
-        unlockCampaignChoice()
-        val precisionEvent = campaignChoiceEvent(
-            eventKey = "campaign-precision",
-            routeId = "route.precision-trail"
+    fun `same Learning Focus replay creates no event while another option is a typed conflict`() = runBlocking {
+        unlockLearningFocus()
+        val precisionEvent = learningFocusEvent(
+            eventKey = "learning-focus-precision",
+            optionId = "learning-focus.option.language-precision"
         )
-        val first = commitCampaignChoice(precisionEvent, "route.precision-trail")
-        val replay = commitCampaignChoice(precisionEvent, "route.precision-trail")
-        val conflictEvent = campaignChoiceEvent(
-            eventKey = "campaign-momentum-conflict",
-            routeId = "route.momentum-circuit"
+        val first = commitLearningFocus(
+            precisionEvent,
+            "learning-focus.option.language-precision"
+        )
+        val replayEvent = learningFocusEvent(
+            eventKey = "learning-focus-precision-replay",
+            optionId = "learning-focus.option.language-precision",
+            occurredAtEpochMillis = precisionEvent.occurredAtEpochMillis + 1L
+        )
+        val replay = commitLearningFocus(
+            replayEvent,
+            "learning-focus.option.language-precision"
+        )
+        val conflictEvent = learningFocusEvent(
+            eventKey = "learning-focus-recall-conflict",
+            optionId = "learning-focus.option.recall-range",
+            occurredAtEpochMillis = precisionEvent.occurredAtEpochMillis + 2L
         )
 
         val conflict = runCatching {
-            commitCampaignChoice(conflictEvent, "route.momentum-circuit")
+            commitLearningFocus(conflictEvent, "learning-focus.option.recall-range")
         }.exceptionOrNull()
 
         assertEquals(RewardWriteStatus.APPLIED, first.status)
         assertEquals(RewardWriteStatus.DUPLICATE, replay.status)
-        assertNotNull(conflict)
+        assertEquals(precisionEvent.eventId, replay.canonicalEventId)
+        assertNull(dao.eventById(replayEvent.eventId))
+        assertTrue(conflict is LearningFocusAlreadySelectedException)
         assertNull(dao.eventById(conflictEvent.eventId))
-        assertEquals(
-            listOf("route.precision-trail"),
-            dao.observeCampaignRouteChoices("learner").first().map { it.routeId }
+        val precisionOption = requireNotNull(
+            FoundationLearningFocusCatalog.definition.option(
+                "learning-focus.option.language-precision"
+            )
         )
+        assertEquals(
+            listOf(precisionOption.id),
+            dao.observeLearningFocusSelections("learner").first().map { it.optionId }
+        )
+        val persistedPlanIds = FoundationLearningFocusCatalog.definition.options
+            .map { option -> option.milestonePlan.id }
+            .toSet()
         assertEquals(
             1,
             dao.observeJourneyInstances("learner").first()
-                .count { it.definitionId.startsWith("journey.route.") }
+                .count { it.definitionId in persistedPlanIds }
         )
     }
 
     @Test
-    fun `selected campaign route progresses from learning while the unselected route never materializes`() = runBlocking {
-        unlockCampaignChoice()
-        commitCampaignChoice(
-            campaignChoiceEvent("choose-route-for-progress", "route.precision-trail"),
-            "route.precision-trail"
-        )
-        val route = requireNotNull(
-            FoundationCampaignCatalog.definition.route("route.precision-trail")
-        )
-        listOf("vocabulary_match", "cloze_clinic", "rapid_recall").forEachIndexed { index, kind ->
-            val learningEvent = event(
-                eventKey = "campaign-practice-$index",
+    fun `Learning Focus counts only post-selection evidence and never materializes the other option`() = runBlocking {
+        unlockLearningFocus()
+        val selectionTimestamp = 1_700_000_001_000L
+        listOf("historic-a", "historic-b", "historic-c").forEachIndexed { index, kind ->
+            commit(
+                eventKey = "historic-focus-practice-$index",
+                xp = 0L,
                 eventType = "practice_session_completed",
                 subjectType = kind,
-                subjectId = "session-$index"
+                occurredAtEpochMillis = selectionTimestamp - 1L
+            )
+        }
+        commitLearningFocus(
+            learningFocusEvent(
+                eventKey = "choose-focus-for-progress",
+                optionId = "learning-focus.option.language-precision",
+                occurredAtEpochMillis = selectionTimestamp
+            ),
+            "learning-focus.option.language-precision"
+        )
+        val option = requireNotNull(
+            FoundationLearningFocusCatalog.definition.option(
+                "learning-focus.option.language-precision"
+            )
+        )
+        val focusPlan = option.milestonePlan
+        val otherFocusPlan = requireNotNull(
+            FoundationLearningFocusCatalog.definition.option(
+                "learning-focus.option.recall-range"
+            )
+        ).milestonePlan
+        listOf("vocabulary_match", "cloze_clinic", "rapid_recall").forEachIndexed { index, kind ->
+            val learningEvent = event(
+                eventKey = "focus-practice-$index",
+                eventType = "practice_session_completed",
+                subjectType = kind,
+                subjectId = "session-$index",
+                occurredAtEpochMillis = selectionTimestamp + index + 1L
             )
             dao.recordRewardAtomically(
                 event = learningEvent,
@@ -593,24 +827,37 @@ class GamificationLedgerIntegrationTest {
                 presentationReceipts = emptyList(),
                 journeySettlement = JourneySettlementPlanner.plan(learningEvent),
                 additionalJourneySettlements = listOf(
-                    JourneySettlementPlanner.plan(learningEvent, route.journey)
+                    JourneySettlementPlanner.plan(learningEvent, focusPlan).copy(
+                        evidenceAfterEpochMillis = selectionTimestamp
+                    )
                 )
             )
+            if (index == 0) {
+                val focus = dao.observeJourneyInstances("learner").first()
+                    .single { it.definitionId == focusPlan.id }
+                val firstMilestone = dao.observeJourneyStages("learner").first()
+                    .single { stage ->
+                        stage.journeyInstanceId == focus.journeyInstanceId &&
+                            stage.stageOrder == 1
+                    }
+                assertEquals(1L, firstMilestone.progress)
+                assertEquals("active", firstMilestone.state)
+            }
         }
 
         val instances = dao.observeJourneyInstances("learner").first()
-        val precision = instances.single { it.definitionId == "journey.route.precision-trail" }
+        val precision = instances.single { it.definitionId == focusPlan.id }
         val stages = dao.observeJourneyStages("learner").first()
             .filter { it.journeyInstanceId == precision.journeyInstanceId }
         assertEquals(2, precision.currentStageOrder)
         assertEquals("completed", stages[0].state)
         assertEquals(3L, stages[0].progress)
         assertEquals("active", stages[1].state)
-        assertTrue(instances.none { it.definitionId == "journey.route.momentum-circuit" })
+        assertTrue(instances.none { it.definitionId == otherFocusPlan.id })
         assertEquals(
             25L,
             dao.observeRewardTransactions("learner").first()
-                .filter { it.ruleId.startsWith("journey.journey.route.precision-trail") }
+                .filter { it.ruleId.startsWith("journey.${focusPlan.id}") }
                 .sumOf { it.amount }
         )
     }
@@ -620,17 +867,17 @@ class GamificationLedgerIntegrationTest {
         eventType: String = "review_completed",
         subjectType: String = "lexicon_entry",
         subjectId: String = eventKey,
-        studyDay: Long = 19_675L
+        studyDay: Long = 19_675L,
+        occurredAtEpochMillis: Long = 1_700_000_000_000L
     ): GamificationEventEntity {
-        val now = 1_700_000_000_000L
         return GamificationEventEntity(
             eventId = "event-$eventKey",
             actorId = "learner",
             eventType = eventType,
             subjectType = subjectType,
             subjectId = subjectId,
-            occurredAtEpochMillis = now,
-            recordedAtEpochMillis = now,
+            occurredAtEpochMillis = occurredAtEpochMillis,
+            recordedAtEpochMillis = occurredAtEpochMillis,
             studyDay = studyDay,
             idempotencyKey = "idempotency-$eventKey",
             source = "test",
@@ -640,34 +887,36 @@ class GamificationLedgerIntegrationTest {
         )
     }
 
-    private fun campaignChoiceEvent(
+    private fun learningFocusEvent(
         eventKey: String,
-        routeId: String
+        optionId: String,
+        occurredAtEpochMillis: Long = 1_700_000_000_000L
     ): GamificationEventEntity = event(
         eventKey = eventKey,
-        eventType = "campaign_route_selected",
-        subjectType = "campaign_route",
-        subjectId = routeId
-    )
+        eventType = "learning_focus_selected",
+        subjectType = "learning_focus_definition",
+        subjectId = FoundationLearningFocusCatalog.definition.id,
+        occurredAtEpochMillis = occurredAtEpochMillis
+    ).copy(metadataJson = "{\"optionId\":\"$optionId\"}")
 
-    private suspend fun unlockCampaignChoice() {
+    private suspend fun unlockLearningFocus() {
         listOf("unlock-term-a", "unlock-term-b", "unlock-term-c").forEachIndexed { index, term ->
-            commitJourney(event("campaign-unlock-$index", subjectId = term))
+            commitJourney(event("learning-focus-unlock-$index", subjectId = term))
         }
     }
 
-    private suspend fun commitCampaignChoice(
+    private suspend fun commitLearningFocus(
         event: GamificationEventEntity,
-        routeId: String
+        optionId: String
     ): RewardWriteResult = dao.recordRewardAtomically(
         event = event,
         transactions = emptyList(),
         summary = emptySummary(event),
         presentationReceipts = emptyList(),
-        campaignRouteChoice = CampaignSettlementPlanner.planChoice(event, routeId)
+        learningFocusSelection = LearningFocusSelectionPlanner.planSelection(event, optionId)
     )
 
-    private fun String.toJourneyInstanceId(): String =
+    private fun String.toPersistedJourneyInstanceId(): String =
         com.cinnamon.app.data.gamification.StableRewardIds.journeyInstanceId(
             actorId = "learner",
             definitionId = this,
@@ -748,6 +997,39 @@ class GamificationLedgerIntegrationTest {
             claimedAtEpochMillis = null
         ),
         metric = CatalogEvidenceMetric.DISTINCT_DUE_REVIEWS_TODAY,
+        evidenceStartsAtEpochMillis = event.occurredAtEpochMillis - 1_000L,
+        evidenceEndsAtEpochMillis = event.occurredAtEpochMillis + 86_400_000L,
+        eligibleForAssignment = true
+    )
+
+    private fun weeklyMasteryQuestCandidate(
+        event: GamificationEventEntity,
+        windowStart: Long,
+        evidenceEnd: Long,
+        expiresAt: Long
+    ) = CatalogQuestSettlementCandidate(
+        instance = QuestInstanceEntity(
+            questInstanceId = "quest-weekly-durable-mastery",
+            actorId = event.actorId,
+            definitionId = "quest.weekly.durable_mastery",
+            catalogVersion = 1,
+            cadence = "weekly",
+            startsAtEpochMillis = windowStart,
+            endsAtEpochMillis = expiresAt,
+            state = "available",
+            progress = 0L,
+            target = 8L,
+            criteriaJson = "{}",
+            rewardJson = "[\"reward.xp.30\"]",
+            createdAtEpochMillis = event.occurredAtEpochMillis,
+            updatedAtEpochMillis = event.occurredAtEpochMillis,
+            completionEventId = null,
+            completedAtEpochMillis = null,
+            claimedAtEpochMillis = null
+        ),
+        metric = CatalogEvidenceMetric.MASTERED_ITEMS_AFTER_DELAY,
+        evidenceStartsAtEpochMillis = windowStart,
+        evidenceEndsAtEpochMillis = evidenceEnd,
         eligibleForAssignment = true
     )
 
@@ -821,9 +1103,10 @@ class GamificationLedgerIntegrationTest {
         eventType: String = "review_completed",
         subjectType: String = "lexicon_entry",
         subjectId: String = eventKey,
-        includePresentationReceipt: Boolean = false
+        includePresentationReceipt: Boolean = false,
+        occurredAtEpochMillis: Long = 1_700_000_000_000L
     ): RewardWriteResult {
-        val now = 1_700_000_000_000L
+        val now = occurredAtEpochMillis
         val eventId = "event-$eventKey"
         val transactionId = "transaction-$eventKey"
         return dao.recordRewardAtomically(

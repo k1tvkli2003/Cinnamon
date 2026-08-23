@@ -1,0 +1,4 @@
+"run","started_at","scenario","am_this_time_ms","am_total_time_ms","catalog_ms","progress_snapshot_ms","progress_import_ms","progress_pipeline_ms","lexicon_seed_ms","catalog_reconciliation_ms","prepare_ms","independent_stage_sum_ms","independent_overlap_ms","trace_ready"
+"1","2026-07-22T16:22:06.6509781+03:30","fresh-app-data",,"1196","266","1","36","37","360","25","675","688","13","True"
+"2","2026-07-22T16:22:09.0391597+03:30","fresh-app-data",,"1308","270","1","20","21","338","21","640","650","10","True"
+"3","2026-07-22T16:22:11.2998754+03:30","fresh-app-data",,"1181","276","1","68","69","336","28","738","709","0","True"

@@ -3,7 +3,10 @@ package com.cinnamon.app.data.local
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-/** Additive migrations only. Existing lexicon, learning, flashcard, and prefs data are untouched. */
+/**
+ * Non-destructive migrations only. Any replacement migration copies and proves exact conservation
+ * transactionally before removing its superseded table; no destructive fallback is permitted.
+ */
 object AppDatabaseMigrations {
     val MIGRATION_1_2: Migration = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -429,6 +432,205 @@ object AppDatabaseMigrations {
                 """
                 CREATE INDEX IF NOT EXISTS `idx_campaign_choices_actor_chosen_at`
                 ON `campaign_route_choices` (`actorId`, `chosenAtEpochMillis`)
+                """.trimIndent()
+            )
+        }
+    }
+
+    /**
+     * Rehomes the immutable v4 selection into the product-canonical Learning Focus table.
+     *
+     * Room runs every [Migration.migrate] body inside one transaction. The temporary guard has a
+     * deliberately strict CHECK constraint: any count, row-value, uniqueness, or foreign-key
+     * mismatch aborts this migration and rolls the whole transaction back before the legacy table
+     * can be removed. Historical events and their frozen wire values are copied verbatim.
+     */
+    val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE `learning_focus_selections` (
+                    `selectionId` TEXT NOT NULL,
+                    `actorId` TEXT NOT NULL,
+                    `definitionId` TEXT NOT NULL,
+                    `definitionVersion` INTEGER NOT NULL,
+                    `optionId` TEXT NOT NULL,
+                    `milestonePlanDefinitionId` TEXT NOT NULL,
+                    `sourceEventId` TEXT NOT NULL,
+                    `selectedAtEpochMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`selectionId`),
+                    FOREIGN KEY(`sourceEventId`) REFERENCES `gamification_events`(`eventId`)
+                        ON UPDATE NO ACTION ON DELETE NO ACTION
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO `learning_focus_selections` (
+                    `selectionId`,
+                    `actorId`,
+                    `definitionId`,
+                    `definitionVersion`,
+                    `optionId`,
+                    `milestonePlanDefinitionId`,
+                    `sourceEventId`,
+                    `selectedAtEpochMillis`
+                )
+                SELECT
+                    `choiceId`,
+                    `actorId`,
+                    `campaignDefinitionId`,
+                    `campaignDefinitionVersion`,
+                    `routeId`,
+                    `journeyDefinitionId`,
+                    `sourceEventId`,
+                    `chosenAtEpochMillis`
+                FROM `campaign_route_choices`
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE UNIQUE INDEX `idx_learning_focus_selections_actor_definition_version`
+                ON `learning_focus_selections` (`actorId`, `definitionId`, `definitionVersion`)
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE INDEX `idx_learning_focus_selections_source_event`
+                ON `learning_focus_selections` (`sourceEventId`)
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE INDEX `idx_learning_focus_selections_actor_selected_at`
+                ON `learning_focus_selections` (`actorId`, `selectedAtEpochMillis`)
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TEMP TABLE `learning_focus_migration_guard` (
+                    `isValid` INTEGER NOT NULL CHECK(`isValid` = 1)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO `learning_focus_migration_guard` (`isValid`)
+                SELECT CASE WHEN
+                    (SELECT COUNT(*) FROM `campaign_route_choices`) =
+                        (SELECT COUNT(*) FROM `learning_focus_selections`)
+                    AND NOT EXISTS (
+                        SELECT
+                            `choiceId`,
+                            `actorId`,
+                            `campaignDefinitionId`,
+                            `campaignDefinitionVersion`,
+                            `routeId`,
+                            `journeyDefinitionId`,
+                            `sourceEventId`,
+                            `chosenAtEpochMillis`
+                        FROM `campaign_route_choices`
+                        EXCEPT
+                        SELECT
+                            `selectionId`,
+                            `actorId`,
+                            `definitionId`,
+                            `definitionVersion`,
+                            `optionId`,
+                            `milestonePlanDefinitionId`,
+                            `sourceEventId`,
+                            `selectedAtEpochMillis`
+                        FROM `learning_focus_selections`
+                    )
+                    AND NOT EXISTS (
+                        SELECT
+                            `selectionId`,
+                            `actorId`,
+                            `definitionId`,
+                            `definitionVersion`,
+                            `optionId`,
+                            `milestonePlanDefinitionId`,
+                            `sourceEventId`,
+                            `selectedAtEpochMillis`
+                        FROM `learning_focus_selections`
+                        EXCEPT
+                        SELECT
+                            `choiceId`,
+                            `actorId`,
+                            `campaignDefinitionId`,
+                            `campaignDefinitionVersion`,
+                            `routeId`,
+                            `journeyDefinitionId`,
+                            `sourceEventId`,
+                            `chosenAtEpochMillis`
+                        FROM `campaign_route_choices`
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM `learning_focus_selections`
+                        GROUP BY `actorId`, `definitionId`, `definitionVersion`
+                        HAVING COUNT(*) > 1
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM `learning_focus_selections` AS `selection`
+                        LEFT JOIN `gamification_events` AS `event`
+                            ON `event`.`eventId` = `selection`.`sourceEventId`
+                        WHERE `event`.`eventId` IS NULL
+                    )
+                THEN 1 ELSE 0 END
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                DROP TABLE `learning_focus_migration_guard`
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                DROP TABLE `campaign_route_choices`
+                """.trimIndent()
+            )
+        }
+    }
+
+    /** Adds a source-attributed MeSH reference atlas without touching learner-owned rows. */
+    val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mesh_reference` (
+                    `meshUi` TEXT NOT NULL,
+                    `term` TEXT NOT NULL,
+                    `normalizedTerm` TEXT NOT NULL,
+                    `scopeNote` TEXT NOT NULL,
+                    `synonymsRaw` TEXT NOT NULL,
+                    `treeNumbersRaw` TEXT NOT NULL,
+                    `categoryRootsRaw` TEXT NOT NULL,
+                    `introducedYear` INTEGER,
+                    `lastUpdated` TEXT,
+                    `sourceYear` INTEGER NOT NULL,
+                    `datasetVersion` TEXT NOT NULL,
+                    PRIMARY KEY(`meshUi`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS `index_mesh_reference_normalizedTerm`
+                ON `mesh_reference` (`normalizedTerm`)
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS `index_mesh_reference_term`
+                ON `mesh_reference` (`term`)
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS `index_mesh_reference_sourceYear`
+                ON `mesh_reference` (`sourceYear`)
                 """.trimIndent()
             )
         }

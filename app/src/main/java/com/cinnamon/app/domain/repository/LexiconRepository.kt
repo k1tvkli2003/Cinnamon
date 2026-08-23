@@ -93,8 +93,63 @@ class LexiconRepository private constructor(context: Context) {
                 throw StaleReviewAttemptException()
             }
 
+            if (!isSuccessfulReviewQuality(quality)) {
+                gamification.record(
+                    LearningEventCommand(
+                        eventType = RewardableEventType.MISTAKE_RECORDED,
+                        subjectType = REVIEW_SUBJECT_TYPE,
+                        subjectId = current.id.toString(),
+                        occurrenceKey = "$occurrenceKey:mistake_v1",
+                        completedItemCount = 1,
+                        source = LearningEventSource.REVIEW,
+                        occurredAtEpochMillis = occurredAtEpochMillis
+                    )
+                )
+            }
+
             val updated = scheduleReview(current, quality, occurredAtEpochMillis)
             lexicon.update(updated)
+            // Queue completion is derived only after Room persists the new schedule. The
+            // gamification repository rechecks the opening snapshot and dueCount=0.
+            val queueClearWrite = gamification.recordVerifiedReviewQueueCleared(
+                occurredAtEpochMillis = occurredAtEpochMillis
+            )
+            val repairWrite = if (
+                isSuccessfulReviewQuality(quality) &&
+                current.dueAt > 0L &&
+                occurredAtEpochMillis >= current.dueAt
+            ) {
+                gamification.recordVerifiedMistakeCorrection(
+                    subjectType = REVIEW_SUBJECT_TYPE,
+                    subjectId = current.id.toString(),
+                    occurrenceKey = "$occurrenceKey:repair_v1",
+                    source = LearningEventSource.REVIEW,
+                    occurredAtEpochMillis = occurredAtEpochMillis
+                )
+            } else {
+                null
+            }
+            // One distinct item can become delayed-recall evidence only when the immutable review
+            // ledger proves this successful answer follows a prior successful review by 72 hours.
+            // The evidence has no direct XP rule; catalog settlement remains the sole reward path.
+            val delayedRecallWrite = if (isSuccessfulReviewQuality(quality)) {
+                gamification.recordVerifiedDelayedRecall(
+                    lexiconEntryId = current.id,
+                    occurrenceKey = "$occurrenceKey:delayed_recall_v1",
+                    occurredAtEpochMillis = occurredAtEpochMillis
+                )
+            } else {
+                null
+            }
+            val savedItemReviewWrite = if (isSuccessfulReviewQuality(quality)) {
+                gamification.recordVerifiedSavedItemReview(
+                    lexiconEntryId = current.id,
+                    occurrenceKey = "$occurrenceKey:saved_item_review_v1",
+                    occurredAtEpochMillis = occurredAtEpochMillis
+                )
+            } else {
+                null
+            }
             val masteryWrite = if (
                 isConceptMasteryPromotion(
                     quality = quality,
@@ -120,7 +175,11 @@ class LexiconRepository private constructor(context: Context) {
             ReviewCommitResult(
                 entry = updated,
                 xpAwarded = (rewardWrite?.summary?.xpAwarded ?: 0L)
+                    .plus(repairWrite?.summary?.xpAwarded ?: 0L)
+                    .plus(delayedRecallWrite?.summary?.xpAwarded ?: 0L)
+                    .plus(savedItemReviewWrite?.summary?.xpAwarded ?: 0L)
                     .plus(masteryWrite?.summary?.xpAwarded ?: 0L)
+                    .plus(queueClearWrite?.summary?.xpAwarded ?: 0L)
                     .toSafeInt(),
                 wasAlreadyCommitted = false
             )
@@ -159,7 +218,10 @@ class LexiconRepository private constructor(context: Context) {
 
     /** Due cards first, then brand-new words fill the rest of the session. */
     suspend fun buildReviewSession(limit: Int = 16): List<LexiconEntry> {
-        val due = lexicon.dueEntries(System.currentTimeMillis(), limit)
+        val now = System.currentTimeMillis()
+        // Snapshot the full Room queue before limiting the visible session.
+        gamification.recordReviewQueueOpened(now)
+        val due = lexicon.dueEntries(now, limit)
         val remaining = limit - due.size
         val fresh = if (remaining > 0) lexicon.freshEntries(remaining) else emptyList()
         return due.shuffled() + fresh.shuffled()
@@ -172,8 +234,21 @@ class LexiconRepository private constructor(context: Context) {
         }
     }
 
-    suspend fun toggleBookmark(entry: LexiconEntry) {
-        lexicon.update(entry.copy(isBookmarked = !entry.isBookmarked))
+    suspend fun toggleBookmark(entry: LexiconEntry, occurredAtEpochMillis: Long = System.currentTimeMillis()) {
+        db.withTransaction {
+            val current = checkNotNull(lexicon.entryByIdOnce(entry.id)) {
+                "Bookmark entry ${entry.id} no longer exists"
+            }
+            val becomesBookmarked = !current.isBookmarked
+            lexicon.update(current.copy(isBookmarked = becomesBookmarked))
+            if (becomesBookmarked) {
+                gamification.recordBookmarkSaved(
+                    lexiconEntryId = current.id,
+                    occurrenceKey = "bookmark-v1:${current.id}:$occurredAtEpochMillis",
+                    occurredAtEpochMillis = occurredAtEpochMillis
+                )
+            }
+        }
     }
 
     // ── Daily word ──────────────────────────────────────────────────────────

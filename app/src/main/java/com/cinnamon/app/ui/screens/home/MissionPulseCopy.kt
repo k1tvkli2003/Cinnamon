@@ -25,11 +25,11 @@ internal fun missionPulseCopy(
     }
     val detail = when {
         quest?.claimed == true -> {
-            "Reward secured. This daily milestone stays complete."
+            "Reward earned. This daily quest stays complete."
         }
 
         quest?.claimable == true -> {
-            "Three verified reviews recorded. Claim your one-time daily reward."
+            "Three distinct reviews completed. Claim your one-time daily reward."
         }
 
         quest != null -> quest.detail

@@ -11,7 +11,14 @@ data class CatalogEvidenceSnapshot(
     val dueItemCountNow: Int = 0,
     val masteredItemsAfterDelay: Int = 0,
     val rhythmWeeks: Int = 0,
-    val distinctPracticeContentKinds: Int = 0
+    val distinctPracticeContentKinds: Int = 0,
+    val repairedItems: Int = 0,
+    val resolvedConfusablePairs: Int = 0,
+    val verifiedContextApplications: Int = 0,
+    val verifiedDelayedRecalls: Int = 0,
+    val verifiedComebackSessions: Int = 0,
+    val verifiedSavedItems: Int = 0,
+    val verifiedReviewQueueClearDays: Int = 0
 )
 
 data class CatalogQuestProjection(
@@ -143,6 +150,15 @@ object CatalogProgressProjector {
             clause.isDelayedMasteryCriterion() -> evidence.masteredItemsAfterDelay
             clause.isRhythmWeekCriterion() -> evidence.rhythmWeeks
             clause.isContentBreadthCriterion() -> evidence.distinctPracticeContentKinds
+            clause.isRepairCriterion() || clause.isSingleRepairQuestCriterion() -> evidence.repairedItems
+            clause.isConfusablePrecisionCriterion() || clause.isDailyConfusableQuestCriterion() ->
+                evidence.resolvedConfusablePairs
+            clause.isContextApplicationCriterion() -> evidence.verifiedContextApplications
+            clause.isDelayedRecallCriterion() -> evidence.verifiedDelayedRecalls
+            clause.isGentleReturnCriterion() -> evidence.verifiedComebackSessions
+            clause.isSavedItemReviewCriterion() -> evidence.verifiedSavedItems
+            clause.isReviewQueueClearAchievementCriterion() ->
+                evidence.verifiedReviewQueueClearDays
             else -> null
         }?.coerceAtLeast(0)
     }
@@ -211,6 +227,111 @@ private fun CriterionClause.isContentBreadthCriterion(): Boolean =
         distinctBy == DistinctDimension.CONTENT_KIND &&
         minimumDelayHours == 0 &&
         filters.isEmpty()
+
+private fun CriterionClause.isRepairCriterion(): Boolean {
+    if (
+        metric != LearningMetric.MISTAKE_REPAIRED ||
+        aggregation != CriterionAggregation.COUNT_DISTINCT ||
+        distinctBy != DistinctDimension.SUBJECT_ID ||
+        minimumDelayHours != 0 ||
+        filters.size != 2
+    ) {
+        return false
+    }
+    val filtersByField = filters.associateBy { filter -> filter.field }
+    return filtersByField.size == 2 &&
+        filtersByField["repair_link_present"]?.let { filter ->
+            filter.operator == ComparisonOperator.EQ && filter.value == "true"
+        } == true &&
+        filtersByField["incorrect_attempt_precedes_correction"]?.let { filter ->
+            filter.operator == ComparisonOperator.EQ && filter.value == "true"
+        } == true
+}
+
+private fun CriterionClause.isSingleRepairQuestCriterion(): Boolean =
+    metric == LearningMetric.MISTAKE_REPAIRED &&
+        aggregation == CriterionAggregation.BOOLEAN &&
+        distinctBy == DistinctDimension.NONE &&
+        minimumDelayHours == 0 &&
+        filters.singleOrNull()?.let { filter ->
+            filter.field == "repair_link_present" &&
+                filter.operator == ComparisonOperator.EQ &&
+                filter.value == "true"
+        } == true
+
+private fun CriterionClause.isConfusablePrecisionCriterion(): Boolean =
+    metric == LearningMetric.CONFUSABLE_PAIR_RESOLVED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.CONFUSABLE_PAIR &&
+        minimumDelayHours >= 24 &&
+        filters.isEmpty()
+
+private fun CriterionClause.isDailyConfusableQuestCriterion(): Boolean =
+    metric == LearningMetric.CONFUSABLE_PAIR_RESOLVED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.CONFUSABLE_PAIR &&
+        minimumDelayHours == 0 &&
+        filters.isEmpty()
+
+private fun CriterionClause.isContextApplicationCriterion(): Boolean =
+    metric == LearningMetric.NEW_ITEM_APPLIED_IN_CONTEXT &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.SUBJECT_ID &&
+        minimumDelayHours == 0 &&
+        filters.singleOrNull()?.let { filter ->
+            filter.field == "application_verified" &&
+                filter.operator == ComparisonOperator.EQ &&
+                filter.value == "true"
+        } == true
+
+private fun CriterionClause.isDelayedRecallCriterion(): Boolean =
+    metric == LearningMetric.DELAYED_RECALL_SUCCEEDED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.SUBJECT_ID &&
+        minimumDelayHours >= 72 &&
+        filters.isEmpty()
+
+private fun CriterionClause.isGentleReturnCriterion(): Boolean {
+    if (
+        metric != LearningMetric.COMEBACK_SESSION_COMPLETED ||
+        aggregation != CriterionAggregation.BOOLEAN ||
+        distinctBy != DistinctDimension.NONE ||
+        minimumDelayHours != 0 ||
+        filters.size != 2
+    ) {
+        return false
+    }
+    val filtersByField = filters.associateBy { it.field }
+    return filtersByField.size == 2 &&
+        filtersByField["absence_days"]?.let {
+            it.operator == ComparisonOperator.GTE && it.value.toIntOrNull() == 7
+        } == true &&
+        filtersByField["meaningful_actions"]?.let {
+            it.operator == ComparisonOperator.GTE && it.value.toIntOrNull() == 3
+        } == true
+}
+
+private fun CriterionClause.isSavedItemReviewCriterion(): Boolean =
+    metric == LearningMetric.SAVED_ITEM_REVIEWED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.SUBJECT_ID &&
+        minimumDelayHours >= 1 &&
+        filters.singleOrNull()?.let {
+            it.field == "successful_review_count" &&
+                it.operator == ComparisonOperator.GTE &&
+                it.value.toIntOrNull() == 1
+        } == true
+
+private fun CriterionClause.isReviewQueueClearAchievementCriterion(): Boolean =
+    metric == LearningMetric.REVIEW_QUEUE_CLEARED &&
+        aggregation == CriterionAggregation.COUNT_DISTINCT &&
+        distinctBy == DistinctDimension.DAY &&
+        minimumDelayHours == 0 &&
+        filters.singleOrNull()?.let {
+            it.field == "starting_due_count" &&
+                it.operator == ComparisonOperator.GTE &&
+                it.value.toIntOrNull() == 5
+        } == true
 
 private fun GamificationCopyCatalog.required(key: String): String =
     strings[key] ?: error("Validated gamification copy is missing key: $key")

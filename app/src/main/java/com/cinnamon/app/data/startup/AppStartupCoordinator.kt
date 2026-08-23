@@ -6,10 +6,15 @@ import com.cinnamon.app.data.gamification.GamificationCatalogRepository
 import com.cinnamon.app.data.gamification.GamificationRepository
 import com.cinnamon.app.data.prefs.ProgressStore
 import com.cinnamon.app.data.seed.LexiconSeeder
+import com.cinnamon.app.data.seed.MeshReferenceSeeder
 import com.cinnamon.app.domain.gamification.GamificationCatalogBundle
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +23,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * One visible, retryable startup contract for every prerequisite needed before
@@ -26,8 +32,11 @@ import kotlinx.coroutines.withContext
  */
 object AppStartupCoordinator {
     private const val TAG = "AppStartup"
+    private const val REFERENCE_ATLAS_WARMUP_DELAY_MILLIS = 1_500L
 
     private val mutex = Mutex()
+    private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val atlasWarmupRequested = AtomicBoolean(false)
     private val _state = MutableStateFlow<AppStartupState>(AppStartupState.NotStarted)
     val state: StateFlow<AppStartupState> = _state.asStateFlow()
     private val _catalogCopy = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -56,10 +65,17 @@ object AppStartupCoordinator {
                                 }
                             }
                             try {
-                                stage = AppStartupStage.ProgressImport
+                                // The first Room query opens the database and runs any pending
+                                // schema migration. Keep that failure distinct from importing the
+                                // legacy DataStore snapshot so recovery guidance is truthful.
+                                stage = AppStartupStage.DatabaseMigration
                                 val gamificationRepository = GamificationRepository.getInstance(context)
+                                val legacyProgressImported = StartupPerformanceTrace.measure("database_open") {
+                                    gamificationRepository.isLegacyProgressImported()
+                                }
+                                stage = AppStartupStage.ProgressImport
                                 val legacySnapshot = StartupPerformanceTrace.measure("progress_snapshot") {
-                                    if (gamificationRepository.isLegacyProgressImported()) {
+                                    if (legacyProgressImported) {
                                         null
                                     } else {
                                         ProgressStore.getInstance(context).snapshot.first()
@@ -97,7 +113,10 @@ object AppStartupCoordinator {
                         _catalogBundle.value = catalog
                         _catalogCopy.value = catalog.copy.strings
 
-                        AppStartupState.Ready.also { _state.value = it }
+                        AppStartupState.Ready.also {
+                            _state.value = it
+                            scheduleReferenceAtlasWarmup(context.applicationContext)
+                        }
                     } catch (cancellation: CancellationException) {
                         _state.value = AppStartupState.NotStarted
                         _catalogCopy.value = emptyMap()
@@ -114,6 +133,34 @@ object AppStartupCoordinator {
                 }
             }
         }
+
+    /**
+     * The broad reference atlas is useful but is not a prerequisite for Home,
+     * review, Questboard or the authored lexicon. Warm it after critical
+     * readiness so first-run learners are never held behind a multi-second
+     * optional import.
+     */
+    private fun scheduleReferenceAtlasWarmup(context: Context) {
+        if (!atlasWarmupRequested.compareAndSet(false, true)) return
+        backgroundScope.launch {
+            delay(REFERENCE_ATLAS_WARMUP_DELAY_MILLIS)
+            try {
+                StartupPerformanceTrace.measure("mesh_reference_background_seed") {
+                    MeshReferenceSeeder.seedIfNeeded(context)
+                }
+            } catch (cancellation: CancellationException) {
+                atlasWarmupRequested.set(false)
+                throw cancellation
+            } catch (error: Exception) {
+                atlasWarmupRequested.set(false)
+                Log.e(
+                    TAG,
+                    "Optional reference atlas warmup failed " +
+                        "(${error.javaClass.simpleName})"
+                )
+            }
+        }
+    }
 }
 
 sealed interface AppStartupState {
@@ -125,6 +172,7 @@ sealed interface AppStartupState {
 
 enum class AppStartupStage {
     GamificationCatalog,
+    DatabaseMigration,
     CatalogReconciliation,
     JourneyReconciliation,
     ProgressImport,

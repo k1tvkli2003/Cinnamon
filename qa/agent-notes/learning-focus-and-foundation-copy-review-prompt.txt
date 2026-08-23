@@ -1,0 +1,23 @@
+You are the mandatory second-opinion product copy reviewer for Cinnamon, an offline-first Android companion for one advanced medical student improving English and Medical English. The learner already knows medicine. The product develops pronunciation, natural usage, collocations, register, active recall, and durable SRS review; it does not certify clinical competence or fluency.
+
+We are removing a mistaken generic adventure metaphor. The UI must not say Campaign, Expedition, Trail, Circuit, Route, Chapter, Focus Cycle, Mastery Track, clinical pathway, treatment, diagnosis, sync, adaptive, tailored, or anything implying medical outcomes. It should remain warm, motivating, adult, concise, and clearly gamified without childish fantasy.
+
+The implementation truth is fixed:
+
+- A four-milestone Foundation plan: review 3 distinct terms; use 2 distinct practice formats; confirm delayed mastery for 1 item; learn on 3 distinct days. Rewards are 10/20/20/30 XP only after completion.
+- After Foundation milestone 1, the learner may select one immutable v1 Learning Focus. Selection earns 0 XP and can not be changed in this version.
+- Language Precision milestones: 3 distinct practice formats; 2 delayed-mastery items; 5 active days.
+- Recall Range milestones: 8 distinct reviewed items; 4 distinct practice formats; 5 active days.
+- A focus selection is stored locally. It progresses only from qualifying recorded evidence after the selection timestamp. There is no switch, next focus, recurring cycle, cloud sync, automatic repair, or personalization.
+
+Review and improve the proposed vocabulary and provide one final canonical English copy set, not options. Include:
+
+1. Progress screen title and first tab label.
+2. Foundation eyebrow/title/description, four milestone titles/descriptions/actions, progress labels, locked/active/complete labels, completion title/body, loading and recovery copy.
+3. Learning Focus section label, locked copy, choice hero eyebrow/title/body/zero-XP note.
+4. Language Precision and Recall Range titles/taglines/three compact metric labels/CTA.
+5. Immutable-choice confirmation title/body/confirm/cancel, saving, save failure, record mismatch.
+6. Active focus eyebrow/progress/reward/complete copy and three milestone state labels.
+7. Concise accessibility labels for locked, option, active summary, and milestone.
+
+Every sentence must be truthful to the implementation above. Prefer plain, natural product English. Avoid internal words such as ledger, verified, projection, definition, source event, commitment, secured, or reconciliation. Flag any proposed phrase that overclaims or sounds dry, coercive, or generic.

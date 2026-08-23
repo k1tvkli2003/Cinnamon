@@ -54,7 +54,7 @@ class MissionPulseCopyTest {
 
         assertEquals("Daily quest complete", copy.title)
         assertEquals(
-            "Three verified reviews recorded. Claim your one-time daily reward.",
+            "Three distinct reviews completed. Claim your one-time daily reward.",
             copy.detail
         )
     }
@@ -67,7 +67,7 @@ class MissionPulseCopyTest {
         )
 
         assertEquals("Quest cleared", copy.title)
-        assertEquals("Reward secured. This daily milestone stays complete.", copy.detail)
+        assertEquals("Reward earned. This daily quest stays complete.", copy.detail)
     }
 
     private fun quest(

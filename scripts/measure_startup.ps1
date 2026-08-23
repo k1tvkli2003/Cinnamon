@@ -106,6 +106,8 @@ function Get-TraceStageMilliseconds {
 function Get-Percentile {
     param(
         [Parameter(Mandatory)]
+        [AllowNull()]
+        [AllowEmptyCollection()]
         [object[]]$Values,
         [Parameter(Mandatory)]
         [ValidateRange(0.0, 1.0)]
